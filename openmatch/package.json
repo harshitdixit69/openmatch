@@ -29,6 +29,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build": "expo export --platform web --output-dir dist",
+    "vercel-build": "expo export --platform web --output-dir dist",
     "backfill:embeddings": "node ./scripts/backfillProfileEmbeddings.mjs",
     "check:phase3": "node ./scripts/phase3IntegrationCheck.mjs",
     "check:phase3:cleanup": "node ./scripts/phase3IntegrationCheck.mjs --cleanup",

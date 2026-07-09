@@ -45,3 +45,5 @@ eas.json.local
 # generated native folders
 /ios
 /android
+
+dist/

@@ -1104,6 +1104,8 @@ const styles = StyleSheet.create({
         marginBottom: 22,
     },
     headerRowStacked: {
+        alignItems: 'stretch',
+        flexDirection: 'column',
         gap: 14,
     },
     headerCopy: {
