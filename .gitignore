@@ -1,0 +1,33 @@
+# OS Files
+.DS_Store
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Node Modules
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Supabase
+supabase/.temp/
+supabase/.cli/
+supabase/functions/.env
+
+# Expo / build artifacts
+.expo/
+dist/
+web-build/
+*.orig.*
+
+# Ignore temporary AI/search files
+.tmp_*.json
+skills-lock.json

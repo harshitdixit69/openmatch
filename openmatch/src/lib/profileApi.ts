@@ -1,0 +1,236 @@
+import { supabase } from './supabase';
+import { ProfileContactDetails, ProfileContactInput, ProfileInput, ProfileRecord } from './profile';
+
+const baseProfileSelect = 'id, full_name, gender, dob, location, bio, preferences, height_cm, profile_owner, onboarding_completed_at';
+const profileSelect = `${baseProfileSelect}, partner_gender_preference, photo_urls`;
+const profileContactSelect = 'profile_id, phone_number, whatsapp_number';
+
+function isMissingOptionalProfileColumn(error: { message?: string } | null | undefined) {
+    const message = error?.message ?? '';
+    return /(partner_gender_preference|photo_urls)/i.test(message) && /column/i.test(message) && /does not exist/i.test(message);
+}
+
+function withFallbackOptionalProfileFields(
+    profile: Omit<ProfileRecord, 'partner_gender_preference' | 'photo_urls'> | null,
+): ProfileRecord | null {
+    if (!profile) {
+        return null;
+    }
+
+    return {
+        ...profile,
+        partner_gender_preference: null,
+        photo_urls: [],
+    };
+}
+
+async function fetchProfileByUserId(userId: string) {
+    const { data, error } = await supabase
+        .from('profiles')
+        .select(profileSelect)
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (!error) {
+        return data as ProfileRecord | null;
+    }
+
+    if (!isMissingOptionalProfileColumn(error)) {
+        throw error;
+    }
+
+    const fallback = await supabase
+        .from('profiles')
+        .select(baseProfileSelect)
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (fallback.error) {
+        throw fallback.error;
+    }
+
+    return withFallbackOptionalProfileFields(
+        fallback.data as Omit<ProfileRecord, 'partner_gender_preference' | 'photo_urls'> | null,
+    );
+}
+
+async function getCurrentSessionUser() {
+    const {
+        data: { session },
+        error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+        throw sessionError;
+    }
+
+    if (session?.user) {
+        return session.user;
+    }
+
+    const {
+        data: { user },
+        error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+        throw userError;
+    }
+
+    return user;
+}
+
+function mapProfileContactDetails(
+    row: ({ profile_id: string } & ProfileContactDetails) | null,
+): ProfileContactDetails | null {
+    if (!row) {
+        return null;
+    }
+
+    return {
+        phone_number: row.phone_number ?? null,
+        whatsapp_number: row.whatsapp_number ?? null,
+    };
+}
+
+function normalizeContactField(value: string | null | undefined) {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
+}
+
+export async function fetchCurrentProfile(userId?: string): Promise<ProfileRecord | null> {
+    if (userId) {
+        return fetchProfileByUserId(userId);
+    }
+
+    const user = await getCurrentSessionUser();
+
+    if (!user) {
+        return null;
+    }
+
+    return fetchProfileByUserId(user.id);
+}
+
+export async function fetchCurrentProfileContactDetails(userId?: string): Promise<ProfileContactDetails | null> {
+    const targetUserId = userId ?? (await getCurrentSessionUser())?.id;
+
+    if (!targetUserId) {
+        return null;
+    }
+
+    const { data, error } = await supabase
+        .from('profile_contact_details')
+        .select(profileContactSelect)
+        .eq('profile_id', targetUserId)
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    return mapProfileContactDetails(data as ({ profile_id: string } & ProfileContactDetails) | null);
+}
+
+export async function upsertCurrentProfileContactDetails(input: ProfileContactInput): Promise<ProfileContactDetails> {
+    const user = await getCurrentSessionUser();
+
+    if (!user) {
+        throw new Error('You must be signed in to save contact details.');
+    }
+
+    const payload = {
+        profile_id: user.id,
+        phone_number: normalizeContactField(input.phone_number),
+        whatsapp_number: normalizeContactField(input.whatsapp_number),
+        updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+        .from('profile_contact_details')
+        .upsert(payload)
+        .select(profileContactSelect)
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return mapProfileContactDetails(data as { profile_id: string } & ProfileContactDetails) as ProfileContactDetails;
+}
+
+export async function updateCurrentProfilePhotoUrls(photoUrls: string[]): Promise<ProfileRecord> {
+    const user = await getCurrentSessionUser();
+
+    if (!user) {
+        throw new Error('You must be signed in to update profile photos.');
+    }
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .update({ photo_urls: photoUrls })
+        .eq('id', user.id)
+        .select(profileSelect)
+        .maybeSingle();
+
+    if (!error && data) {
+        return data as ProfileRecord;
+    }
+
+    if (isMissingOptionalProfileColumn(error)) {
+        throw new Error('Profile photos are not available until the latest database migration is applied.');
+    }
+
+    if (error) {
+        throw error;
+    }
+
+    throw new Error('Your profile could not be found.');
+}
+
+export async function upsertCurrentProfile(input: ProfileInput): Promise<ProfileRecord> {
+    const user = await getCurrentSessionUser();
+
+    if (!user) {
+        throw new Error('You must be signed in to save a profile.');
+    }
+
+    const payload = {
+        id: user.id,
+        ...input,
+        onboarding_completed_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .upsert(payload)
+        .select(profileSelect)
+        .single();
+
+    if (!error) {
+        return data as ProfileRecord;
+    }
+
+    if (!isMissingOptionalProfileColumn(error)) {
+        throw error;
+    }
+
+    const {
+        partner_gender_preference: _unusedPartnerGenderPreference,
+        photo_urls: _unusedPhotoUrls,
+        ...legacyPayload
+    } = payload;
+    const fallback = await supabase
+        .from('profiles')
+        .upsert(legacyPayload)
+        .select(baseProfileSelect)
+        .single();
+
+    if (fallback.error) {
+        throw fallback.error;
+    }
+
+    return withFallbackOptionalProfileFields(
+        fallback.data as Omit<ProfileRecord, 'partner_gender_preference' | 'photo_urls'>,
+    ) as ProfileRecord;
+}

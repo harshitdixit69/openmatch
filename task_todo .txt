@@ -1,0 +1,38 @@
+aafter this i need  to implement a new func tionaly that will try to help perple to comm with eachother like a brocker
+like example 
+user a sents a req to user b and user b accepted to but by some reason they cant comm with eachother like the forgot ot something so for these type of issue use ai as a brocker who ask both the member like if they wanna get connect with each other on whatsapp or something the ai will help them for this 
+
+like ai agent will call user A to tell them about a user B and ask them ques completly as a real broker person talk to users and will do ques ans with them and will ask them to if they want to coonect or not  
+
+
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94ZGhramVybmhwa3NjcmlkZWJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NTg1NDgsImV4cCI6MjA5NTEzNDU0OH0.duzjLyOIQxQ6PbsII6QonSvAXKi_qhdjbmH094-0gsw
+
+
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94ZGhramVybmhwa3NjcmlkZWJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NTg1NDgsImV4cCI6MjA5NTEzNDU0OH0.duzjLyOIQxQ6PbsII6QonSvAXKi_qhdjbmH094-0gsw
+
+
+EXPO_PUBLIC_SUPABASE_URL=https://oxdhkjernhpkscrideby.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94ZGhramVybmhwa3NjcmlkZWJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NTg1NDgsImV4cCI6MjA5NTEzNDU0OH0.duzjLyOIQxQ6PbsII6QonSvAXKi_qhdjbmH094-0gsw
+
+
+RETELL_API_KEY = key_782837d2aae76332e6f89033300f
+RETELL_AGENT_ID = Conversation Flow Agent
+
+
+
+retail as Termination URI - openmatch-broker.pstn.twilio.com
+
+
+supabase secrets set \
+  RETELL_API_KEY="key_782837d2aae76332e6f89033300f" \
+  RETELL_AGENT_ID="agent_0835e92d46f1a46ac4e82f8d75" \
+  RETELL_FROM_NUMBER="+919569765152" \
+  RETELL_WEBHOOK_SECRET="key_0185c25d56d11082280b1346ba44" \
+  --project-ref oxdhkjernhpkscrideby
+
+
+  supabase secrets set \
+  RETELL_WEBHOOK_SECRET="key_0185c25d56d11082280b1346ba44" \
+  --project-ref oxdhkjernhpkscrideby
