@@ -970,7 +970,7 @@ export function ChatScreen({
                         />
 
                         <View style={styles.headerCopy}>
-                            <Text style={styles.title}>
+                            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
                                 {activeMatch ? activeMatch.otherUserName : currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
                             </Text>
                         </View>
@@ -3125,9 +3125,9 @@ const styles = StyleSheet.create({
     },
     title: {
         color: '#102a43',
-        fontSize: 26,
+        fontSize: 20,
         fontWeight: '700',
-        letterSpacing: -0.4,
+        letterSpacing: -0.3,
     },
     subtitle: {
         color: '#6b7d82',
