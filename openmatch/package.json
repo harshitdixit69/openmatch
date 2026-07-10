@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -30,6 +31,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "postinstall": "patch-package",
     "build": "expo export --platform web --output-dir dist",
     "vercel-build": "expo export --platform web --output-dir dist",
     "backfill:embeddings": "node ./scripts/backfillProfileEmbeddings.mjs",
