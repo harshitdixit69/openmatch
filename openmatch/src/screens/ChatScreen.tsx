@@ -1845,22 +1845,26 @@ export function ChatScreen({
                                         <Text style={styles.unlockEyebrow}>Payment pending</Text>
                                         <Text style={styles.unlockTitle}>Pay your share</Text>
                                     </View>
+                                    <Text style={styles.unlockBadge}>No subscription</Text>
+                                </View>
+
+                                <Text style={styles.unlockBody}>
+                                    {activeMatch.unlockState.hasOtherUserPaid
+                                        ? `${activeMatch.otherUserName} already paid. Pay your share now to unlock direct chat for both of you.`
+                                        : 'Both of you agreed. Each person pays the same one-time amount before contact details become visible.'}
+                                </Text>
+
+                                <View style={styles.unlockActionsRow}>
                                     <Pressable
                                         style={[styles.unlockButton, unlocking ? styles.sendButtonDisabled : null]}
                                         onPress={() => void handleUnlock()}
                                         disabled={unlocking}
                                     >
                                         <Text style={styles.unlockButtonText}>
-                                            {unlocking ? 'Working...' : activeMatch.unlockState.hasOtherUserPaid ? 'Pay & unlock' : 'Pay'}
+                                            {unlocking ? 'Working...' : activeMatch.unlockState.hasOtherUserPaid ? 'Pay and unlock' : 'Pay your share'}
                                         </Text>
                                     </Pressable>
                                 </View>
-
-                                <Text style={styles.unlockBody}>
-                                    {activeMatch.unlockState.hasOtherUserPaid
-                                        ? `${activeMatch.otherUserName} already paid — pay your equal share to unlock direct chat.`
-                                        : 'Both agreed. Each pays the same one-time amount to reveal contact details.'}
-                                </Text>
                             </View>
                         ) : null}
 
@@ -3521,10 +3525,10 @@ const styles = StyleSheet.create({
     },
     unlockRequestInlineCard: {
         backgroundColor: '#14313a',
-        borderRadius: 14,
-        gap: 6,
-        marginBottom: 10,
-        padding: 12,
+        borderRadius: 20,
+        gap: 12,
+        marginBottom: 12,
+        padding: 18,
     },
     unlockModalBackdrop: {
         alignItems: 'center',
@@ -3570,25 +3574,25 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     unlockHeaderRow: {
-        alignItems: 'center',
+        alignItems: 'flex-start',
         flexDirection: 'row',
         gap: 12,
         justifyContent: 'space-between',
     },
     unlockCopy: {
         flex: 1,
-        gap: 2,
+        gap: 4,
     },
     unlockEyebrow: {
         color: '#f1c57b',
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
     unlockTitle: {
         color: '#ffffff',
-        fontSize: 16,
+        fontSize: 20,
         fontWeight: '800',
     },
     unlockBadge: {
@@ -3603,15 +3607,15 @@ const styles = StyleSheet.create({
     },
     unlockBody: {
         color: '#d6e3e6',
-        fontSize: 12,
-        lineHeight: 17,
+        fontSize: 14,
+        lineHeight: 21,
     },
     unlockButton: {
         alignSelf: 'flex-start',
         backgroundColor: '#d9643d',
         borderRadius: 999,
         paddingHorizontal: 18,
-        paddingVertical: 9,
+        paddingVertical: 12,
     },
     unlockActionsRow: {
         flexDirection: 'row',

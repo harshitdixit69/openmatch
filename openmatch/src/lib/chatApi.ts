@@ -32,36 +32,6 @@ supabase.auth.onAuthStateChange(() => {
     cachedChatMatches = null;
 });
 
-// Supabase's `functions.invoke` rejects non-2xx responses with a generic
-// FunctionsHttpError whose message is always "Edge Function returned a non-2xx
-// status code". The real, human-readable reason is in the JSON body of the
-// attached Response (`error.context`). This unwraps it so callers can surface
-// the actual cause (e.g. "Both people must accept the unlock request...").
-async function normalizeFunctionError(error: unknown, fallback: string): Promise<Error> {
-    const context = (error as { context?: unknown } | null)?.context;
-    if (context instanceof Response) {
-        try {
-            const cloned = context.clone();
-            const body = await cloned.json().catch(() => null);
-            const message =
-                body && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
-                    ? (body as { error: string }).error
-                    : null;
-            if (message) {
-                return new Error(message);
-            }
-        } catch {
-            // ignore and fall through to the fallback below
-        }
-    }
-
-    if (error instanceof Error && error.message && error.message !== 'Edge Function returned a non-2xx status code') {
-        return error;
-    }
-
-    return new Error(fallback);
-}
-
 type MatchRow = {
     id: string;
     user_1_id: string;
@@ -717,7 +687,7 @@ export async function createUnlockPaymentIntent(matchId: string): Promise<Unlock
     });
 
     if (error) {
-        throw await normalizeFunctionError(error, 'Could not start the unlock payment.');
+        throw error;
     }
 
     const payload = data as CreateUnlockPaymentIntentResponse | null;
@@ -752,7 +722,7 @@ export async function updateMatchUnlock(matchId: string, action: MatchUnlockActi
     });
 
     if (error) {
-        throw await normalizeFunctionError(error, 'Could not update the unlock request.');
+        throw error;
     }
 
     const payload = data as UpdateMatchUnlockResponse | null;
