@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -36,6 +36,7 @@ import {
     fetchChatMatchById,
     fetchChatMatches,
     fetchChatMessages,
+    getCachedChatMatches,
     markInterestRequestFirstReply,
     markMatchMessagesRead,
     sendEscrowMessage,
@@ -90,8 +91,9 @@ export function ChatScreen({
 }: ChatScreenProps) {
     const { width: windowWidth } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
-    const [matches, setMatches] = useState<ChatMatch[]>([]);
-    const [matchesLoading, setMatchesLoading] = useState(true);
+    const initialCachedMatches = getCachedChatMatches();
+    const [matches, setMatches] = useState<ChatMatch[]>(initialCachedMatches ?? []);
+    const [matchesLoading, setMatchesLoading] = useState(!initialCachedMatches);
     const [matchesRefreshing, setMatchesRefreshing] = useState(false);
     const [matchSearchQuery, setMatchSearchQuery] = useState('');
     const [matchListFilter, setMatchListFilter] = useState<ChatListFilter>(initialMatchListFilter);
@@ -124,8 +126,16 @@ export function ChatScreen({
     const [trustLoadingProfileId, setTrustLoadingProfileId] = useState<string | null>(null);
     const [premiumPopup, setPremiumPopup] = useState<PremiumPromoVariant | null>(null);
 
+    // Guards against overlapping / duplicate loadMatches runs (mount effect,
+    // three realtime subscriptions and action handlers can all trigger it).
+    // Concurrent callers share the single in-flight fetch instead of each
+    // firing their own network round-trip.
+    const matchesInFlightRef = useRef<Promise<void> | null>(null);
+
     useEffect(() => {
-        void loadMatches(true);
+        // If we already have cached matches, refresh silently in the background
+        // (no full-screen spinner). Otherwise show the loader for the first load.
+        void loadMatches(!initialCachedMatches);
         void syncCurrentUser();
     }, []);
 
@@ -341,27 +351,40 @@ export function ChatScreen({
     }
 
     async function loadMatches(showLoader: boolean) {
+        // If a fetch is already running, reuse it instead of starting a
+        // duplicate network round-trip (dedupes dev double-mount + overlapping
+        // realtime triggers).
+        if (matchesInFlightRef.current) {
+            return matchesInFlightRef.current;
+        }
+
         if (showLoader) {
             setMatchesLoading(true);
         } else {
             setMatchesRefreshing(true);
         }
 
-        try {
-            const nextMatches = await fetchChatMatches();
-            setMatches(nextMatches);
+        const run = (async () => {
+            try {
+                const nextMatches = await fetchChatMatches();
+                setMatches(nextMatches);
 
-            if (activeMatch) {
-                const updatedActiveMatch = nextMatches.find((match) => match.id === activeMatch.id) ?? null;
-                setActiveMatch(updatedActiveMatch);
+                if (activeMatch) {
+                    const updatedActiveMatch = nextMatches.find((match) => match.id === activeMatch.id) ?? null;
+                    setActiveMatch(updatedActiveMatch);
+                }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Could not load matches.';
+                Alert.alert('Chat unavailable', message);
+            } finally {
+                setMatchesLoading(false);
+                setMatchesRefreshing(false);
+                matchesInFlightRef.current = null;
             }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Could not load matches.';
-            Alert.alert('Chat unavailable', message);
-        } finally {
-            setMatchesLoading(false);
-            setMatchesRefreshing(false);
-        }
+        })();
+
+        matchesInFlightRef.current = run;
+        return run;
     }
 
     async function loadMessages(matchId: string) {
@@ -900,6 +923,11 @@ export function ChatScreen({
         });
     }, [currentUserId, matchListFilter, matchSearchQuery, matches, messageVisibilityFilter]);
 
+    // The message list is rendered `inverted`, so it needs the newest item
+    // first. Memoize the reversed copy so we don't clone/reverse the whole
+    // array on every render (e.g. the 60s currentTime tick or any keystroke).
+    const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
     const canQueueBrokerNudge = !brokerSummaryLoading && brokerSummary?.otherUserConsent === 'granted';
     const hasCurrentUserBrokerConsent = brokerSummary?.currentUserConsent === 'granted';
     const brokerConsentHint = brokerSummaryLoading
@@ -1115,6 +1143,10 @@ export function ChatScreen({
                                         data={visibleMatches}
                                         keyExtractor={(item) => item.id}
                                         contentContainerStyle={styles.matchListContent}
+                                        initialNumToRender={8}
+                                        maxToRenderPerBatch={8}
+                                        windowSize={7}
+                                        removeClippedSubviews
                                         renderItem={({ item }) => {
                                             const premiumHighlight = getPremiumInboxHighlight(item);
 
@@ -1899,10 +1931,14 @@ export function ChatScreen({
                                 </View>
                             ) : (
                                 <FlatList
-                                    data={[...messages].reverse()}
+                                    data={invertedMessages}
                                     inverted
                                     keyExtractor={(item) => item.id}
                                     contentContainerStyle={styles.messagesContent}
+                                    initialNumToRender={12}
+                                    maxToRenderPerBatch={12}
+                                    windowSize={9}
+                                    removeClippedSubviews
                                     renderItem={({ item }) => {
                                         const isOwnMessage = item.senderId === currentUserId;
                                         const shouldRedact =

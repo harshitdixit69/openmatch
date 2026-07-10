@@ -18,6 +18,20 @@ import {
 } from './chat';
 import { supabase } from './supabase';
 
+// In-memory cache of the currently authenticated user. supabase.auth.getUser()
+// hits the network on web, and almost every helper below needs the user, so we
+// verify once then reuse. The cache is invalidated automatically on any auth
+// state change (sign in / sign out / token refresh) so it never goes stale.
+type CachedUser = Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'];
+let cachedCurrentUser: CachedUser | null = null;
+let cachedCurrentUserPromise: Promise<NonNullable<CachedUser>> | null = null;
+
+supabase.auth.onAuthStateChange(() => {
+    cachedCurrentUser = null;
+    cachedCurrentUserPromise = null;
+    cachedChatMatches = null;
+});
+
 type MatchRow = {
     id: string;
     user_1_id: string;
@@ -361,20 +375,49 @@ function mapInterestRequest(row: InterestRequestRow): MatchInterestRequest {
 }
 
 async function requireCurrentUser() {
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser();
-
-    if (error) {
-        throw error;
+    // supabase.auth.getUser() performs a network round-trip on web (it verifies
+    // the access token with the auth server). Nearly every helper in this file
+    // calls it, so the same "user" request was firing many times per screen
+    // open. Cache the verified user in memory for the lifetime of the session
+    // and invalidate it whenever auth state changes, so behaviour is identical
+    // but we avoid the redundant round-trips.
+    if (cachedCurrentUser) {
+        return cachedCurrentUser;
     }
 
-    if (!user) {
-        throw new Error('You must be signed in to continue.');
+    if (!cachedCurrentUserPromise) {
+        cachedCurrentUserPromise = (async () => {
+            const {
+                data: { user },
+                error,
+            } = await supabase.auth.getUser();
+
+            if (error) {
+                throw error;
+            }
+
+            if (!user) {
+                throw new Error('You must be signed in to continue.');
+            }
+
+            cachedCurrentUser = user;
+            return user;
+        })().finally(() => {
+            cachedCurrentUserPromise = null;
+        });
     }
 
-    return user;
+    return cachedCurrentUserPromise;
+}
+
+// Cache of the last successfully fetched match list. This lets the Inbox/Chat
+// screens paint instantly from cache (stale-while-revalidate) instead of
+// showing a full-screen spinner on every open, while a fresh fetch runs in the
+// background. Cleared on sign out so no data leaks between accounts.
+let cachedChatMatches: ChatMatch[] | null = null;
+
+export function getCachedChatMatches() {
+    return cachedChatMatches;
 }
 
 export async function fetchChatMatches() {
@@ -399,53 +442,61 @@ export async function fetchChatMatches() {
 
     const otherUserIds = [...new Set(matchRows.map((match) => (match.user_1_id === user.id ? match.user_2_id : match.user_1_id)))];
 
-    const { data: profileRows, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, photo_urls, location, bio, preferences, profile_owner')
-        .in('id', otherUserIds)
-        .returns<ProfileRow[]>();
+    // These five queries are independent (they only depend on matchIds /
+    // otherUserIds), so run them concurrently instead of as a sequential
+    // waterfall. This collapses ~5 round-trips into a single round-trip worth
+    // of latency, which is the biggest win for Inbox/Chat open time.
+    const [
+        { data: profileRows, error: profilesError },
+        { data: profileContactRows, error: profileContactsError },
+        unlocksResult,
+        messagesResult,
+        interestRequestsResult,
+    ] = await Promise.all([
+        supabase
+            .from('profiles')
+            .select('id, full_name, photo_urls, location, bio, preferences, profile_owner')
+            .in('id', otherUserIds)
+            .returns<ProfileRow[]>(),
+        supabase
+            .from('profile_contact_details')
+            .select('profile_id, phone_number, whatsapp_number')
+            .in('profile_id', otherUserIds)
+            .returns<ProfileContactRow[]>(),
+        supabase
+            .from('match_unlocks')
+            .select('match_id, requested_by, status, user_1_accepted_at, user_2_accepted_at, user_1_paid_at, user_2_paid_at, declined_by')
+            .in('match_id', matchIds)
+            .returns<MatchUnlockRow[]>(),
+        supabase
+            .from('messages')
+            .select('id, match_id, sender_id, read_at, created_at')
+            .in('match_id', matchIds)
+            .order('created_at', { ascending: true })
+            .returns<MatchListMessageRow[]>(),
+        supabase
+            .from('interest_requests')
+            .select('id, match_id, sender_id, receiver_id, status, personalized_reason, media_type, media_url, request_quality_score, sender_ghost_risk_score, accepted_at, first_reply_due_at, first_reply_at, ghosted_at, created_at, updated_at')
+            .in('match_id', matchIds)
+            .order('created_at', { ascending: false })
+            .returns<InterestRequestRow[]>(),
+    ]);
 
     if (profilesError) {
         throw profilesError;
     }
 
-    const { data: profileContactRows, error: profileContactsError } = await supabase
-        .from('profile_contact_details')
-        .select('profile_id, phone_number, whatsapp_number')
-        .in('profile_id', otherUserIds)
-        .returns<ProfileContactRow[]>();
-
     if (profileContactsError) {
         throw profileContactsError;
     }
-
-    const unlocksResult = await supabase
-        .from('match_unlocks')
-        .select('match_id, requested_by, status, user_1_accepted_at, user_2_accepted_at, user_1_paid_at, user_2_paid_at, declined_by')
-        .in('match_id', matchIds)
-        .returns<MatchUnlockRow[]>();
 
     if (unlocksResult.error && !isMissingMatchUnlockTable(unlocksResult.error)) {
         throw unlocksResult.error;
     }
 
-    const messagesResult = await supabase
-        .from('messages')
-        .select('id, match_id, sender_id, read_at, created_at')
-        .in('match_id', matchIds)
-        .order('created_at', { ascending: true })
-        .returns<MatchListMessageRow[]>();
-
     if (messagesResult.error) {
         throw messagesResult.error;
     }
-
-    const interestRequestsResult = await supabase
-        .from('interest_requests')
-        .select('id, match_id, sender_id, receiver_id, status, personalized_reason, media_type, media_url, request_quality_score, sender_ghost_risk_score, accepted_at, first_reply_due_at, first_reply_at, ghosted_at, created_at, updated_at')
-        .in('match_id', matchIds)
-        .order('created_at', { ascending: false })
-        .returns<InterestRequestRow[]>();
 
     if (interestRequestsResult.error && !isMissingInterestRequestsTable(interestRequestsResult.error)) {
         throw interestRequestsResult.error;
@@ -534,7 +585,7 @@ export async function fetchChatMatches() {
         }
     }
 
-    return matchRows
+    const result = matchRows
         .map((match) => {
             const otherUserId = match.user_1_id === user.id ? match.user_2_id : match.user_1_id;
             const profile = profilesById.get(otherUserId);
@@ -588,6 +639,9 @@ export async function fetchChatMatches() {
             } satisfies ChatMatch;
         })
         .filter((match): match is ChatMatch => Boolean(match));
+
+    cachedChatMatches = result;
+    return result;
 }
 
 export async function fetchChatMessages(matchId: string) {
