@@ -13,6 +13,7 @@ import {
     StyleSheet,
     Text,
     TextInput,
+    useWindowDimensions,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -85,6 +86,8 @@ export function ChatScreen({
     initialMatchListFilter = 'accepted',
     initialVisibilityFilter = 'all',
 }: ChatScreenProps) {
+    const { width: windowWidth } = useWindowDimensions();
+    const isNarrowHeader = windowWidth < 400;
     const [matches, setMatches] = useState<ChatMatch[]>([]);
     const [matchesLoading, setMatchesLoading] = useState(true);
     const [matchesRefreshing, setMatchesRefreshing] = useState(false);
@@ -980,20 +983,20 @@ export function ChatScreen({
                                 <View style={styles.headerUnlockActions}>
                                     {activeMatch.otherUserPhoneNumber ? (
                                         <Pressable
-                                            style={({ pressed }) => [styles.headerCallButton, pressed && styles.headerButtonPressed]}
+                                            style={({ pressed }) => [styles.headerCallButton, isNarrowHeader && styles.headerButtonCompact, pressed && styles.headerButtonPressed]}
                                             onPress={() => void handleContactAction('call')}
                                         >
                                             <Text style={styles.headerCallIcon}>📞</Text>
-                                            <Text style={styles.headerCallText}>Call</Text>
+                                            {isNarrowHeader ? null : <Text style={styles.headerCallText}>Call</Text>}
                                         </Pressable>
                                     ) : null}
                                     {activeMatch.otherUserWhatsappNumber ? (
                                         <Pressable
-                                            style={({ pressed }) => [styles.headerWhatsappButton, pressed && styles.headerButtonPressed]}
+                                            style={({ pressed }) => [styles.headerWhatsappButton, isNarrowHeader && styles.headerButtonCompact, pressed && styles.headerButtonPressed]}
                                             onPress={() => void handleContactAction('whatsapp')}
                                         >
                                             <Text style={styles.headerWhatsappIcon}>💬</Text>
-                                            <Text style={styles.headerWhatsappText}>WhatsApp</Text>
+                                            {isNarrowHeader ? null : <Text style={styles.headerWhatsappText}>WhatsApp</Text>}
                                         </Pressable>
                                     ) : null}
                                 </View>
@@ -3094,6 +3097,10 @@ const styles = StyleSheet.create({
     headerButtonPressed: {
         opacity: 0.85,
         transform: [{ scale: 0.97 }],
+    },
+    headerButtonCompact: {
+        paddingHorizontal: 12,
+        paddingVertical: 9,
     },
     headerUnlockBadge: {
         fontSize: 16,
