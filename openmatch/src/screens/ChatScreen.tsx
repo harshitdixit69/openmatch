@@ -1224,57 +1224,34 @@ export function ChatScreen({
 
                                                         <Text style={styles.matchPreviewStatus}>{getMatchInboxPreview(item)}</Text>
 
-                                                        {item.interestRequest?.personalizedReason ? (
-                                                            <View style={styles.matchReasonCard}>
-                                                                <Text style={styles.matchReasonLabel}>
-                                                                    {item.matchRequestState === 'received' ? 'Why they reached out' : 'Reason sent'}
-                                                                </Text>
-                                                                <Text style={styles.matchReasonText}>{item.interestRequest.personalizedReason}</Text>
-                                                            </View>
-                                                        ) : null}
-
                                                         {shouldShowInboxBrokerCard(item) ? (
                                                             <View style={styles.brokerInfoCard}>
-                                                                <View style={styles.matchStateRow}>
-                                                                    <StateChip
-                                                                        label={`Your consent ${formatBrokerConsentLabel(item.brokerSummary?.currentUserConsent ?? 'unknown')}`}
-                                                                        tone="muted"
-                                                                    />
-                                                                    <StateChip
-                                                                        label={`Their consent ${formatBrokerConsentLabel(item.brokerSummary?.otherUserConsent ?? 'unknown')}`}
-                                                                        tone={item.brokerSummary?.otherUserConsent === 'granted' ? 'primary' : 'accent'}
-                                                                    />
-                                                                    {item.brokerSummary?.latestStatus ? (
-                                                                        <StateChip label={`Latest ${formatBrokerStatusLabel(item.brokerSummary.latestStatus)}`} tone="primary" />
-                                                                    ) : null}
-                                                                </View>
-
                                                                 <Text style={styles.brokerInfoText}>{getInboxBrokerPreview(item)}</Text>
 
-                                                                {item.brokerSummary?.latestStatus ? (
-                                                                    <Text style={styles.brokerInfoMeta}>
-                                                                        {item.brokerSummary.latestChannel === 'sms_whatsapp' ? 'WhatsApp' : 'Voice'} via {item.brokerSummary.latestProvider?.toUpperCase() ?? 'provider'} • attempts {item.brokerSummary.attemptCount}
-                                                                    </Text>
+                                                                {item.interestRequest &&
+                                                                item.interestRequest.senderId !== currentUserId &&
+                                                                (item.brokerSummary?.currentUserConsent ?? 'unknown') !== 'granted' ? (
+                                                                    <Pressable
+                                                                        style={[
+                                                                            styles.brokerConsentInlineButton,
+                                                                            brokerConsentPendingRequestId === item.interestRequest.id
+                                                                                ? styles.sendButtonDisabled
+                                                                                : null,
+                                                                        ]}
+                                                                        onPress={() => void handleBrokerConsent(item, true)}
+                                                                        disabled={brokerConsentPendingRequestId === item.interestRequest.id}
+                                                                    >
+                                                                        <Text style={styles.brokerConsentInlineButtonText}>
+                                                                            {brokerConsentPendingRequestId === item.interestRequest.id
+                                                                                ? 'Saving...'
+                                                                                : 'Allow intro call'}
+                                                                        </Text>
+                                                                    </Pressable>
                                                                 ) : null}
 
                                                                 <FollowupJobStatusBlock match={item} />
                                                             </View>
                                                         ) : null}
-
-                                                        <View style={styles.matchTrustRow}>
-                                                            <StateChip
-                                                                label={item.otherUserProfileOwner ? `${capitalizeProfileOwner(item.otherUserProfileOwner)}-managed` : 'Self-managed'}
-                                                                tone="muted"
-                                                            />
-
-                                                            {item.matchRequestState === 'received' && item.interestRequest ? (
-                                                                <StateChip label={`Ghost risk ${item.interestRequest.senderGhostRiskScore}`} tone="accent" />
-                                                            ) : null}
-
-                                                            <Pressable style={styles.inlineTrustButton} onPress={() => void openTrustDrawer(item)}>
-                                                                <Text style={styles.inlineTrustButtonText}>View trust</Text>
-                                                            </Pressable>
-                                                        </View>
 
                                                         <Text numberOfLines={2} style={styles.matchPreview}>
                                                             {item.otherUserBio ?? item.otherUserPreferences ?? 'No profile summary yet.'}
@@ -3528,30 +3505,6 @@ const styles = StyleSheet.create({
         fontSize: 15,
         lineHeight: 22,
     },
-    matchReasonCard: {
-        backgroundColor: '#f4e8d9',
-        borderRadius: 16,
-        gap: 6,
-        padding: 12,
-    },
-    matchReasonLabel: {
-        color: '#7a4a2c',
-        fontSize: 11,
-        fontWeight: '800',
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
-    },
-    matchReasonText: {
-        color: '#3f5358',
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    matchTrustRow: {
-        alignItems: 'center',
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
     matchCardActionsRow: {
         flexDirection: 'row',
         gap: 10,
@@ -3914,6 +3867,20 @@ const styles = StyleSheet.create({
         color: '#5f7378',
         fontSize: 12,
         fontWeight: '600',
+    },
+    brokerConsentInlineButton: {
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        backgroundColor: '#0f766e',
+        borderRadius: 999,
+        marginTop: 4,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+    },
+    brokerConsentInlineButtonText: {
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: '700',
     },
     followupJobBlock: {
         gap: 6,

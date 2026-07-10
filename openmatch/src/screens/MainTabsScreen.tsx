@@ -15,7 +15,7 @@ import { HomeScreen } from './HomeScreen';
 // Base height of the tab bar content (padding + tab button minHeight) before the
 // device's bottom safe-area inset is added. Used to reserve space so scrollable
 // screens never hide content behind the pinned tab bar.
-const TAB_BAR_BASE_HEIGHT = 84;
+const TAB_BAR_BASE_HEIGHT = 64;
 
 type AppTab = 'home' | 'matches' | 'inbox' | 'chat' | 'premium';
 
@@ -122,8 +122,6 @@ export function MainTabsScreen() {
         [shellCounts.contacts, shellCounts.received, shellCounts.unread],
     );
 
-    const utilityNotificationCount = shellCounts.received + shellCounts.unread;
-
     function openTab(tab: AppTab) {
         if (tab === 'home') {
             return;
@@ -179,35 +177,19 @@ export function MainTabsScreen() {
     return (
         <TabBarSpacingContext.Provider value={tabBarSpacing}>
             <View style={styles.shell}>
-                {activeTab === 'matches' || activeTab === 'inbox' || activeTab === 'chat' ? (
-                    <View style={[styles.utilityBar, { paddingTop: insets.top + 10 }]}>
-                        <Pressable style={styles.utilityMenuButton}>
-                            <Text style={styles.utilityMenuButtonText}>Menu</Text>
-                        </Pressable>
-
-                        <View style={styles.utilityCenterCopy}>
-                            <Text style={styles.utilityTitle}>OpenMatch</Text>
-                            <Text style={styles.utilitySubtitle}>Live on Matches, Inbox, and Chat</Text>
-                        </View>
-
-                        <View style={styles.utilityActionsRow}>
-                            <Pressable style={styles.utilityActionButton} onPress={() => void loadShellData()}>
-                                <Text style={styles.utilityActionButtonText}>Refresh</Text>
-                            </Pressable>
-
-                            <Pressable style={styles.utilityActionButton}>
-                                <Text style={styles.utilityActionButtonText}>Alerts</Text>
-                                {utilityNotificationCount > 0 ? (
-                                    <View style={styles.utilityBadge}>
-                                        <Text style={styles.utilityBadgeText}>{utilityNotificationCount > 99 ? '99+' : String(utilityNotificationCount)}</Text>
-                                    </View>
-                                ) : null}
-                            </Pressable>
-                        </View>
-                    </View>
-                ) : null}
-
-                <View style={styles.contentArea}>{renderActiveTab()}</View>
+                <View
+                    style={[
+                        styles.contentArea,
+                        // Home & Premium hubs render their own top SafeAreaView.
+                        // Matches/Inbox/Chat previously relied on the (now removed)
+                        // utility bar for notch spacing, so add the top inset here.
+                        activeTab === 'matches' || activeTab === 'inbox' || activeTab === 'chat'
+                            ? { paddingTop: insets.top }
+                            : null,
+                    ]}
+                >
+                    {renderActiveTab()}
+                </View>
 
                 <View style={[styles.tabBar, { paddingBottom: tabBarBottomPadding }]}>
                     {tabItems.map((tab) => (
@@ -256,15 +238,6 @@ function TabButton({ label, subtitle, badge, disabled = false, active, onPress }
                 ]}
             >
                 {label}
-            </Text>
-            <Text
-                style={[
-                    styles.tabSubtitle,
-                    active ? styles.tabSubtitleActive : null,
-                    disabled && !active ? styles.tabSubtitleDisabled : null,
-                ]}
-            >
-                {subtitle}
             </Text>
         </Pressable>
     );
@@ -671,9 +644,9 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: 2,
         justifyContent: 'center',
-        minHeight: 60,
+        minHeight: 44,
         paddingHorizontal: 4,
-        paddingVertical: 10,
+        paddingVertical: 8,
         position: 'relative',
     },
     tabButtonActive: {
