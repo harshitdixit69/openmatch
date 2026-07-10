@@ -20,7 +20,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { BackButton } from '../components/BackButton';
+import { PhoneIcon } from '../components/PhoneIcon';
 import { RequestTrustDrawer } from '../components/RequestTrustDrawer';
+import { WhatsAppLogo } from '../components/WhatsAppLogo';
 import { fetchChatCopilot } from '../lib/aiApi';
 import { BrokerCallSummary, ChatChemistry, ChatMatch, ChatMessage, MatchUnlockAction } from '../lib/chat';
 import { ProfileReliabilitySummary } from '../lib/intentEscrow';
@@ -986,7 +988,7 @@ export function ChatScreen({
                                             style={({ pressed }) => [styles.headerCallButton, isNarrowHeader && styles.headerButtonCompact, pressed && styles.headerButtonPressed]}
                                             onPress={() => void handleContactAction('call')}
                                         >
-                                            <Text style={styles.headerCallIcon}>📞</Text>
+                                            <PhoneIcon size={15} color="#ffffff" />
                                             {isNarrowHeader ? null : <Text style={styles.headerCallText}>Call</Text>}
                                         </Pressable>
                                     ) : null}
@@ -995,7 +997,7 @@ export function ChatScreen({
                                             style={({ pressed }) => [styles.headerWhatsappButton, isNarrowHeader && styles.headerButtonCompact, pressed && styles.headerButtonPressed]}
                                             onPress={() => void handleContactAction('whatsapp')}
                                         >
-                                            <Text style={styles.headerWhatsappIcon}>💬</Text>
+                                            <WhatsAppLogo size={16} color="#ffffff" />
                                             {isNarrowHeader ? null : <Text style={styles.headerWhatsappText}>WhatsApp</Text>}
                                         </Pressable>
                                     ) : null}
@@ -1300,6 +1302,7 @@ export function ChatScreen({
                                                                     style={styles.matchCardSecondaryAction}
                                                                     onPress={() => void handleMatchCardContactAction(item, 'whatsapp')}
                                                                 >
+                                                                    <WhatsAppLogo size={14} color="#25d366" />
                                                                     <Text style={styles.matchCardSecondaryActionText}>WhatsApp</Text>
                                                                 </Pressable>
                                                             ) : null}
@@ -1309,6 +1312,7 @@ export function ChatScreen({
                                                                     style={styles.matchCardSecondaryAction}
                                                                     onPress={() => void handleMatchCardContactAction(item, 'call')}
                                                                 >
+                                                                    <PhoneIcon size={14} color="#35525b" />
                                                                     <Text style={styles.matchCardSecondaryActionText}>Call</Text>
                                                                 </Pressable>
                                                             ) : null}
@@ -3536,6 +3540,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#edf3f2',
         borderRadius: 16,
         flex: 1,
+        flexDirection: 'row',
+        gap: 6,
         justifyContent: 'center',
         minHeight: 46,
         paddingHorizontal: 14,
