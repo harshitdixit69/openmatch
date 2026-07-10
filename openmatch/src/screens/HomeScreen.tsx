@@ -54,6 +54,24 @@ import { PremiumPromoModal } from '../components/PremiumPromoModal';
 const swipeThreshold = 120;
 const offscreenDistance = 420;
 
+// Validates an optional contact phone number. Returns an error message string
+// if invalid, or null if the value is acceptable (empty is allowed since the
+// fields are optional). Accepts an optional leading "+" followed by 8-15
+// digits, ignoring spaces, dashes, parentheses and dots used as separators.
+function validateContactNumber(rawValue: string, fieldLabel: string): string | null {
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const cleaned = trimmed.replace(/[\s\-().]/g, '');
+    if (!/^\+?\d{8,15}$/.test(cleaned)) {
+        return `${fieldLabel} must be 8-15 digits and may start with a country code (e.g. +91).`;
+    }
+
+    return null;
+}
+
 export function HomeScreen() {
     const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -179,6 +197,22 @@ export function HomeScreen() {
 
     async function handleSaveContactDetails() {
         if (contactSaving) {
+            return;
+        }
+
+        // Validate before saving. Numbers are optional, but if provided they
+        // must be a plausible phone number (optional leading +, 8-15 digits).
+        // This prevents junk/invalid numbers from being shared once a match
+        // completes mutual unlock and the Call/WhatsApp deep-links are used.
+        const phoneError = validateContactNumber(contactPhoneNumber, 'Phone number');
+        if (phoneError) {
+            Alert.alert('Invalid phone number', phoneError);
+            return;
+        }
+
+        const whatsappError = validateContactNumber(contactWhatsappNumber, 'WhatsApp number');
+        if (whatsappError) {
+            Alert.alert('Invalid WhatsApp number', whatsappError);
             return;
         }
 
@@ -683,7 +717,7 @@ export function HomeScreen() {
                             </View>
                         </View>
 
-                        <ScrollView contentContainerStyle={styles.photoModalContent} showsVerticalScrollIndicator={false}>
+                        <ScrollView style={styles.photoModalScroll} contentContainerStyle={styles.photoModalContent} showsVerticalScrollIndicator={false}>
                             <Text style={styles.modalBody}>
                                 Add up to {maxProfilePhotos} photos for profiles that were already created. Your first photo is used across the app.
                             </Text>
@@ -773,7 +807,12 @@ export function HomeScreen() {
                                 </Pressable>
 
                                 {viewerContactDetails?.phone_number || viewerContactDetails?.whatsapp_number ? (
-                                    <Text style={styles.contactSavedHint}>Saved details are ready for unlocked matches.</Text>
+                                    contactPhoneNumber.trim() === (viewerContactDetails?.phone_number ?? '') &&
+                                    contactWhatsappNumber.trim() === (viewerContactDetails?.whatsapp_number ?? '') ? (
+                                        <Text style={styles.contactSavedHint}>Saved details are ready for unlocked matches.</Text>
+                                    ) : (
+                                        <Text style={styles.contactSavedHint}>You have unsaved changes. Tap save to update.</Text>
+                                    )
                                 ) : null}
                             </View>
                         </ScrollView>
@@ -1587,6 +1626,7 @@ const styles = StyleSheet.create({
     },
     photoModalCard: {
         gap: 16,
+        maxHeight: '92%',
         maxWidth: 460,
     },
     modalHeaderRow: {
@@ -1737,6 +1777,10 @@ const styles = StyleSheet.create({
     },
     photoModalContent: {
         gap: 16,
+        paddingBottom: 8,
+    },
+    photoModalScroll: {
+        flexShrink: 1,
     },
     photoManagerHeader: {
         alignItems: 'center',
