@@ -847,7 +847,7 @@ export function ChatScreen({
 
     const chatHeaderSubtitle = useMemo(() => {
         if (!activeMatch) {
-            return currentUserFirstName ? `Pick a conversation, ${currentUserFirstName}.` : 'Pick a conversation.';
+            return '';
         }
 
         if (activeMatch.matchRequestState === 'received') {
@@ -1007,6 +1007,30 @@ export function ChatScreen({
                                 {activeMatch ? activeMatch.otherUserName : currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
                             </Text>
                         </View>
+
+                        {activeMatch ? (
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.copilotHeaderButton,
+                                    pressed && styles.headerButtonPressed,
+                                ]}
+                                onPress={() => {
+                                    if (promptSuggestions.length > 0 || chemistry) {
+                                        setPromptSuggestions([]);
+                                        setChemistry(null);
+                                    } else {
+                                        void handleLoadPromptSuggestions();
+                                    }
+                                }}
+                                disabled={promptsLoading}
+                                accessibilityRole="button"
+                                accessibilityLabel="AI chat copilot"
+                            >
+                                <Text style={styles.copilotHeaderButtonText}>
+                                    {promptsLoading ? '✨…' : '✨ Help'}
+                                </Text>
+                            </Pressable>
+                        ) : null}
 
                         {activeMatch?.isUnlocked ? (
                             activeMatch.otherUserPhoneNumber || activeMatch.otherUserWhatsappNumber ? (
@@ -1542,16 +1566,6 @@ export function ChatScreen({
                                 {showBrokerTools ? (
                                     <>
                                         <View style={styles.brokerInfoCard}>
-                                            <View style={styles.matchStateRow}>
-                                                <StateChip
-                                                    label={`Your consent ${formatBrokerConsentLabel(brokerSummary?.currentUserConsent ?? 'unknown')}`}
-                                                    tone={brokerSummary?.currentUserConsent === 'granted' ? 'primary' : 'muted'}
-                                                />
-                                                {brokerSummary?.latestStatus ? (
-                                                    <StateChip label={`Latest ${formatBrokerStatusLabel(brokerSummary.latestStatus)}`} tone="primary" />
-                                                ) : null}
-                                            </View>
-
                                             <Text style={styles.brokerInfoText}>
                                                 {hasCurrentUserBrokerConsent
                                                     ? 'Broker outreach is allowed if the other participant needs to queue a reminder or recovery call.'
@@ -1603,21 +1617,7 @@ export function ChatScreen({
                                 {showBrokerTools ? (
                                     <>
                                         <View style={styles.brokerInfoCard}>
-                                            <View style={styles.matchStateRow}>
-                                                <StateChip label={`Your consent ${formatBrokerConsentLabel(brokerSummary?.currentUserConsent ?? 'unknown')}`} tone="muted" />
-                                                <StateChip label={`Their consent ${formatBrokerConsentLabel(brokerSummary?.otherUserConsent ?? 'unknown')}`} tone={brokerSummary?.otherUserConsent === 'granted' ? 'primary' : 'accent'} />
-                                                {brokerSummary?.latestStatus ? (
-                                                    <StateChip label={`Latest ${formatBrokerStatusLabel(brokerSummary.latestStatus)}`} tone="primary" />
-                                                ) : null}
-                                            </View>
-
                                             <Text style={styles.brokerInfoText}>{brokerConsentHint}</Text>
-
-                                            {brokerSummary?.latestStatus ? (
-                                                <Text style={styles.brokerInfoMeta}>
-                                                    {brokerSummary.latestChannel === 'sms_whatsapp' ? 'WhatsApp' : 'Voice'} via {brokerSummary.latestProvider?.toUpperCase() ?? 'provider'} • attempts {brokerSummary.attemptCount}
-                                                </Text>
-                                            ) : null}
 
                                             {activeBrokerDetail ? <Text style={styles.brokerInfoMeta}>{activeBrokerDetail}</Text> : null}
 
@@ -1711,21 +1711,7 @@ export function ChatScreen({
                                 {showBrokerTools ? (
                                     <>
                                         <View style={styles.brokerInfoCard}>
-                                            <View style={styles.matchStateRow}>
-                                                <StateChip label={`Your consent ${formatBrokerConsentLabel(brokerSummary?.currentUserConsent ?? 'unknown')}`} tone="muted" />
-                                                <StateChip label={`Their consent ${formatBrokerConsentLabel(brokerSummary?.otherUserConsent ?? 'unknown')}`} tone={brokerSummary?.otherUserConsent === 'granted' ? 'primary' : 'accent'} />
-                                                {brokerSummary?.latestStatus ? (
-                                                    <StateChip label={`Latest ${formatBrokerStatusLabel(brokerSummary.latestStatus)}`} tone="primary" />
-                                                ) : null}
-                                            </View>
-
                                             <Text style={styles.brokerInfoText}>{brokerConsentHint}</Text>
-
-                                            {brokerSummary?.latestStatus ? (
-                                                <Text style={styles.brokerInfoMeta}>
-                                                    {brokerSummary.latestChannel === 'sms_whatsapp' ? 'WhatsApp' : 'Voice'} via {brokerSummary.latestProvider?.toUpperCase() ?? 'provider'} • attempts {brokerSummary.attemptCount}
-                                                </Text>
-                                            ) : null}
 
                                             {activeBrokerDetail ? <Text style={styles.brokerInfoMeta}>{activeBrokerDetail}</Text> : null}
 
@@ -1859,26 +1845,22 @@ export function ChatScreen({
                                         <Text style={styles.unlockEyebrow}>Payment pending</Text>
                                         <Text style={styles.unlockTitle}>Pay your share</Text>
                                     </View>
-                                    <Text style={styles.unlockBadge}>No subscription</Text>
-                                </View>
-
-                                <Text style={styles.unlockBody}>
-                                    {activeMatch.unlockState.hasOtherUserPaid
-                                        ? `${activeMatch.otherUserName} already paid. Pay your share now to unlock direct chat for both of you.`
-                                        : 'Both of you agreed. Each person pays the same one-time amount before contact details become visible.'}
-                                </Text>
-
-                                <View style={styles.unlockActionsRow}>
                                     <Pressable
                                         style={[styles.unlockButton, unlocking ? styles.sendButtonDisabled : null]}
                                         onPress={() => void handleUnlock()}
                                         disabled={unlocking}
                                     >
                                         <Text style={styles.unlockButtonText}>
-                                            {unlocking ? 'Working...' : activeMatch.unlockState.hasOtherUserPaid ? 'Pay and unlock' : 'Pay your share'}
+                                            {unlocking ? 'Working...' : activeMatch.unlockState.hasOtherUserPaid ? 'Pay & unlock' : 'Pay'}
                                         </Text>
                                     </Pressable>
                                 </View>
+
+                                <Text style={styles.unlockBody}>
+                                    {activeMatch.unlockState.hasOtherUserPaid
+                                        ? `${activeMatch.otherUserName} already paid — pay your equal share to unlock direct chat.`
+                                        : 'Both agreed. Each pays the same one-time amount to reveal contact details.'}
+                                </Text>
                             </View>
                         ) : null}
 
@@ -1956,84 +1938,59 @@ export function ChatScreen({
                             )}
                         </View>
 
-                        <View style={styles.promptsCard}>
-                            <Pressable
-                                style={styles.promptsHeaderRow}
-                                onPress={() => {
-                                    if (promptSuggestions.length > 0 || chemistry) {
-                                        setPromptSuggestions([]);
-                                        setChemistry(null);
-                                    } else {
-                                        void handleLoadPromptSuggestions();
-                                    }
-                                }}
-                                disabled={promptsLoading}
-                            >
-                                <Text style={styles.promptsTitle}>
-                                    {promptsLoading ? '✨ Thinking...' : '✨ AI chat copilot'}
-                                </Text>
+                        {promptSuggestions.length > 0 || chemistry ? (
+                            <View style={styles.promptsCard}>
+                                <View style={styles.promptsHeaderRow}>
+                                    <Text style={styles.promptsTitle}>
+                                        {promptsLoading ? '✨ Thinking...' : '✨ AI chat copilot'}
+                                    </Text>
 
-                                <View style={styles.promptsActionsRow}>
-                                    {promptSuggestions.length > 0 || chemistry ? (
-                                        <>
-                                            <Pressable
-                                                style={styles.promptsAction}
-                                                onPress={(e) => {
-                                                    e.stopPropagation();
-                                                    void handleLoadPromptSuggestions();
-                                                }}
-                                                disabled={promptsLoading}
-                                            >
-                                                <Text style={styles.promptsActionText}>
-                                                    {promptsLoading ? 'Thinking...' : 'Refresh'}
-                                                </Text>
-                                            </Pressable>
+                                    <View style={styles.promptsActionsRow}>
+                                        <Pressable
+                                            style={styles.promptsAction}
+                                            onPress={() => void handleLoadPromptSuggestions()}
+                                            disabled={promptsLoading}
+                                        >
+                                            <Text style={styles.promptsActionText}>
+                                                {promptsLoading ? 'Thinking...' : 'Refresh'}
+                                            </Text>
+                                        </Pressable>
 
+                                        <Pressable
+                                            style={styles.promptsCloseButton}
+                                            onPress={() => {
+                                                setPromptSuggestions([]);
+                                                setChemistry(null);
+                                            }}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="Close AI chat copilot"
+                                        >
+                                            <Text style={styles.promptsCloseText}>Close</Text>
+                                        </Pressable>
+                                    </View>
+                                </View>
+
+                                {chemistry ? <ChemistryMeter chemistry={chemistry} /> : null}
+
+                                {promptSuggestions.length > 0 ? (
+                                    <View style={styles.promptsList}>
+                                        {promptSuggestions.map((prompt) => (
                                             <Pressable
-                                                style={styles.promptsCloseButton}
-                                                onPress={(e) => {
-                                                    e.stopPropagation();
+                                                key={prompt}
+                                                style={styles.promptCard}
+                                                onPress={() => {
+                                                    setDraft(prompt);
                                                     setPromptSuggestions([]);
                                                     setChemistry(null);
                                                 }}
-                                                accessibilityRole="button"
-                                                accessibilityLabel="Close AI chat copilot"
                                             >
-                                                <Text style={styles.promptsCloseText}>Close</Text>
+                                                <Text style={styles.promptCardText}>{prompt}</Text>
                                             </Pressable>
-                                        </>
-                                    ) : (
-                                        <Text style={styles.promptsActionText}>
-                                            {promptsLoading ? 'Thinking...' : 'Get help'}
-                                        </Text>
-                                    )}
-                                </View>
-                            </Pressable>
-
-                            {promptSuggestions.length > 0 || chemistry ? (
-                                <>
-                                    {chemistry ? <ChemistryMeter chemistry={chemistry} /> : null}
-
-                                    {promptSuggestions.length > 0 ? (
-                                        <View style={styles.promptsList}>
-                                            {promptSuggestions.map((prompt) => (
-                                                <Pressable
-                                                    key={prompt}
-                                                    style={styles.promptCard}
-                                                    onPress={() => {
-                                                        setDraft(prompt);
-                                                        setPromptSuggestions([]);
-                                                        setChemistry(null);
-                                                    }}
-                                                >
-                                                    <Text style={styles.promptCardText}>{prompt}</Text>
-                                                </Pressable>
-                                            ))}
-                                        </View>
-                                    ) : null}
-                                </>
-                            ) : null}
-                        </View>
+                                        ))}
+                                    </View>
+                                ) : null}
+                            </View>
+                        ) : null}
 
                         <View style={styles.composerRow}>
                             <TextInput
@@ -3115,6 +3072,22 @@ const styles = StyleSheet.create({
         opacity: 0.85,
         transform: [{ scale: 0.97 }],
     },
+    copilotHeaderButton: {
+        alignItems: 'center',
+        backgroundColor: '#eef4f3',
+        borderColor: '#cfe0dd',
+        borderRadius: 999,
+        borderWidth: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+    },
+    copilotHeaderButtonText: {
+        color: '#0f766e',
+        fontSize: 13,
+        fontWeight: '700',
+    },
     headerButtonCompact: {
         paddingHorizontal: 12,
         paddingVertical: 9,
@@ -3548,10 +3521,10 @@ const styles = StyleSheet.create({
     },
     unlockRequestInlineCard: {
         backgroundColor: '#14313a',
-        borderRadius: 20,
-        gap: 12,
-        marginBottom: 12,
-        padding: 18,
+        borderRadius: 14,
+        gap: 6,
+        marginBottom: 10,
+        padding: 12,
     },
     unlockModalBackdrop: {
         alignItems: 'center',
@@ -3597,25 +3570,25 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     unlockHeaderRow: {
-        alignItems: 'flex-start',
+        alignItems: 'center',
         flexDirection: 'row',
         gap: 12,
         justifyContent: 'space-between',
     },
     unlockCopy: {
         flex: 1,
-        gap: 4,
+        gap: 2,
     },
     unlockEyebrow: {
         color: '#f1c57b',
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
     unlockTitle: {
         color: '#ffffff',
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: '800',
     },
     unlockBadge: {
@@ -3630,15 +3603,15 @@ const styles = StyleSheet.create({
     },
     unlockBody: {
         color: '#d6e3e6',
-        fontSize: 14,
-        lineHeight: 21,
+        fontSize: 12,
+        lineHeight: 17,
     },
     unlockButton: {
         alignSelf: 'flex-start',
         backgroundColor: '#d9643d',
         borderRadius: 999,
         paddingHorizontal: 18,
-        paddingVertical: 12,
+        paddingVertical: 9,
     },
     unlockActionsRow: {
         flexDirection: 'row',
