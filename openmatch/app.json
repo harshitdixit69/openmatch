@@ -7,6 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "jsEngine": "jsc",
     "ios": {
       "supportsTablet": true
     },
@@ -17,7 +18,11 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.harshi6565.openmatch"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -37,6 +42,11 @@
           "merchantIdentifier": "merchant.com.openmatch"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "24792a74-f12a-42c8-b55e-ec9b587d7636"
+      }
+    }
   }
 }
