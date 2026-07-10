@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+    AudioModule,
+    RecordingPresets,
+    setAudioModeAsync,
+    useAudioRecorder,
+    useAudioRecorderState,
+} from 'expo-audio';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { reviewRequestVoiceIntro } from '../lib/intentEscrowApi';
@@ -26,30 +32,32 @@ export function VoiceIntroRecorder({
     onClose,
     onApproved,
 }: VoiceIntroRecorderProps) {
-    const [recording, setRecording] = useState<Audio.Recording | null>(null);
+    const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+    const recorderState = useAudioRecorderState(audioRecorder, 500);
     const [recordedClip, setRecordedClip] = useState<VoiceIntroClip | null>(null);
-    const [recordingSeconds, setRecordingSeconds] = useState(0);
     const [submitting, setSubmitting] = useState(false);
+
+    const isRecording = recorderState.isRecording;
+    const recordingSeconds = Math.max(0, Math.round((recorderState.durationMillis ?? 0) / 1000));
 
     useEffect(() => {
         if (!visible) {
-            setRecordingSeconds(0);
             setRecordedClip(null);
         }
     }, [visible]);
 
     useEffect(() => {
         return () => {
-            if (recording) {
-                void recording.stopAndUnloadAsync().catch(() => null);
+            if (audioRecorder.isRecording) {
+                void audioRecorder.stop().catch(() => null);
             }
         };
-    }, [recording]);
+    }, [audioRecorder]);
 
     const canSubmit = Boolean(recordedClip && !submitting);
 
     const recordingHint = useMemo(() => {
-        if (recording) {
+        if (isRecording) {
             return `Recording... ${formatSeconds(recordingSeconds)}`;
         }
 
@@ -58,34 +66,25 @@ export function VoiceIntroRecorder({
         }
 
         return 'Record a 15-30 second voice intro explaining why you are reaching out.';
-    }, [recordedClip, recording, recordingSeconds]);
+    }, [recordedClip, isRecording, recordingSeconds]);
 
     async function handleStartRecording() {
         try {
-            const permission = await Audio.requestPermissionsAsync();
+            const permission = await AudioModule.requestRecordingPermissionsAsync();
             if (!permission.granted) {
                 Alert.alert('Microphone needed', 'Please allow microphone access to record a voice intro.');
                 return;
             }
 
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
+            await setAudioModeAsync({
+                allowsRecording: true,
+                playsInSilentMode: true,
             });
 
-            const { recording: activeRecording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY,
-                (status) => {
-                    if (status.isRecording) {
-                        setRecordingSeconds(Math.max(0, Math.round((status.durationMillis ?? 0) / 1000)));
-                    }
-                },
-                500,
-            );
+            await audioRecorder.prepareToRecordAsync();
+            audioRecorder.record();
 
             setRecordedClip(null);
-            setRecordingSeconds(0);
-            setRecording(activeRecording);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not start recording.';
             Alert.alert('Recording failed', message);
@@ -93,33 +92,30 @@ export function VoiceIntroRecorder({
     }
 
     async function handleStopRecording() {
-        if (!recording) {
+        if (!audioRecorder.isRecording) {
             return;
         }
 
         try {
-            await recording.stopAndUnloadAsync();
-            const status = await recording.getStatusAsync();
-            const uri = recording.getURI();
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: false,
+            const durationSeconds = recordingSeconds;
+            await audioRecorder.stop();
+            const uri = audioRecorder.uri;
+            await setAudioModeAsync({
+                allowsRecording: false,
             });
 
             if (!uri) {
                 throw new Error('Recording file was not created.');
             }
 
-            const durationSeconds = Math.max(0, Math.round((status.durationMillis ?? 0) / 1000));
             setRecordedClip({
                 uri,
                 durationSeconds,
                 mimeType: 'audio/m4a',
             });
-            setRecording(null);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not finish recording.';
             Alert.alert('Recording failed', message);
-            setRecording(null);
         }
     }
 
@@ -173,12 +169,12 @@ export function VoiceIntroRecorder({
                         <Text style={styles.cardLabel}>Expected length</Text>
                         <Text style={styles.cardValue}>15-30 seconds</Text>
 
-                        {recording ? (
+                        {isRecording ? (
                             <Text style={styles.recordingText}>Live: {formatSeconds(recordingSeconds)}</Text>
                         ) : null}
 
                         <View style={styles.actionsRow}>
-                            {recording ? (
+                            {isRecording ? (
                                 <Pressable style={styles.stopButton} onPress={() => void handleStopRecording()}>
                                     <Text style={styles.stopButtonText}>Stop recording</Text>
                                 </Pressable>
@@ -191,7 +187,7 @@ export function VoiceIntroRecorder({
                     </View>
 
                     <View style={styles.footerRow}>
-                        <Pressable style={styles.cancelButton} onPress={onClose} disabled={submitting || Boolean(recording)}>
+                        <Pressable style={styles.cancelButton} onPress={onClose} disabled={submitting || isRecording}>
                             <Text style={styles.cancelButtonText}>Cancel</Text>
                         </Pressable>
 

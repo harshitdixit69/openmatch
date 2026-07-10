@@ -40,7 +40,8 @@
         {
           "merchantIdentifier": "merchant.com.openmatch"
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "extra": {
       "eas": {
