@@ -222,6 +222,25 @@ Among the prominent shipping achievements in this build cycle:
   2. Rewrote normalizeContactNumber in trigger-outbound-broker-call/index.ts to implement local-national coercion (identifying 10-digit formats, removing prefix 0s, and automatically applying the regional +91 E.164 country code). 
   3. Successfully updated the target database rows via the Supabase Management API. Next-hop calls now dial flawlessly.
 
+#### Bug 3: Webhook Unauthorized and Duplicate Outbound Gating (Fixed & Live)
+* Incident: Retell webhook callbacks failed to authenticate (returning a 401 Unauthorized), leaving active broker call attempts stuck in `'queued'` or `'dialing'` states indefinitely. Consequently, subsequent call trigger requests returned a 409 Conflict: `"An active broker attempt already exists for this request"`.
+* Discovery & Diagnostic: Two issues:
+  1. Webhook Authentication Gap: The generic webhook security checks did not recognize Retell's raw body payload signatures, rejecting the connection as unauthorized before processing completion.
+  2. Missing Terminal Cleanup: Because webhooks were rejected, calls never progressed to terminal status (`completed`, `failed`), permanently guarding the request and preventing subsequent attempts.
+* Resolution:
+  1. Implemented Shared token Authentication: Updated `handle-broker-call-webhook` to authenticate incoming requests via a secure query parameter, verifying `?token=${process.env.BROKER_WEBHOOK_SECRET}` against the configured environment secret.
+  2. Implemented Webhook URL Generation: Updated `trigger-outbound-broker-call` to construct a project-unique webhook URL appending the secure verification query token, passing it explicitly in the `create-phone-call` request payload to Retell.
+  3. Implemented Auto-Expire Guard: Added a 15-minute expiration block in `trigger-outbound-broker-call`. Any active broker call row stuck in a non-terminal status (`queued`, `dialing`, `in_progress`) for more than 15 minutes is automatically rolled over to `status: 'failed'` with `last_error: 'auto_expired_no_terminal_webhook'`, safely resetting the duplicate gate.
+  4. Post-Call Chat Thread Closure: Enabled graceful chat closing by adding `postBrokerClosureMessage`. When a user declines a match to the AI Broker, the Edge Function posts a human-like, plain-language decline text into the chat stream on the user's behalf, providing transparent closure to the counterparty.
+
+#### UI Phase: Plain-Language Conversational Polishing (Fixed & Live)
+* Incident: Technical terms like "RETELL", "attempts count", and complex structured alerts ("Availability check in motion" card) cluttered the chat, making the AI-engagement tools feel mechanical and unfriendly to common users. Or, several places duplicated the queue notice.
+* Resolution:
+  1. Simplified copy/labels: Renamed button actions plainly (e.g. "Check if still interested", "Let OpenMatch call me", "Calls allowed").
+  2. Removed dead alert modules: Deleted the double-inserted "Availability check in motion" / `RecoverySuggestionCard` and redundant intermediate `FollowupJobStatusBlock` panels.
+  3. Consolidated notices: Compressed the top status warning to a concise note: "Callback queued. We'll update this soon."
+  4. Moved AI copilot suggestions to a small "✨ Help" header drawer trigger.
+
 ---
 
 ## 5. Monetization & Conversion Strategy

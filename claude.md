@@ -895,7 +895,7 @@ Follow the same project pattern: require Authorization, resolve current user fro
      * `404` request not found
      * `409` request no longer eligible (already ghosted/closed)
 
-2. **Function: `trigger-outbound-broker-call`**
+2. **Function:** `trigger-outbound-broker-call`
    * Purpose: queue/schedule broker call or WhatsApp fallback during countdown windows before hard ghosting.
    * Invocation: cron worker or internal backend trigger (not direct user flow).
    * Request body:
@@ -929,6 +929,9 @@ Follow the same project pattern: require Authorization, resolve current user fro
 
 3. **Function: `handle-broker-call-webhook`**
    * Purpose: process provider callbacks (Vapi/Retell/Twilio), update call/message status, persist transcript/outcome, and trigger next-step actions.
+   * Secure Webhook Authentication Scheme: Authenticates the third-party client via query string checks against a shared project webhook secret (`?token=your_secret_key`), preventing arbitrary malicious payload posts.
+   * Target Profile Matching: Automatically assigns target profiles using the outbound metadata fields.
+   * Chat Stream Closures: In case of match declines or positive closures, inserts a plain-language notification bubble inside the chat room from the target profile, allowing immediate clarity to the match originator.
    * Request body:
    ```json
    {
@@ -970,7 +973,8 @@ Follow the same project pattern: require Authorization, resolve current user fro
 ### Implementation Notes
 1. Broker outreach augments Intent Escrow and does not bypass mutual unlock payment rules.
 2. Contact exchange remains blocked until both users complete the existing equal-payment unlock flow.
-3. Broker outcomes should be mirrored into `interest_request_events` for auditability.
-4. Keep one active broker attempt per request/target/channel to prevent spam.
+3. Call Expiration & Duplicate Cleanup: To prevent attempts from permanently locking out requests when webhooks are lost or delayed, `trigger-outbound-broker-call` runs an automatic timeout sweep. Any call row left in `queued`, `dialing`, or `in_progress` for longer than 15 minutes (`STALE_BROKER_CALL_MS = 1500000`) is marked `failed` (`auto_expired_no_terminal_webhook`), immediately unlocking the queue gate.
+4. Broker outcomes should be mirrored into `interest_request_events` for auditability.
+5. Keep one active broker attempt per request/target/channel to prevent spam.
 
 
