@@ -205,6 +205,66 @@ async function safeInsertInterestRequestEvent(
     }
 }
 
+async function postBrokerClosureMessage(
+    serviceClient: ReturnType<typeof createClient>,
+    requestId: string,
+    brokerCallId: string,
+    summary: Record<string, unknown>,
+) {
+    // Look up the thread + participants for this request.
+    const requestResult = await serviceClient
+        .from('interest_requests')
+        .select('match_id, sender_id, receiver_id')
+        .eq('id', requestId)
+        .maybeSingle<{ match_id: string | null; sender_id: string; receiver_id: string }>();
+
+    if (requestResult.error) {
+        if (isMissingDatabaseObject(requestResult.error.message)) {
+            return;
+        }
+        throw requestResult.error;
+    }
+
+    const matchId = requestResult.data?.match_id ?? null;
+    if (!matchId) {
+        return;
+    }
+
+    // The broker called the target participant; relay their decision from their profile.
+    const callResult = await serviceClient
+        .from('ai_broker_calls')
+        .select('target_profile_id')
+        .eq('id', brokerCallId)
+        .maybeSingle<{ target_profile_id: string | null }>();
+
+    if (callResult.error && !isMissingDatabaseObject(callResult.error.message)) {
+        throw callResult.error;
+    }
+
+    const relaySenderId = callResult.data?.target_profile_id ?? requestResult.data?.receiver_id ?? null;
+    if (!relaySenderId) {
+        return;
+    }
+
+    const noteFromSummary = typeof summary?.note === 'string' && summary.note.trim()
+        ? ` They shared: "${summary.note.trim()}"`
+        : '';
+
+    const content =
+        `OpenMatch broker update: they let us know they can't continue this match right now, so this request has been closed.${noteFromSummary}`;
+
+    const { error: insertError } = await serviceClient.from('messages').insert({
+        match_id: matchId,
+        sender_id: relaySenderId,
+        content,
+        is_flagged_by_system: false,
+    });
+
+    if (insertError && !isMissingDatabaseObject(insertError.message)) {
+        throw insertError;
+    }
+}
+
 async function handleNextAction(
     serviceClient: ReturnType<typeof createClient>,
     requestId: string,
@@ -241,6 +301,8 @@ async function handleNextAction(
             outcome,
             summary,
         });
+
+        await postBrokerClosureMessage(serviceClient, requestId, brokerCallId, summary);
 
         return 'closed';
     }
@@ -317,7 +379,7 @@ function deriveNextAction(payload: HandleBrokerCallWebhookPayload) {
         return 'none' as const;
     }
 
-    const intent = normalizeIntentValue(payload.summary?.intent, payload.outcome);
+    const intent = normalizeIntentValue(payload.summary?.intent, payload.outcome ?? null);
     const preferredContactMode = normalizeIntentValue(payload.summary?.preferredContactMode, null);
 
     if (intent && /decline|closed|stop|not[_\s-]?interested|pause/.test(intent)) {
@@ -353,6 +415,20 @@ async function isWebhookAuthorized(
     provider: NonNullable<HandleBrokerCallWebhookPayload['provider']>,
     rawBody: string,
 ) {
+    // Shared-secret token passed in the webhook URL query string (e.g.
+    // ...?token=SECRET). We set this token when we hand Retell/Twilio the per-call
+    // webhook_url, so we don't have to reverse-engineer each provider's signature scheme.
+    if (env.brokerWebhookSecret) {
+        try {
+            const urlToken = new URL(request.url).searchParams.get('token')?.trim();
+            if (urlToken && safeCompare(urlToken, env.brokerWebhookSecret)) {
+                return true;
+            }
+        } catch (_error) {
+            // Ignore malformed URLs and fall through to the other auth methods.
+        }
+    }
+
     const authHeader = request.headers.get('Authorization');
     const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
     if (token && token === env.supabaseServiceRoleKey) {

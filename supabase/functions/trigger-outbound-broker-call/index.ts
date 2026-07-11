@@ -10,6 +10,11 @@ const corsHeaders = {
 // this country code when a number has no explicit country code / leading +.
 const DEFAULT_COUNTRY_CODE = '91';
 
+// If a broker call is still 'queued'/'dialing'/'in_progress' after this long, we treat
+// it as stale (the provider likely completed the call but never posted a terminal
+// webhook). Stale attempts are auto-expired so they can't permanently block new calls.
+const STALE_BROKER_CALL_MS = 15 * 60 * 1000; // 15 minutes
+
 type TriggerOutboundBrokerCallPayload = {
     requestId?: string;
     targetProfileId?: string;
@@ -131,6 +136,25 @@ Deno.serve(async (request) => {
 
         if (authResult.userId && authResult.userId !== interestRequest.sender_id && authResult.userId !== interestRequest.receiver_id) {
             return json({ error: 'You are not a participant in this request.' }, 401);
+        }
+
+        // Auto-expire stale in-flight attempts. If a provider never posted a terminal
+        // webhook (e.g. the call actually completed but we never heard back), the row
+        // would stay 'queued'/'dialing'/'in_progress' forever and permanently block new
+        // attempts. Flip anything older than the stale threshold to 'failed' first so a
+        // missing webhook can't lock the channel.
+        const staleCutoffIso = new Date(Date.now() - STALE_BROKER_CALL_MS).toISOString();
+        const staleReset = await serviceClient
+            .from('ai_broker_calls')
+            .update({ status: 'failed', ended_at: new Date().toISOString(), last_error: 'auto_expired_no_terminal_webhook' })
+            .eq('request_id', requestId)
+            .eq('target_profile_id', targetProfileId)
+            .eq('channel', channel)
+            .in('status', ['queued', 'dialing', 'in_progress'])
+            .lt('created_at', staleCutoffIso);
+
+        if (staleReset.error && !isMissingDatabaseObject(staleReset.error.message)) {
+            throw staleReset.error;
         }
 
         const duplicate = await serviceClient
@@ -548,6 +572,7 @@ async function dispatchRetellVoiceCall(args: {
             from_number: env.retellFromNumber,
             to_number: dispatchContext.destination,
             override_agent_id: env.retellAgentId,
+            webhook_url: env.brokerWebhookUrl,
             metadata: {
                 brokerCallId,
                 requestId,
@@ -1149,6 +1174,18 @@ function getEnv() {
         throw new Error('Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY.');
     }
 
+    // Where providers should POST call/message status updates. Defaults to this project's
+    // handle-broker-call-webhook function so completion events always reach us even if the
+    // agent/account-level webhook isn't configured in the provider dashboard.
+    const brokerWebhookSecret = Deno.env.get('BROKER_WEBHOOK_SECRET')?.trim() || '';
+    const brokerWebhookBase = Deno.env.get('BROKER_WEBHOOK_URL')?.trim()
+        || `${supabaseUrl.replace(/\/$/, '')}/functions/v1/handle-broker-call-webhook`;
+    // Append the shared-secret token so the webhook can authorize provider callbacks
+    // without needing to verify each provider's signature scheme.
+    const brokerWebhookUrl = brokerWebhookSecret
+        ? `${brokerWebhookBase}${brokerWebhookBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(brokerWebhookSecret)}`
+        : brokerWebhookBase;
+
     return {
         supabaseUrl,
         supabaseAnonKey,
@@ -1170,6 +1207,7 @@ function getEnv() {
         twilioVoiceApplicationSid,
         twilioWhatsappFromNumber,
         openmatchAppUrl,
+        brokerWebhookUrl,
     };
 }
 

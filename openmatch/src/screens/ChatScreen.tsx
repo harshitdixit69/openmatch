@@ -750,7 +750,7 @@ export function ChatScreen({
                 await loadMatches(false);
             }
 
-            setNotice('AI callback has been queued. We will follow up respectfully and update this request status soon.');
+            setNotice('Callback queued. We\'ll update this soon.');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not queue the callback right now.';
             Alert.alert('Callback unavailable', message);
@@ -930,13 +930,6 @@ export function ChatScreen({
 
     const canQueueBrokerNudge = !brokerSummaryLoading && brokerSummary?.otherUserConsent === 'granted';
     const hasCurrentUserBrokerConsent = brokerSummary?.currentUserConsent === 'granted';
-    const brokerConsentHint = brokerSummaryLoading
-        ? 'Checking broker consent status...'
-        : brokerSummary?.otherUserConsent === 'granted'
-            ? 'Target participant has granted broker consent. You can queue outreach.'
-            : brokerSummary?.otherUserConsent === 'declined'
-                ? 'Target participant declined broker outreach for now.'
-                : 'Target participant has not granted broker consent yet.';
     const activeBrokerDetail = getBrokerSummaryDetail(brokerSummary);
     const isCurrentUserOriginalSender = activeMatch?.interestRequest?.senderId === currentUserId;
     const canQueueCurrentBrokerNudge = !isCurrentUserOriginalSender && canQueueBrokerNudge;
@@ -1616,26 +1609,6 @@ export function ChatScreen({
 
                                 {showBrokerTools ? (
                                     <>
-                                        <View style={styles.brokerInfoCard}>
-                                            <Text style={styles.brokerInfoText}>{brokerConsentHint}</Text>
-
-                                            {activeBrokerDetail ? <Text style={styles.brokerInfoMeta}>{activeBrokerDetail}</Text> : null}
-
-                                            <FollowupJobStatusBlock match={activeMatch} />
-                                        </View>
-
-                                        {activeRecoverySuggestion ? (
-                                            <RecoverySuggestionCard
-                                                suggestion={activeRecoverySuggestion}
-                                                pending={unlocking}
-                                                onPress={
-                                                    activeRecoverySuggestion.action
-                                                        ? () => void handleRecoverySuggestionAction(activeRecoverySuggestion.action as RecoverySuggestionAction)
-                                                        : undefined
-                                                }
-                                            />
-                                        ) : null}
-
                                         <View style={styles.brokerActionsRow}>
                                             <Pressable
                                                 style={[
@@ -1647,8 +1620,8 @@ export function ChatScreen({
                                             >
                                                 <Text style={styles.callbackActionButtonText}>
                                                     {callbackPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Queueing callback...'
-                                                        : 'Queue AI callback check'}
+                                                        ? 'Working…'
+                                                        : 'Check if still interested'}
                                                 </Text>
                                             </Pressable>
 
@@ -1664,10 +1637,10 @@ export function ChatScreen({
                                             >
                                                 <Text style={styles.callbackActionButtonText}>
                                                     {brokerConsentPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Saving consent...'
+                                                        ? 'Saving…'
                                                         : hasCurrentUserBrokerConsent
-                                                            ? 'Broker consent granted'
-                                                            : 'Allow broker outreach'}
+                                                            ? 'Calls allowed'
+                                                            : 'Let OpenMatch call me'}
                                                 </Text>
                                             </Pressable>
 
@@ -1683,10 +1656,10 @@ export function ChatScreen({
                                             >
                                                 <Text style={styles.callbackActionButtonSecondaryText}>
                                                     {brokerNudgePendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Queueing nudge...'
+                                                        ? 'Sending…'
                                                         : !canQueueCurrentBrokerNudge
-                                                            ? 'Waiting for consent'
-                                                            : 'Queue broker voice nudge'}
+                                                            ? 'Needs their consent'
+                                                            : 'Send a voice reminder'}
                                                 </Text>
                                             </Pressable>
                                         </View>
@@ -1710,26 +1683,6 @@ export function ChatScreen({
 
                                 {showBrokerTools ? (
                                     <>
-                                        <View style={styles.brokerInfoCard}>
-                                            <Text style={styles.brokerInfoText}>{brokerConsentHint}</Text>
-
-                                            {activeBrokerDetail ? <Text style={styles.brokerInfoMeta}>{activeBrokerDetail}</Text> : null}
-
-                                            <FollowupJobStatusBlock match={activeMatch} />
-                                        </View>
-
-                                        {activeRecoverySuggestion ? (
-                                            <RecoverySuggestionCard
-                                                suggestion={activeRecoverySuggestion}
-                                                pending={unlocking}
-                                                onPress={
-                                                    activeRecoverySuggestion.action
-                                                        ? () => void handleRecoverySuggestionAction(activeRecoverySuggestion.action as RecoverySuggestionAction)
-                                                        : undefined
-                                                }
-                                            />
-                                        ) : null}
-
                                         <View style={styles.brokerActionsRow}>
                                             <Pressable
                                                 style={[
@@ -1741,8 +1694,8 @@ export function ChatScreen({
                                             >
                                                 <Text style={styles.callbackActionButtonText}>
                                                     {callbackPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Queueing callback...'
-                                                        : 'Try one AI recovery callback'}
+                                                        ? 'Working…'
+                                                        : 'Try a recovery call'}
                                                 </Text>
                                             </Pressable>
 
@@ -1758,10 +1711,10 @@ export function ChatScreen({
                                             >
                                                 <Text style={styles.callbackActionButtonText}>
                                                     {brokerConsentPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Saving consent...'
+                                                        ? 'Saving…'
                                                         : hasCurrentUserBrokerConsent
-                                                            ? 'Broker consent granted'
-                                                            : 'Allow broker outreach'}
+                                                            ? 'Calls allowed'
+                                                            : 'Let OpenMatch call me'}
                                                 </Text>
                                             </Pressable>
 
@@ -1777,12 +1730,12 @@ export function ChatScreen({
                                             >
                                                 <Text style={styles.callbackActionButtonSecondaryText}>
                                                     {brokerNudgePendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Queueing nudge...'
+                                                        ? 'Sending…'
                                                         : !canQueueCurrentBrokerNudge
                                                             ? isCurrentUserOriginalSender
-                                                                ? 'Only the other participant can queue outreach'
-                                                                : 'Waiting for consent'
-                                                            : 'Queue WhatsApp broker nudge'}
+                                                                ? 'Only they can do this'
+                                                                : 'Needs their consent'
+                                                            : 'Send a WhatsApp reminder'}
                                                 </Text>
                                             </Pressable>
                                         </View>
@@ -2158,17 +2111,7 @@ function FollowupJobStatusBlock({ match }: { match: ChatMatch }) {
 
     return (
         <View style={styles.followupJobBlock}>
-            <View style={styles.matchStateRow}>
-                <StateChip
-                    label={`${formatFollowupJobChannelLabel(latestJob.channel)} ${formatFollowupJobStatusLabel(latestJob.status)}`}
-                    tone={getFollowupJobTone(latestJob.status)}
-                />
-            </View>
-
             <Text style={styles.brokerInfoText}>{getFollowupJobPreview(match)}</Text>
-            <Text style={styles.brokerInfoMeta}>
-                {latestJob.provider.toUpperCase()} • {latestJob.executedAt ? `updated ${formatMessageTime(latestJob.executedAt)}` : `queued ${formatMessageTime(latestJob.createdAt)}`}
-            </Text>
         </View>
     );
 }
