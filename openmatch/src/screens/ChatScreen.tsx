@@ -809,11 +809,6 @@ export function ChatScreen({
             return;
         }
 
-        if (!brokerSummaryLoading && brokerSummary?.otherUserConsent !== 'granted') {
-            setNotice('Cannot queue outreach yet. The target participant must grant broker consent first.');
-            return;
-        }
-
         setBrokerNudgePendingRequestId(requestId);
         setNotice(null);
 
@@ -1474,31 +1469,6 @@ export function ChatScreen({
                                     </View>
                                 ) : null}
 
-                                {activeMatch.interestRequest ? (
-                                    <View style={styles.requestMetaRow}>
-                                        <StateChip label={`Ghost risk ${activeMatch.interestRequest.senderGhostRiskScore}`} tone="muted" />
-                                        <StateChip label={`Quality ${activeMatch.interestRequest.requestQualityScore}`} tone="accent" />
-                                    </View>
-                                ) : null}
-
-                                <View style={styles.requestTrustRow}>
-                                    <StateChip
-                                        label={activeMatch.otherUserProfileOwner ? `${capitalizeProfileOwner(activeMatch.otherUserProfileOwner)}-managed` : 'Self-managed'}
-                                        tone="muted"
-                                    />
-
-                                    {trustSummaries[activeMatch.otherUserId] ? (
-                                        <StateChip
-                                            label={`Reliability ${trustSummaries[activeMatch.otherUserId].responseReliabilityScore}`}
-                                            tone="primary"
-                                        />
-                                    ) : null}
-
-                                    <Pressable style={styles.inlineTrustButton} onPress={() => void openTrustDrawer(activeMatch)}>
-                                        <Text style={styles.inlineTrustButtonText}>View trust</Text>
-                                    </Pressable>
-                                </View>
-
                                 {activeMatch.matchRequestState === 'received' ? (
                                     <View style={styles.requestActionsRow}>
                                         <Pressable
@@ -1540,52 +1510,52 @@ export function ChatScreen({
                             }}
                         />
 
-                        {activeMatch.interestRequest?.status === 'accepted' &&
+                        {activeMatch.interestRequest &&
                             activeMatch.interestRequest.senderId === currentUserId &&
-                            !activeMatch.interestRequest.firstReplyAt &&
-                            activeMatch.interestRequest.firstReplyDueAt ? (
-                            <View style={styles.deadlineCard}>
-                                <Text style={styles.deadlineTitle}>Reply within 24 hours</Text>
-                                <Text style={styles.deadlineBody}>
-                                    Send a real follow-up message within {formatCountdownLabel(activeMatch.interestRequest.firstReplyDueAt, currentTime)} so this accepted request does not expire.
-                                </Text>
+                            messages.filter((m) => m.senderId === activeMatch.otherUserId).length <= 1 ? (
+                            <View style={styles.deadlineCardMuted}>
+                                {!activeMatch.interestRequest.firstReplyAt && activeMatch.interestRequest.firstReplyDueAt ? (
+                                    <>
+                                        <Text style={styles.deadlineTitle}>Reply within 24 hours</Text>
+                                        <Text style={styles.deadlineBody}>
+                                            Send a real follow-up message within {formatCountdownLabel(activeMatch.interestRequest.firstReplyDueAt, currentTime)} so this accepted request does not expire.
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text style={styles.deadlineTitleMuted}>Waiting for {activeMatch.otherUserName} to reply</Text>
+                                        <Text style={styles.deadlineBodyMuted}>
+                                            You've sent your follow-up. We can nudge them with a voice reminder if they haven't responded.
+                                        </Text>
+                                    </>
+                                )}
 
                                 <BrokerToolsToggle
                                     open={showBrokerTools}
                                     onToggle={() => setShowBrokerTools((prev) => !prev)}
-                                    summary={`Your consent ${formatBrokerConsentLabel(brokerSummary?.currentUserConsent ?? 'unknown')}`}
+                                    summary="Voice reminder"
                                 />
 
                                 {showBrokerTools ? (
                                     <>
-                                        <View style={styles.brokerInfoCard}>
-                                            <Text style={styles.brokerInfoText}>
-                                                {hasCurrentUserBrokerConsent
-                                                    ? 'Broker outreach is allowed if the other participant needs to queue a reminder or recovery call.'
-                                                    : 'If you want OpenMatch to be allowed to call or message you when this reply window is about to expire, grant broker outreach here.'}
-                                            </Text>
-
-                                            {activeBrokerDetail ? <Text style={styles.brokerInfoMeta}>{activeBrokerDetail}</Text> : null}
+                                        <View style={styles.brokerActionsRow}>
+                                            <Pressable
+                                                style={[
+                                                    styles.callbackActionButton,
+                                                    brokerNudgePendingRequestId === activeMatch.interestRequest.id
+                                                        ? styles.sendButtonDisabled
+                                                        : null,
+                                                ]}
+                                                onPress={() => void handleQueueBrokerNudge(activeMatch, 'voice')}
+                                                disabled={brokerNudgePendingRequestId === activeMatch.interestRequest.id}
+                                            >
+                                                <Text style={styles.callbackActionButtonText}>
+                                                    {brokerNudgePendingRequestId === activeMatch.interestRequest.id
+                                                        ? 'Sending…'
+                                                        : 'Send a voice reminder'}
+                                                </Text>
+                                            </Pressable>
                                         </View>
-
-                                        <Pressable
-                                            style={[
-                                                styles.callbackActionButtonSecondary,
-                                                brokerConsentPendingRequestId === activeMatch.interestRequest.id || hasCurrentUserBrokerConsent
-                                                    ? styles.sendButtonDisabled
-                                                    : null,
-                                            ]}
-                                            onPress={() => void handleBrokerConsent(activeMatch, true)}
-                                            disabled={brokerConsentPendingRequestId === activeMatch.interestRequest.id || hasCurrentUserBrokerConsent}
-                                        >
-                                            <Text style={styles.callbackActionButtonSecondaryText}>
-                                                {brokerConsentPendingRequestId === activeMatch.interestRequest.id
-                                                    ? 'Saving consent...'
-                                                    : hasCurrentUserBrokerConsent
-                                                        ? 'Broker consent granted'
-                                                        : 'Allow broker outreach'}
-                                            </Text>
-                                        </Pressable>
                                     </>
                                 ) : null}
                             </View>
@@ -1593,7 +1563,7 @@ export function ChatScreen({
 
                         {activeMatch.interestRequest?.status === 'accepted' &&
                             activeMatch.interestRequest.senderId === activeMatch.otherUserId &&
-                            !activeMatch.interestRequest.firstReplyAt &&
+                            messages.filter((m) => m.senderId === activeMatch.otherUserId).length <= 1 &&
                             activeMatch.interestRequest.firstReplyDueAt ? (
                             <View style={styles.deadlineCardMuted}>
                                 <Text style={styles.deadlineTitleMuted}>Waiting for their first reply</Text>
@@ -1604,7 +1574,7 @@ export function ChatScreen({
                                 <BrokerToolsToggle
                                     open={showBrokerTools}
                                     onToggle={() => setShowBrokerTools((prev) => !prev)}
-                                    summary={`Their consent ${formatBrokerConsentLabel(brokerSummary?.otherUserConsent ?? 'unknown')}`}
+                                    summary="Voice reminder"
                                 />
 
                                 {showBrokerTools ? (
@@ -1613,53 +1583,17 @@ export function ChatScreen({
                                             <Pressable
                                                 style={[
                                                     styles.callbackActionButton,
-                                                    callbackPendingRequestId === activeMatch.interestRequest.id ? styles.sendButtonDisabled : null,
-                                                ]}
-                                                onPress={() => void handleTriggerIntentCallback(activeMatch, 'availability_check')}
-                                                disabled={callbackPendingRequestId === activeMatch.interestRequest.id}
-                                            >
-                                                <Text style={styles.callbackActionButtonText}>
-                                                    {callbackPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Working…'
-                                                        : 'Check if still interested'}
-                                                </Text>
-                                            </Pressable>
-
-                                            <Pressable
-                                                style={[
-                                                    styles.callbackActionButton,
-                                                    brokerConsentPendingRequestId === activeMatch.interestRequest.id || hasCurrentUserBrokerConsent
-                                                        ? styles.sendButtonDisabled
-                                                        : null,
-                                                ]}
-                                                onPress={() => void handleBrokerConsent(activeMatch, true)}
-                                                disabled={brokerConsentPendingRequestId === activeMatch.interestRequest.id || hasCurrentUserBrokerConsent}
-                                            >
-                                                <Text style={styles.callbackActionButtonText}>
-                                                    {brokerConsentPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Saving…'
-                                                        : hasCurrentUserBrokerConsent
-                                                            ? 'Calls allowed'
-                                                            : 'Let OpenMatch call me'}
-                                                </Text>
-                                            </Pressable>
-
-                                            <Pressable
-                                                style={[
-                                                    styles.callbackActionButtonSecondary,
-                                                    brokerNudgePendingRequestId === activeMatch.interestRequest.id || !canQueueCurrentBrokerNudge
+                                                    brokerNudgePendingRequestId === activeMatch.interestRequest.id
                                                         ? styles.sendButtonDisabled
                                                         : null,
                                                 ]}
                                                 onPress={() => void handleQueueBrokerNudge(activeMatch, 'voice')}
-                                                disabled={brokerNudgePendingRequestId === activeMatch.interestRequest.id || !canQueueCurrentBrokerNudge}
+                                                disabled={brokerNudgePendingRequestId === activeMatch.interestRequest.id}
                                             >
-                                                <Text style={styles.callbackActionButtonSecondaryText}>
+                                                <Text style={styles.callbackActionButtonText}>
                                                     {brokerNudgePendingRequestId === activeMatch.interestRequest.id
                                                         ? 'Sending…'
-                                                        : !canQueueCurrentBrokerNudge
-                                                            ? 'Needs their consent'
-                                                            : 'Send a voice reminder'}
+                                                        : 'Send a voice reminder'}
                                                 </Text>
                                             </Pressable>
                                         </View>
@@ -1678,7 +1612,7 @@ export function ChatScreen({
                                 <BrokerToolsToggle
                                     open={showBrokerTools}
                                     onToggle={() => setShowBrokerTools((prev) => !prev)}
-                                    summary={`Their consent ${formatBrokerConsentLabel(brokerSummary?.otherUserConsent ?? 'unknown')}`}
+                                    summary="Voice reminder"
                                 />
 
                                 {showBrokerTools ? (
@@ -1687,55 +1621,17 @@ export function ChatScreen({
                                             <Pressable
                                                 style={[
                                                     styles.callbackActionButton,
-                                                    callbackPendingRequestId === activeMatch.interestRequest.id ? styles.sendButtonDisabled : null,
-                                                ]}
-                                                onPress={() => void handleTriggerIntentCallback(activeMatch, 'schedule_prompt')}
-                                                disabled={callbackPendingRequestId === activeMatch.interestRequest.id}
-                                            >
-                                                <Text style={styles.callbackActionButtonText}>
-                                                    {callbackPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Working…'
-                                                        : 'Try a recovery call'}
-                                                </Text>
-                                            </Pressable>
-
-                                            <Pressable
-                                                style={[
-                                                    styles.callbackActionButton,
-                                                    brokerConsentPendingRequestId === activeMatch.interestRequest.id || hasCurrentUserBrokerConsent
+                                                    brokerNudgePendingRequestId === activeMatch.interestRequest.id
                                                         ? styles.sendButtonDisabled
                                                         : null,
                                                 ]}
-                                                onPress={() => void handleBrokerConsent(activeMatch, true)}
-                                                disabled={brokerConsentPendingRequestId === activeMatch.interestRequest.id || hasCurrentUserBrokerConsent}
+                                                onPress={() => void handleQueueBrokerNudge(activeMatch, 'voice')}
+                                                disabled={brokerNudgePendingRequestId === activeMatch.interestRequest.id}
                                             >
                                                 <Text style={styles.callbackActionButtonText}>
-                                                    {brokerConsentPendingRequestId === activeMatch.interestRequest.id
-                                                        ? 'Saving…'
-                                                        : hasCurrentUserBrokerConsent
-                                                            ? 'Calls allowed'
-                                                            : 'Let OpenMatch call me'}
-                                                </Text>
-                                            </Pressable>
-
-                                            <Pressable
-                                                style={[
-                                                    styles.callbackActionButtonSecondary,
-                                                    brokerNudgePendingRequestId === activeMatch.interestRequest.id || !canQueueCurrentBrokerNudge
-                                                        ? styles.sendButtonDisabled
-                                                        : null,
-                                                ]}
-                                                onPress={() => void handleQueueBrokerNudge(activeMatch, 'sms_whatsapp')}
-                                                disabled={brokerNudgePendingRequestId === activeMatch.interestRequest.id || !canQueueCurrentBrokerNudge}
-                                            >
-                                                <Text style={styles.callbackActionButtonSecondaryText}>
                                                     {brokerNudgePendingRequestId === activeMatch.interestRequest.id
                                                         ? 'Sending…'
-                                                        : !canQueueCurrentBrokerNudge
-                                                            ? isCurrentUserOriginalSender
-                                                                ? 'Only they can do this'
-                                                                : 'Needs their consent'
-                                                            : 'Send a WhatsApp reminder'}
+                                                        : 'Send a voice reminder'}
                                                 </Text>
                                             </Pressable>
                                         </View>

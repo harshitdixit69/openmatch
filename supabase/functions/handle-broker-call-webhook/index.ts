@@ -282,52 +282,89 @@ async function handleNextAction(
         return 'accepted';
     }
 
+    // Look up the request to find match_id + participants.
+    const requestResult = await serviceClient
+        .from('interest_requests')
+        .select('match_id, sender_id, receiver_id')
+        .eq('id', requestId)
+        .maybeSingle<{ match_id: string | null; sender_id: string; receiver_id: string }>();
+
+    if (requestResult.error) {
+        if (!isMissingDatabaseObject(requestResult.error.message)) {
+            throw requestResult.error;
+        }
+        return 'accepted';
+    }
+
+    const matchId = requestResult.data?.match_id ?? null;
+
+    // Identify who the broker called (the target) so the message appears from them.
+    const callResult = await serviceClient
+        .from('ai_broker_calls')
+        .select('target_profile_id')
+        .eq('id', brokerCallId)
+        .maybeSingle<{ target_profile_id: string | null }>();
+
+    if (callResult.error && !isMissingDatabaseObject(callResult.error.message)) {
+        throw callResult.error;
+    }
+
+    const targetProfileId = callResult.data?.target_profile_id
+        ?? requestResult.data?.receiver_id ?? null;
+
+    // --- NEGATIVE INTENT: close request + reject match ---
     if (nextAction === 'close_request') {
-        const { error } = await serviceClient
+        await serviceClient
             .from('interest_requests')
-            .update({
-                status: 'closed',
-            })
+            .update({ status: 'closed' })
             .eq('id', requestId)
             .in('status', ['accepted', 'ghosted']);
 
-        if (error && !isMissingDatabaseObject(error.message)) {
-            throw error;
+        if (matchId) {
+            await serviceClient
+                .from('matches')
+                .update({ status: 'rejected' })
+                .eq('id', matchId);
+
+            const noteFromSummary = typeof summary?.note === 'string' && summary.note.trim()
+                ? ` They shared: "${summary.note.trim()}"`
+                : '';
+
+            await serviceClient.from('messages').insert({
+                match_id: matchId,
+                sender_id: targetProfileId,
+                content: `OpenMatch broker update: they let us know they can't continue this match right now, so this request has been closed.${noteFromSummary}`,
+                is_flagged_by_system: false,
+            });
         }
 
         await safeInsertInterestRequestEvent(serviceClient, requestId, null, 'broker_request_closed', {
-            brokerCallId,
-            provider,
-            outcome,
-            summary,
+            brokerCallId, provider, outcome, summary,
         });
 
-        await postBrokerClosureMessage(serviceClient, requestId, brokerCallId, summary);
-
-        return 'closed';
+        return 'rejected';
     }
 
-    const channel = nextAction === 'schedule_call'
-        ? 'broker_schedule_call'
-        : nextAction === 'mutual_unlock_prompt'
-            ? 'broker_mutual_unlock_prompt'
-            : 'broker_notify_counterparty';
+    // --- POSITIVE INTENT: auto-message + connect match ---
+    if (matchId && targetProfileId) {
+        await serviceClient
+            .from('matches')
+            .update({ status: 'connected' })
+            .eq('id', matchId);
 
-    await ensureFollowupJob(serviceClient, requestId, 'broker', channel, {
-        brokerCallId,
-        provider,
-        outcome,
-        summary,
+        await serviceClient.from('messages').insert({
+            match_id: matchId,
+            sender_id: targetProfileId,
+            content: 'OpenMatch broker update: they confirmed they want to stay matched and keep this conversation going! 🎉',
+            is_flagged_by_system: false,
+        });
+    }
+
+    await safeInsertInterestRequestEvent(serviceClient, requestId, null, 'broker_positive_intent', {
+        brokerCallId, provider, outcome, summary,
     });
 
-    await safeInsertInterestRequestEvent(serviceClient, requestId, null, `${channel}_queued`, {
-        brokerCallId,
-        provider,
-        outcome,
-        summary,
-    });
-
-    return 'accepted';
+    return 'connected';
 }
 
 async function ensureFollowupJob(
@@ -398,7 +435,9 @@ function deriveNextAction(payload: HandleBrokerCallWebhookPayload) {
         return 'notify_counterparty' as const;
     }
 
-    return 'none' as const;
+    // Default: any completed call that wasn't an explicit decline is treated as
+    // positive intent so User A always receives a broker update message.
+    return 'notify_counterparty' as const;
 }
 
 function normalizeIntentValue(summaryValue: unknown, fallback: string | null) {

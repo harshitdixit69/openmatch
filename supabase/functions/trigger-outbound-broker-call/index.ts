@@ -65,14 +65,6 @@ type BrokerDispatchResult = {
     summary?: Record<string, unknown>;
 };
 
-type BrokerConsentRow = {
-    id: string;
-    status: 'consent_granted' | 'declined' | 'queued' | 'consent_required' | 'dialing' | 'in_progress' | 'completed' | 'no_answer' | 'failed' | 'cancelled';
-    consent_granted: boolean | null;
-    consent_recorded_at: string | null;
-    created_at: string;
-};
-
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -157,60 +149,21 @@ Deno.serve(async (request) => {
             throw staleReset.error;
         }
 
-        const duplicate = await serviceClient
+        // Single-trigger rule: abort if ANY broker call already exists for this request.
+        const existingCount = await serviceClient
             .from('ai_broker_calls')
-            .select('id')
-            .eq('request_id', requestId)
-            .eq('target_profile_id', targetProfileId)
-            .eq('channel', channel)
-            .in('status', ['queued', 'dialing', 'in_progress'])
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle<BrokerCallRow>();
+            .select('id', { count: 'exact', head: true })
+            .eq('request_id', requestId);
 
-        if (duplicate.error && !isMissingDatabaseObject(duplicate.error.message)) {
-            throw duplicate.error;
+        if (existingCount.error && !isMissingDatabaseObject(existingCount.error.message)) {
+            throw existingCount.error;
         }
 
-        if (duplicate.data) {
-            return json({ error: 'An active broker attempt already exists for this request/channel.' }, 409);
+        if ((existingCount.count ?? 0) >= 1) {
+            return json({ error: 'A broker call has already been placed for this request.' }, 409);
         }
 
-        const consentResult = await serviceClient
-            .from('ai_broker_calls')
-            .select('id, status, consent_granted, consent_recorded_at, created_at')
-            .eq('request_id', requestId)
-            .eq('target_profile_id', targetProfileId)
-            .eq('consent_required', true)
-            .not('consent_granted', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle<BrokerConsentRow>();
-
-        if (consentResult.error && !isMissingDatabaseObject(consentResult.error.message)) {
-            throw consentResult.error;
-        }
-
-        const consentRow = consentResult.data;
-        if (!consentRow || consentRow.consent_granted !== true) {
-            return json({ error: 'Target participant consent is required before outbound broker outreach.' }, 409);
-        }
-
-        const latestAttemptResult = await serviceClient
-            .from('ai_broker_calls')
-            .select('id, attempt_number')
-            .eq('request_id', requestId)
-            .eq('target_profile_id', targetProfileId)
-            .eq('channel', channel)
-            .order('attempt_number', { ascending: false })
-            .limit(1)
-            .maybeSingle<BrokerCallRow>();
-
-        if (latestAttemptResult.error && !isMissingDatabaseObject(latestAttemptResult.error.message)) {
-            throw latestAttemptResult.error;
-        }
-
-        const nextAttemptNumber = (latestAttemptResult.data?.attempt_number ?? 0) + 1;
+        const nextAttemptNumber = 1;
 
         const nowIso = new Date().toISOString();
 
@@ -228,70 +181,34 @@ Deno.serve(async (request) => {
 
         let brokerCallId: string;
 
-        // The very first dispatch should reuse the consent row so we don't violate
-        // the active-attempt unique index while consent status is still active.
-        if (consentRow.status === 'consent_granted') {
-            const reuseResult = await serviceClient
-                .from('ai_broker_calls')
-                .update({
-                    triggered_by_profile_id: authResult.userId,
-                    provider,
-                    channel,
-                    status: 'queued',
-                    consent_required: true,
-                    consent_granted: true,
-                    consent_recorded_at: consentRow.consent_recorded_at ?? consentRow.created_at,
-                    attempt_number: nextAttemptNumber,
-                    scheduled_for: nowIso,
-                    metadata: {
-                        mode,
-                        source: 'trigger-outbound-broker-call',
-                        windowKey,
-                    },
-                    last_error: null,
-                })
-                .eq('id', consentRow.id)
-                .select('id')
-                .single<BrokerCallRow>();
+        const insertResult = await serviceClient
+            .from('ai_broker_calls')
+            .insert({
+                request_id: interestRequest.id,
+                match_id: interestRequest.match_id,
+                sender_profile_id: interestRequest.sender_id,
+                receiver_profile_id: interestRequest.receiver_id,
+                target_profile_id: targetProfileId,
+                triggered_by_profile_id: authResult.userId,
+                provider,
+                channel,
+                status: 'queued',
+                attempt_number: nextAttemptNumber,
+                scheduled_for: nowIso,
+                metadata: {
+                    mode,
+                    source: 'trigger-outbound-broker-call',
+                    windowKey,
+                },
+            })
+            .select('id')
+            .single<BrokerCallRow>();
 
-            if (reuseResult.error || !reuseResult.data?.id) {
-                throw reuseResult.error ?? new Error('Could not reuse broker consent row.');
-            }
-
-            brokerCallId = reuseResult.data.id;
-        } else {
-            const insertResult = await serviceClient
-                .from('ai_broker_calls')
-                .insert({
-                    request_id: interestRequest.id,
-                    match_id: interestRequest.match_id,
-                    sender_profile_id: interestRequest.sender_id,
-                    receiver_profile_id: interestRequest.receiver_id,
-                    target_profile_id: targetProfileId,
-                    triggered_by_profile_id: authResult.userId,
-                    provider,
-                    channel,
-                    status: 'queued',
-                    consent_required: false,
-                    consent_granted: true,
-                    consent_recorded_at: consentRow.consent_recorded_at ?? consentRow.created_at,
-                    attempt_number: nextAttemptNumber,
-                    scheduled_for: nowIso,
-                    metadata: {
-                        mode,
-                        source: 'trigger-outbound-broker-call',
-                        windowKey,
-                    },
-                })
-                .select('id')
-                .single<BrokerCallRow>();
-
-            if (insertResult.error || !insertResult.data?.id) {
-                throw insertResult.error ?? new Error('Could not create broker call attempt.');
-            }
-
-            brokerCallId = insertResult.data.id;
+        if (insertResult.error || !insertResult.data?.id) {
+            throw insertResult.error ?? new Error('Could not create broker call attempt.');
         }
+
+        brokerCallId = insertResult.data.id;
 
         await safeInsertInterestRequestEvent(serviceClient, interestRequest.id, authResult.userId, 'broker_call_queued', {
             brokerCallId,
