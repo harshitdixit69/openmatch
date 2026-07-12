@@ -18,6 +18,7 @@ import { getRequestTrustSummary } from '../lib/intentEscrowApi';
 import { MatchCandidate } from '../lib/matchmaking';
 import { trackPremiumEvent } from '../lib/premiumAnalytics';
 import { getDisplayFirstName, matchesPartnerGenderPreference, ProfileRecord } from '../lib/profile';
+import { recordProfileView } from '../lib/profileViewsApi';
 import { MAX_CONTENT_WIDTH, useResponsiveLayout } from '../lib/responsiveLayout';
 
 type MatchProfileScreenProps = {
@@ -57,6 +58,11 @@ export function MatchProfileScreen({
 
     useEffect(() => {
         setSelectedPhotoIndex(0);
+    }, [candidate.id]);
+
+    // Record that the current user viewed this profile (fire-and-forget, deduped per day).
+    useEffect(() => {
+        void recordProfileView(candidate.id);
     }, [candidate.id]);
 
     useEffect(() => {

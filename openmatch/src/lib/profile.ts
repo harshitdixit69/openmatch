@@ -16,6 +16,21 @@ export type ProfileRecord = {
     height_cm: number | null;
     profile_owner: ProfileOwner | null;
     onboarding_completed_at: string | null;
+    // Structured fields (F2 Profile Edit)
+    religion: string | null;
+    marital_status: string | null;
+    education: string | null;
+    diet: string | null;
+    mother_tongue: string | null;
+    income_band: string | null;
+    occupation: string | null;
+    company: string | null;
+    complexion: string | null;
+    family_type: string | null;
+    family_status: string | null;
+    num_siblings: number | null;
+    drinks_alcohol: boolean | null;
+    smokes: boolean | null;
 };
 
 export type ProfileContactDetails = {
@@ -39,6 +54,21 @@ export type ProfileInput = {
     preferences: string;
     height_cm: number;
     profile_owner: ProfileOwner;
+    // Structured fields (F2 Profile Edit) — all optional on input
+    religion?: string | null;
+    marital_status?: string | null;
+    education?: string | null;
+    diet?: string | null;
+    mother_tongue?: string | null;
+    income_band?: string | null;
+    occupation?: string | null;
+    company?: string | null;
+    complexion?: string | null;
+    family_type?: string | null;
+    family_status?: string | null;
+    num_siblings?: number | null;
+    drinks_alcohol?: boolean | null;
+    smokes?: boolean | null;
 };
 
 export type OnboardingCopilotResult = {

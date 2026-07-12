@@ -30,6 +30,7 @@ import {
     fetchCompatibilitySnapshot,
     fetchSemanticMatches,
     recordPassedProfile,
+    clearPassedProfiles,
 } from '../lib/matchmakingApi';
 import {
     fetchCurrentProfile,
@@ -147,6 +148,12 @@ export function HomeScreen() {
     function resetFeedFilters() {
         setSearchQuery('');
         setActiveFeedFilter('new');
+    }
+
+    async function resetFeedAndPassed() {
+        await clearPassedProfiles();
+        resetFeedFilters();
+        await loadFeed(true);
     }
 
     async function loadFeed(showLoader: boolean, silentErrors = false) {
@@ -329,6 +336,15 @@ export function HomeScreen() {
         setCurrentIndex(0);
         pan.setValue({ x: 0, y: 0 });
     }, [activeFeedFilter, searchQuery, pan, candidates.length]);
+
+    // Auto-fetch more profiles when the user is 5 cards from the end of the feed.
+    useEffect(() => {
+        if (loading || refreshing) return;
+        if (visibleCandidates.length === 0) return;
+        if (currentIndex < visibleCandidates.length - 5) return;
+        void loadFeed(false, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentIndex]);
 
     const activeCandidate = visibleCandidates[currentIndex] ?? null;
     const nextCandidate = visibleCandidates[currentIndex + 1] ?? null;
@@ -645,12 +661,12 @@ export function HomeScreen() {
                     renderStateCard(
                         visibleCandidates.length === 0 && candidates.length > 0
                             ? 'No profiles match this view'
-                            : 'No semantic matches yet',
+                            : 'No matches in feed',
                         visibleCandidates.length === 0 && candidates.length > 0
                             ? 'Try a broader search or switch filters to see more profiles from your ranked feed.'
-                            : 'The feed is ready, but there are no other embedded profiles to rank against right now.',
-                        visibleCandidates.length === 0 && candidates.length > 0 ? 'Clear filters' : 'Refresh feed',
-                        visibleCandidates.length === 0 && candidates.length > 0 ? resetFeedFilters : undefined,
+                            : "You've seen everyone for now. Reset the feed to see profiles you previously passed on.",
+                        visibleCandidates.length === 0 && candidates.length > 0 ? 'Clear filters' : 'Reset feed',
+                        visibleCandidates.length === 0 && candidates.length > 0 ? resetFeedFilters : resetFeedAndPassed,
                     )
                 ) : (
                     <>
@@ -808,7 +824,7 @@ export function HomeScreen() {
 
                                 {viewerContactDetails?.phone_number || viewerContactDetails?.whatsapp_number ? (
                                     contactPhoneNumber.trim() === (viewerContactDetails?.phone_number ?? '') &&
-                                    contactWhatsappNumber.trim() === (viewerContactDetails?.whatsapp_number ?? '') ? (
+                                        contactWhatsappNumber.trim() === (viewerContactDetails?.whatsapp_number ?? '') ? (
                                         <Text style={styles.contactSavedHint}>Saved details are ready for unlocked matches.</Text>
                                     ) : (
                                         <Text style={styles.contactSavedHint}>You have unsaved changes. Tap save to update.</Text>

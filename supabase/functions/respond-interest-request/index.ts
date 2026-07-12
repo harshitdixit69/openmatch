@@ -98,6 +98,12 @@ Deno.serve(async (request) => {
 
             if (declinedRequest) {
                 await safeInsertInterestRequestEvent(serviceClient, declinedRequest.id, user.id, 'declined', {});
+                // Notify the original sender that their request was declined.
+                await safeInsertNotification(serviceClient, declinedRequest.sender_id, 'request_declined', {
+                    title: 'Request declined',
+                    body: 'Your interest request was declined.',
+                    metadata: { matchId: targetMatch.id, requestId: declinedRequest.id },
+                });
             }
 
             return json({
@@ -129,6 +135,12 @@ Deno.serve(async (request) => {
 
         if (acceptedRequest) {
             await safeInsertInterestRequestEvent(serviceClient, acceptedRequest.id, user.id, 'accepted', {});
+            // Notify the sender that their interest was accepted.
+            await safeInsertNotification(serviceClient, acceptedRequest.sender_id, 'request_accepted', {
+                title: 'Interest accepted!',
+                body: 'Your interest request was accepted. Say hello!',
+                metadata: { matchId: updatedMatch.id, requestId: acceptedRequest.id },
+            });
         }
 
         return json({
@@ -365,6 +377,28 @@ async function safeInsertInterestRequestEvent(
 
     if (error && !isMissingDatabaseObject(error.message)) {
         throw error;
+    }
+}
+
+async function safeInsertNotification(
+    serviceClient: ReturnType<typeof createClient>,
+    userId: string,
+    type: string,
+    opts: { title: string; body: string; metadata: Record<string, string> },
+) {
+    const { error } = await serviceClient.from('notifications').insert({
+        user_id: userId,
+        type,
+        title: opts.title,
+        body: opts.body,
+        metadata: opts.metadata,
+        is_read: false,
+    });
+
+    // Non-fatal: a missing notifications table or any transient error must
+    // never block the primary accept/decline flow.
+    if (error && !isMissingDatabaseObject(error.message)) {
+        console.warn('safeInsertNotification failed:', error.message);
     }
 }
 

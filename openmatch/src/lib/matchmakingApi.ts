@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { MatchCandidate, MatchFeedResult, ViewerEmbeddingStatus } from './matchmaking';
-import { getDefaultPartnerGenderPreference, matchesPartnerGenderPreference } from './profile';
+import { getDefaultPartnerGenderPreference } from './profile';
 import { supabase } from './supabase';
 
 type ViewerEmbeddingRow = {
@@ -76,11 +76,6 @@ function normalizeCandidates(data: unknown, currentUserId: string): MatchCandida
     });
 }
 
-function shouldUseLegacyMatchFunction(message: string) {
-    return /function.*match_profiles.*does not exist|no function matches|could not find the function public\.match_profiles/i.test(
-        message,
-    );
-}
 
 function resolveViewerEmbeddingStatus(viewerProfile: ViewerEmbeddingRow | null | undefined): ViewerEmbeddingStatus {
     if (viewerProfile?.embedding) {
@@ -140,20 +135,6 @@ async function fetchViewerMatchProfile(currentUserId: string) {
     } satisfies ViewerEmbeddingRow;
 }
 
-function filterCandidatesByGenderPreferences(candidates: MatchCandidate[], viewerProfile: ViewerEmbeddingRow) {
-    return candidates.filter((candidate) => {
-        if (!matchesPartnerGenderPreference(candidate.gender, viewerProfile.partner_gender_preference)) {
-            return false;
-        }
-
-        if (!candidate.partner_gender_preference) {
-            return true;
-        }
-
-        return matchesPartnerGenderPreference(viewerProfile.gender, candidate.partner_gender_preference);
-    });
-}
-
 async function fetchPassedProfileIds(currentUserId: string) {
     const storedValue = await AsyncStorage.getItem(getPassedProfilesStorageKey(currentUserId));
     if (!storedValue) {
@@ -194,7 +175,7 @@ async function fetchExistingMatchedProfileIds(currentUserId: string) {
     );
 }
 
-export async function fetchSemanticMatches(limit = 20): Promise<MatchFeedResult> {
+export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult> {
     const {
         data: { user },
         error: userError,
@@ -226,47 +207,26 @@ export async function fetchSemanticMatches(limit = 20): Promise<MatchFeedResult>
 
     const excludedProfileIds = new Set<string>([...existingMatchedProfileIds, ...passedProfileIds]);
 
-    const modernResult = await supabase.rpc('match_profiles', {
+    const { data, error } = await supabase.rpc('match_profiles', {
         result_limit: limit,
+        p_viewer_id: user.id,
     });
 
-    if (!modernResult.error) {
-        const normalizedCandidates = filterCandidatesByGenderPreferences(
-            normalizeCandidates(modernResult.data, user.id).filter((candidate) => !excludedProfileIds.has(candidate.id)),
-            viewerProfile,
-        );
-
-        return {
-            candidates: normalizedCandidates,
-            viewerEmbeddingReady: true,
-            viewerEmbeddingStatus: 'ready',
-            usedLegacyFunction: false,
-        };
+    if (error) {
+        throw error;
     }
 
-    if (!shouldUseLegacyMatchFunction(modernResult.error.message)) {
-        throw modernResult.error;
-    }
-
-    const legacyResult = await supabase.rpc('match_profiles', {
-        query_embedding: viewerProfile.embedding,
-        result_limit: limit,
-    });
-
-    if (legacyResult.error) {
-        throw legacyResult.error;
-    }
-
-    const normalizedCandidates = filterCandidatesByGenderPreferences(
-        normalizeCandidates(legacyResult.data, user.id).filter((candidate) => !excludedProfileIds.has(candidate.id)),
-        viewerProfile,
+    // Gender filtering is already applied inside match_profiles() on the DB.
+    // We only normalize (type-safe field coercion + self-exclusion) here.
+    const candidates = normalizeCandidates(data, user.id).filter(
+        (candidate) => !excludedProfileIds.has(candidate.id),
     );
 
     return {
-        candidates: normalizedCandidates,
+        candidates,
         viewerEmbeddingReady: true,
         viewerEmbeddingStatus: 'ready',
-        usedLegacyFunction: true,
+        usedLegacyFunction: false,
     };
 }
 
@@ -357,4 +317,12 @@ export async function recordPassedProfile(candidateProfileId: string) {
     const passedProfileIds = await fetchPassedProfileIds(user.id);
     passedProfileIds.add(candidateProfileId);
     await savePassedProfileIds(user.id, passedProfileIds);
+}
+
+/** Clear all locally-stored passed/swiped-left profile IDs for the current user.
+ *  Used by the "Reset feed" button so profiles the user swiped away reappear. */
+export async function clearPassedProfiles(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await AsyncStorage.removeItem(getPassedProfilesStorageKey(user.id));
 }

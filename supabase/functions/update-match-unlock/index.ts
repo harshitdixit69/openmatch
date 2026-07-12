@@ -183,6 +183,36 @@ Deno.serve(async (request) => {
                         : 'You accepted the unlock request.'
                     : 'Unlock request declined.';
 
+        // Notify the other participant of the action they need to respond to.
+        const otherUserId = match.user_1_id === user.id ? match.user_2_id : match.user_1_id;
+        if (action === 'request') {
+            await safeInsertNotification(serviceClient, otherUserId, 'contact_unlocked', {
+                title: 'Contact unlock requested',
+                body: 'Someone wants to share contact details with you.',
+                metadata: { matchId: match.id },
+            });
+        } else if (action === 'accept' && state.canPay) {
+            // Both accepted — notify both to proceed with payment.
+            await Promise.all([
+                safeInsertNotification(serviceClient, user.id, 'contact_unlocked', {
+                    title: 'Both accepted — pay to unlock',
+                    body: 'Both of you agreed. Pay your share to share contact details.',
+                    metadata: { matchId: match.id },
+                }),
+                safeInsertNotification(serviceClient, otherUserId, 'contact_unlocked', {
+                    title: 'Both accepted — pay to unlock',
+                    body: 'Both of you agreed. Pay your share to share contact details.',
+                    metadata: { matchId: match.id },
+                }),
+            ]);
+        } else if (action === 'decline') {
+            await safeInsertNotification(serviceClient, otherUserId, 'contact_unlocked', {
+                title: 'Unlock request declined',
+                body: 'The contact unlock request was declined.',
+                metadata: { matchId: match.id },
+            });
+        }
+
         return json({ state, message });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown mutual unlock error.';
@@ -220,6 +250,26 @@ async function fetchMatchUnlock(serviceClient: ReturnType<typeof createClient>, 
     }
 
     return data;
+}
+
+async function safeInsertNotification(
+    serviceClient: ReturnType<typeof createClient>,
+    userId: string,
+    type: string,
+    opts: { title: string; body: string; metadata: Record<string, string> },
+) {
+    const { error } = await serviceClient.from('notifications').insert({
+        user_id: userId,
+        type,
+        title: opts.title,
+        body: opts.body,
+        metadata: opts.metadata,
+        is_read: false,
+    });
+
+    if (error && !/does not exist/i.test(error.message ?? '')) {
+        console.warn('safeInsertNotification failed:', error.message);
+    }
 }
 
 function getEnv() {

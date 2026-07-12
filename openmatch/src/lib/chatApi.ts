@@ -415,12 +415,27 @@ async function requireCurrentUser() {
 // showing a full-screen spinner on every open, while a fresh fetch runs in the
 // background. Cleared on sign out so no data leaks between accounts.
 let cachedChatMatches: ChatMatch[] | null = null;
+// Deduplicate concurrent fetchChatMatches calls — if one is already in-flight,
+// all additional callers attach to the same promise instead of firing new DB queries.
+let cachedFetchMatchesPromise: Promise<ChatMatch[]> | null = null;
 
 export function getCachedChatMatches() {
     return cachedChatMatches;
 }
 
-export async function fetchChatMatches() {
+export async function fetchChatMatches(): Promise<ChatMatch[]> {
+    if (cachedFetchMatchesPromise) {
+        return cachedFetchMatchesPromise;
+    }
+
+    cachedFetchMatchesPromise = _doFetchChatMatches().finally(() => {
+        cachedFetchMatchesPromise = null;
+    });
+
+    return cachedFetchMatchesPromise;
+}
+
+async function _doFetchChatMatches(): Promise<ChatMatch[]> {
     const user = await requireCurrentUser();
 
     const { data: matchRows, error: matchesError } = await supabase
@@ -473,6 +488,7 @@ export async function fetchChatMatches() {
             .select('id, match_id, sender_id, read_at, created_at')
             .in('match_id', matchIds)
             .order('created_at', { ascending: true })
+            .limit(500)
             .returns<MatchListMessageRow[]>(),
         supabase
             .from('interest_requests')

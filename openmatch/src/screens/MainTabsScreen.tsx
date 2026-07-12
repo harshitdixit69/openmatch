@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -11,6 +11,15 @@ import { fetchCurrentProfile } from '../lib/profileApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
 import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
+import { DashboardScreen } from './DashboardScreen';
+import { MyMatchesScreen } from './MyMatchesScreen';
+import { NotificationsScreen } from './NotificationsScreen';
+import { PartnerPreferencesScreen } from './PartnerPreferencesScreen';
+import { ProfileEditScreen } from './ProfileEditScreen';
+import { SearchScreen } from './SearchScreen';
+import { SettingsScreen } from './SettingsScreen';
+import { ShortlistScreen } from './ShortlistScreen';
+import { WhoViewedMeScreen } from './WhoViewedMeScreen';
 
 // Base height of the tab bar content (padding + tab button minHeight) before the
 // device's bottom safe-area inset is added. Used to reserve space so scrollable
@@ -42,7 +51,36 @@ export function MainTabsScreen() {
     const [shellLoading, setShellLoading] = useState(true);
     const [viewerFirstName, setViewerFirstName] = useState('');
     const [shellCounts, setShellCounts] = useState<ShellCounts>(emptyShellCounts);
+    const [showPartnerPrefs, setShowPartnerPrefs] = useState(false);
+    const [showProfileEdit, setShowProfileEdit] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [showShortlist, setShowShortlist] = useState(false);
+    const [showMyMatches, setShowMyMatches] = useState(false);
+    const [showWhoViewedMe, setShowWhoViewedMe] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [showDashboard, setShowDashboard] = useState(false);
     const insets = useSafeAreaInsets();
+    // Debounce ref: track the last time loadShellData was triggered by a tab
+    // switch so rapid tab changes don't fire multiple heavy fetchChatMatches calls.
+    const lastTabLoadAt = useRef<number>(0);
+
+    // Android back button: dismiss the topmost open modal instead of exiting the app.
+    useEffect(() => {
+        const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (showDashboard) { setShowDashboard(false); return true; }
+            if (showNotifications) { setShowNotifications(false); return true; }
+            if (showWhoViewedMe) { setShowWhoViewedMe(false); return true; }
+            if (showMyMatches) { setShowMyMatches(false); return true; }
+            if (showShortlist) { setShowShortlist(false); return true; }
+            if (showSearch) { setShowSearch(false); return true; }
+            if (showSettings) { setShowSettings(false); return true; }
+            if (showProfileEdit) { setShowProfileEdit(false); return true; }
+            if (showPartnerPrefs) { setShowPartnerPrefs(false); return true; }
+            return false;
+        });
+        return () => handler.remove();
+    }, [showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
 
     // Keep the home-indicator clear on notched devices while still leaving a
     // comfortable tap area on phones without a bottom inset.
@@ -55,6 +93,11 @@ export function MainTabsScreen() {
     }, []);
 
     useEffect(() => {
+        // Skip the very first render (handled by the mount effect above) and
+        // avoid re-fetching if we already loaded within the last 5 seconds.
+        const now = Date.now();
+        if (now - lastTabLoadAt.current < 5000) return;
+        lastTabLoadAt.current = now;
         void loadShellData();
     }, [activeTab]);
 
@@ -68,13 +111,15 @@ export function MainTabsScreen() {
             void loadShellData();
         });
 
+        // Poll every 45s instead of 20s — realtime subscriptions handle
+        // immediate changes; the interval is only a staleness safety net.
         const intervalId = setInterval(() => {
             if (!isMounted) {
                 return;
             }
 
             void loadShellData();
-        }, 20000);
+        }, 45000);
 
         return () => {
             isMounted = false;
@@ -84,6 +129,7 @@ export function MainTabsScreen() {
     }, []);
 
     async function loadShellData() {
+        lastTabLoadAt.current = Date.now();
         try {
             const [profile, matches] = await Promise.all([
                 fetchCurrentProfile().catch(() => null),
@@ -101,7 +147,7 @@ export function MainTabsScreen() {
 
     const tabItems = useMemo(
         () => [
-            { label: 'Home', subtitle: 'Soon', value: 'home' as const, badge: undefined, disabled: true },
+            { label: 'Home', subtitle: 'Dashboard', value: 'home' as const, badge: undefined, disabled: false },
             { label: 'Matches', subtitle: 'Feed', value: 'matches' as const, badge: undefined, disabled: false },
             {
                 label: 'Inbox',
@@ -123,10 +169,6 @@ export function MainTabsScreen() {
     );
 
     function openTab(tab: AppTab) {
-        if (tab === 'home') {
-            return;
-        }
-
         setActiveTab(tab);
     }
 
@@ -141,6 +183,15 @@ export function MainTabsScreen() {
                     onOpenInbox={() => openTab('inbox')}
                     onOpenChat={() => openTab('chat')}
                     onOpenPremium={() => openTab('premium')}
+                    onOpenPartnerPrefs={() => setShowPartnerPrefs(true)}
+                    onOpenProfileEdit={() => setShowProfileEdit(true)}
+                    onOpenSettings={() => setShowSettings(true)}
+                    onOpenSearch={() => setShowSearch(true)}
+                    onOpenShortlist={() => setShowShortlist(true)}
+                    onOpenMyMatches={() => setShowMyMatches(true)}
+                    onOpenWhoViewedMe={() => setShowWhoViewedMe(true)}
+                    onOpenNotifications={() => setShowNotifications(true)}
+                    onOpenDashboard={() => setShowDashboard(true)}
                 />
             );
         }
@@ -174,6 +225,72 @@ export function MainTabsScreen() {
         return <PremiumTab onOpenMatches={() => openTab('matches')} onOpenInbox={() => openTab('inbox')} />;
     }
 
+    if (showPartnerPrefs) {
+        return <PartnerPreferencesScreen onBack={() => setShowPartnerPrefs(false)} />;
+    }
+
+    if (showProfileEdit) {
+        return <ProfileEditScreen onBack={() => setShowProfileEdit(false)} />;
+    }
+
+    if (showSettings) {
+        return <SettingsScreen onBack={() => setShowSettings(false)} onSignedOut={() => { }} />;
+    }
+
+    if (showSearch) {
+        return (
+            <SearchScreen
+                onBack={() => setShowSearch(false)}
+                onSelectCandidate={() => setShowSearch(false)}
+            />
+        );
+    }
+
+    if (showShortlist) {
+        return (
+            <ShortlistScreen
+                onBack={() => setShowShortlist(false)}
+                onSelectCandidate={() => setShowShortlist(false)}
+            />
+        );
+    }
+
+    if (showMyMatches) {
+        return (
+            <MyMatchesScreen
+                onBack={() => setShowMyMatches(false)}
+                onOpenChat={(match) => {
+                    setShowMyMatches(false);
+                    setActiveTab('chat');
+                }}
+            />
+        );
+    }
+
+    if (showWhoViewedMe) {
+        return (
+            <WhoViewedMeScreen
+                onBack={() => setShowWhoViewedMe(false)}
+            />
+        );
+    }
+
+    if (showNotifications) {
+        return (
+            <NotificationsScreen
+                onBack={() => setShowNotifications(false)}
+            />
+        );
+    }
+
+    if (showDashboard) {
+        return (
+            <DashboardScreen
+                onBack={() => setShowDashboard(false)}
+            />
+        );
+    }
+
     return (
         <TabBarSpacingContext.Provider value={tabBarSpacing}>
             <View style={styles.shell}>
@@ -189,6 +306,15 @@ export function MainTabsScreen() {
                     ]}
                 >
                     {renderActiveTab()}
+                    {/* Floating search button on the Matches tab */}
+                    {activeTab === 'matches' && (
+                        <Pressable
+                            style={[styles.fab, { bottom: tabBarSpacing + 16 }]}
+                            onPress={() => setShowSearch(true)}
+                        >
+                            <Text style={styles.fabText}>⌕</Text>
+                        </Pressable>
+                    )}
                 </View>
 
                 <View style={[styles.tabBar, { paddingBottom: tabBarBottomPadding }]}>
@@ -251,6 +377,15 @@ function HomeHubTab({
     onOpenInbox,
     onOpenChat,
     onOpenPremium,
+    onOpenPartnerPrefs,
+    onOpenProfileEdit,
+    onOpenSettings,
+    onOpenSearch,
+    onOpenShortlist,
+    onOpenMyMatches,
+    onOpenWhoViewedMe,
+    onOpenNotifications,
+    onOpenDashboard,
 }: {
     loading: boolean;
     viewerFirstName: string;
@@ -259,13 +394,29 @@ function HomeHubTab({
     onOpenInbox: () => void;
     onOpenChat: () => void;
     onOpenPremium: () => void;
+    onOpenPartnerPrefs: () => void;
+    onOpenProfileEdit: () => void;
+    onOpenSettings: () => void;
+    onOpenSearch: () => void;
+    onOpenShortlist: () => void;
+    onOpenMyMatches: () => void;
+    onOpenWhoViewedMe: () => void;
+    onOpenNotifications: () => void;
+    onOpenDashboard: () => void;
 }) {
     return (
         <SafeAreaView style={styles.panelSafeArea} edges={['top', 'left', 'right']}>
             <ScrollView contentContainerStyle={styles.panelScrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.heroCard}>
-                    <Text style={styles.heroEyebrow}>OpenMatch</Text>
-                    <Text style={styles.heroTitle}>{viewerFirstName ? `Welcome back, ${viewerFirstName}` : 'Welcome back'}</Text>
+                    <View style={styles.heroCardHeader}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.heroEyebrow}>OpenMatch</Text>
+                            <Text style={styles.heroTitle}>{viewerFirstName ? `Welcome back, ${viewerFirstName}` : 'Welcome back'}</Text>
+                        </View>
+                        <Pressable onPress={onOpenSettings} style={styles.settingsBtn}>
+                            <Text style={styles.settingsBtnText}>⚙</Text>
+                        </Pressable>
+                    </View>
                     <Text style={styles.heroBody}>
                         Keep track of fresh matches, pending requests, and unlocked conversations without hiding the core journey behind a subscription wall.
                     </Text>
@@ -289,8 +440,16 @@ function HomeHubTab({
                     <Text style={styles.sectionTitle}>Jump back in</Text>
                     <View style={styles.quickActionGrid}>
                         <QuickActionButton label="Open matches" subtitle="See your ranked feed" tone="primary" onPress={onOpenMatches} />
+                        <QuickActionButton label="My matches" subtitle="All connected profiles" tone="primary" onPress={onOpenMyMatches} />
+                        <QuickActionButton label="Who viewed me" subtitle="Recent profile visitors" tone="accent" onPress={onOpenWhoViewedMe} />
+                        <QuickActionButton label="Notifications" subtitle="All your recent alerts" tone="neutral" onPress={onOpenNotifications} />
+                        <QuickActionButton label="My dashboard" subtitle="Stats & trust scores" tone="neutral" onPress={onOpenDashboard} />
+                        <QuickActionButton label="Search profiles" subtitle="Filter by age, religion…" tone="primary" onPress={onOpenSearch} />
+                        <QuickActionButton label="Saved profiles" subtitle="Your bookmarks" tone="neutral" onPress={onOpenShortlist} />
                         <QuickActionButton label="Review inbox" subtitle="Handle fresh requests" tone="accent" onPress={onOpenInbox} />
                         <QuickActionButton label="Continue chat" subtitle="Focus on active threads" tone="neutral" onPress={onOpenChat} />
+                        <QuickActionButton label="Edit profile" subtitle="Update your details" tone="neutral" onPress={onOpenProfileEdit} />
+                        <QuickActionButton label="Edit preferences" subtitle="Refine match filters" tone="neutral" onPress={onOpenPartnerPrefs} />
                         <QuickActionButton label="See premium" subtitle="Fair-pay extras only" tone="neutral" onPress={onOpenPremium} />
                     </View>
                 </View>
@@ -637,6 +796,22 @@ const styles = StyleSheet.create({
         paddingTop: 12,
         width: '100%',
     },
+    fab: {
+        position: 'absolute',
+        right: 20,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: '#123340',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    fabText: { fontSize: 24, color: '#fff', lineHeight: 28 },
     tabButton: {
         alignItems: 'center',
         backgroundColor: '#edf3f2',
@@ -720,6 +895,19 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
+    },
+    heroCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 4,
+    },
+    settingsBtn: {
+        padding: 4,
+        marginLeft: 8,
+    },
+    settingsBtnText: {
+        fontSize: 22,
+        color: 'rgba(255,255,255,0.6)',
     },
     heroTitle: {
         color: '#ffffff',

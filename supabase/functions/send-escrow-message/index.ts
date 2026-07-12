@@ -129,6 +129,14 @@ Deno.serve(async (request) => {
             return json({ error: insertError?.message ?? 'Could not store the message.' }, 500);
         }
 
+        // Notify the other participant about the new message (fire-and-forget).
+        const recipientId = match.user_1_id === user.id ? match.user_2_id : match.user_1_id;
+        await safeInsertNotification(admin, recipientId, 'message_received', {
+            title: 'New message',
+            body: blocked ? 'You have a new message.' : storedContent.slice(0, 80),
+            metadata: { matchId: match.id, messageId: inserted.id },
+        });
+
         const notice = blocked
             ? 'Contact details stay hidden until you both unlock this match. Your message was sent, but flagged so it stays private for now.'
             : null;
@@ -226,6 +234,26 @@ function containsPhoneNumber(content: string): boolean {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+async function safeInsertNotification(
+    serviceClient: ReturnType<typeof createClient>,
+    userId: string,
+    type: string,
+    opts: { title: string; body: string; metadata: Record<string, string> },
+) {
+    const { error } = await serviceClient.from('notifications').insert({
+        user_id: userId,
+        type,
+        title: opts.title,
+        body: opts.body,
+        metadata: opts.metadata,
+        is_read: false,
+    });
+
+    if (error && !/does not exist/i.test(error.message ?? '')) {
+        console.warn('safeInsertNotification failed:', error.message);
+    }
+}
 
 function getEnv() {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
