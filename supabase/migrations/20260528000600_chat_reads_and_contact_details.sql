@@ -1,9 +1,7 @@
 alter table public.messages
     add column if not exists read_at timestamp with time zone;
-
 create index if not exists messages_match_id_read_at_idx
     on public.messages (match_id, read_at);
-
 create table if not exists public.profile_contact_details (
     profile_id uuid primary key references public.profiles(id) on delete cascade,
     phone_number text,
@@ -11,26 +9,20 @@ create table if not exists public.profile_contact_details (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
-
 alter table public.profile_contact_details enable row level security;
-
 drop policy if exists "Users view their own contact details" on public.profile_contact_details;
 create policy "Users view their own contact details" on public.profile_contact_details
     for select using (auth.uid() = profile_id);
-
 drop policy if exists "Users insert their own contact details" on public.profile_contact_details;
 create policy "Users insert their own contact details" on public.profile_contact_details
     for insert with check (auth.uid() = profile_id);
-
 drop policy if exists "Users update their own contact details" on public.profile_contact_details;
 create policy "Users update their own contact details" on public.profile_contact_details
     for update using (auth.uid() = profile_id)
     with check (auth.uid() = profile_id);
-
 drop policy if exists "Users delete their own contact details" on public.profile_contact_details;
 create policy "Users delete their own contact details" on public.profile_contact_details
     for delete using (auth.uid() = profile_id);
-
 drop policy if exists "Unlocked matches can view contact details" on public.profile_contact_details;
 create policy "Unlocked matches can view contact details" on public.profile_contact_details
     for select using (
@@ -45,7 +37,6 @@ create policy "Unlocked matches can view contact details" on public.profile_cont
               )
         )
     );
-
 create or replace function public.mark_match_messages_read(target_match_id uuid)
 returns integer
 language plpgsql
@@ -78,5 +69,4 @@ begin
     return updated_count;
 end;
 $$;
-
 grant execute on function public.mark_match_messages_read(uuid) to authenticated;

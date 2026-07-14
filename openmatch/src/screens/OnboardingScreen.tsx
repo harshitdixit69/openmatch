@@ -33,6 +33,7 @@ import {
 import { upsertCurrentProfile, upsertCurrentProfileContactDetails } from '../lib/profileApi';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { supabase } from '../lib/supabase';
+import { updateUserPresence } from '../lib/chatApi';
 
 const owners: ProfileOwner[] = ['self', 'parent', 'sibling', 'relative'];
 
@@ -435,6 +436,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             return;
         }
 
+        try {
+            await updateUserPresence('offline');
+        } catch (presenceErr) {
+            console.warn('Failed to set status to offline before sign out:', presenceErr);
+        }
         const { error } = await supabase.auth.signOut();
         if (error) {
             Alert.alert('Sign out failed', error.message);

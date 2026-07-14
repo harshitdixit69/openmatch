@@ -115,7 +115,6 @@ begin
   );
 end;
 $$;
-
 -- Revoke the old parameterized version from regular users (keep the new one).
 revoke execute on function public.get_activity_stats(uuid) from authenticated;
 grant execute on function public.get_activity_stats() to authenticated;

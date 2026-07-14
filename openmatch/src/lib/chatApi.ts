@@ -1097,6 +1097,87 @@ export async function unsubscribeFromChannel(channel: RealtimeChannel) {
     await supabase.removeChannel(channel);
 }
 
+export async function setTypingIndicator(matchId: string): Promise<void> {
+    const { error } = await supabase.rpc('set_typing_indicator', { p_match_id: matchId });
+    if (error) throw error;
+}
+
+export async function clearTypingIndicator(matchId: string): Promise<void> {
+    const { error } = await supabase.rpc('clear_typing_indicator', { p_match_id: matchId });
+    if (error) throw error;
+}
+
+export async function updateUserPresence(status: 'online' | 'away' | 'offline'): Promise<void> {
+    const { error } = await supabase.rpc('update_user_presence', { p_status: status });
+    if (error) throw error;
+}
+
+export async function getMatchPresence(matchId: string): Promise<{ user_id: string; status: string; last_seen_at: string; is_online: boolean } | null> {
+    const { data, error } = await supabase.rpc('get_match_presence', { p_match_id: matchId });
+    if (error) throw error;
+    if (Array.isArray(data) && data.length > 0) {
+        const row = data[0];
+        return {
+            user_id: row.user_id,
+            status: row.status,
+            last_seen_at: row.last_seen_at,
+            is_online: row.is_online,
+        };
+    }
+    return null;
+}
+
+export function subscribeToTypingIndicators(matchId: string, onUpdate: (payload: { event: string; row: any }) => void) {
+    return supabase
+        .channel(createRealtimeChannelName(`match-typing:${matchId}`))
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'typing_indicators',
+                filter: `match_id=eq.${matchId}`,
+            },
+            (payload) => {
+                onUpdate({
+                    event: payload.eventType,
+                    row: payload.eventType === 'DELETE' ? payload.old : payload.new,
+                });
+            }
+        )
+        .subscribe();
+}
+
+export function subscribeToUserPresence(userId: string, onUpdate: (presence: { user_id: string; status: string; last_seen_at: string }) => void) {
+    return supabase
+        .channel(createRealtimeChannelName(`user-presence:${userId}`))
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'user_presence',
+                filter: `user_id=eq.${userId}`,
+            },
+            (payload) => {
+                onUpdate(payload.new as any);
+            }
+        )
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'user_presence',
+                filter: `user_id=eq.${userId}`,
+            },
+            (payload) => {
+                onUpdate(payload.new as any);
+            }
+        )
+        .subscribe();
+}
+
 let realtimeChannelSequence = 0;
 
 function createRealtimeChannelName(prefix: string) {

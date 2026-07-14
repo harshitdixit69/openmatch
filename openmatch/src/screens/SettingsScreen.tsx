@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BackButton } from '../components/BackButton';
 import { supabase } from '../lib/supabase';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { updateUserPresence } from '../lib/chatApi';
 
 interface Props {
     onBack: () => void;
@@ -214,6 +215,11 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                 onPress: async () => {
                     setSigningOut(true);
                     try {
+                        try {
+                            await updateUserPresence('offline');
+                        } catch (presenceErr) {
+                            console.warn('Failed to set status to offline before sign out:', presenceErr);
+                        }
                         await supabase.auth.signOut();
                         onSignedOut();
                     } catch (e: any) {

@@ -50,6 +50,11 @@ import {
     triggerIntentCallback,
     unsubscribeFromChannel,
     updateMatchUnlock,
+    clearTypingIndicator,
+    getMatchPresence,
+    setTypingIndicator,
+    subscribeToTypingIndicators,
+    subscribeToUserPresence,
 } from '../lib/chatApi';
 import { fetchCurrentProfile } from '../lib/profileApi';
 import {
@@ -83,6 +88,24 @@ type RecoverySuggestion = {
     action: RecoverySuggestionAction | null;
     actionLabel: string | null;
 };
+
+function getPresenceStatusText(presence: { status: string; last_seen_at: string; is_online: boolean } | null) {
+    if (!presence) return 'Offline';
+    if (presence.is_online) return 'Online';
+    
+    const lastSeen = new Date(presence.last_seen_at).getTime();
+    if (!lastSeen || isNaN(lastSeen)) return 'Offline';
+
+    const diffMs = Date.now() - lastSeen;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `Active ${diffMins}m ago`;
+    if (diffHours < 24) return `Active ${diffHours}h ago`;
+    return `Active ${diffDays}d ago`;
+}
 
 export function ChatScreen({
     onClose,
@@ -125,6 +148,9 @@ export function ChatScreen({
     const [trustDrawerMatch, setTrustDrawerMatch] = useState<Pick<ChatMatch, 'otherUserId' | 'otherUserName' | 'otherUserProfileOwner' | 'interestRequest'> | null>(null);
     const [trustLoadingProfileId, setTrustLoadingProfileId] = useState<string | null>(null);
     const [premiumPopup, setPremiumPopup] = useState<PremiumPromoVariant | null>(null);
+    const [otherUserTyping, setOtherUserTyping] = useState(false);
+    const [otherUserPresence, setOtherUserPresence] = useState<{ user_id: string; status: string; last_seen_at: string; is_online: boolean } | null>(null);
+    const lastSentTypingAt = useRef<number>(0);
 
     // Guards against overlapping / duplicate loadMatches runs (mount effect,
     // three realtime subscriptions and action handlers can all trigger it).
@@ -201,12 +227,27 @@ export function ChatScreen({
 
     useEffect(() => {
         if (!activeMatch) {
+            setOtherUserTyping(false);
+            setOtherUserPresence(null);
             return;
         }
 
         void loadMessages(activeMatch.id);
 
         let isMounted = true;
+
+        async function fetchInitialPresence() {
+            try {
+                const presence = await getMatchPresence(activeMatch!.id);
+                if (isMounted) {
+                    setOtherUserPresence(presence);
+                }
+            } catch (err) {
+                console.warn('Failed to load initial match presence:', err);
+            }
+        }
+        void fetchInitialPresence();
+
         const channel = subscribeToMatchMessages(activeMatch.id, (message) => {
             if (!isMounted) {
                 return;
@@ -219,11 +260,56 @@ export function ChatScreen({
             }
         });
 
+        const otherUserId = activeMatch.otherUserId;
+
+        const typingChannel = subscribeToTypingIndicators(activeMatch.id, (payload) => {
+            if (!isMounted) return;
+            const { event, row } = payload;
+            if (row && row.user_id === otherUserId) {
+                if (event === 'DELETE') {
+                    setOtherUserTyping(false);
+                } else {
+                    const expiresAt = new Date(row.expires_at).getTime();
+                    if (expiresAt > Date.now()) {
+                        setOtherUserTyping(true);
+                    } else {
+                        setOtherUserTyping(false);
+                    }
+                }
+            }
+        });
+
+        let presenceChannel: any = null;
+        if (otherUserId) {
+            presenceChannel = subscribeToUserPresence(otherUserId, (newPresence) => {
+                if (!isMounted) return;
+                setOtherUserPresence({
+                    user_id: newPresence.user_id,
+                    status: newPresence.status,
+                    last_seen_at: newPresence.last_seen_at,
+                    is_online: newPresence.status === 'online' && (new Date(newPresence.last_seen_at).getTime() > Date.now() - 2 * 60 * 1000)
+                });
+            });
+        }
+
         return () => {
             isMounted = false;
             void unsubscribeFromChannel(channel as RealtimeChannel);
+            if (typingChannel) void unsubscribeFromChannel(typingChannel as RealtimeChannel);
+            if (presenceChannel) void unsubscribeFromChannel(presenceChannel as RealtimeChannel);
+            setOtherUserTyping(false);
+            setOtherUserPresence(null);
+            lastSentTypingAt.current = 0;
         };
     }, [activeMatch?.id, currentUserId]);
+
+    useEffect(() => {
+        if (!otherUserTyping) return;
+        const timer = setTimeout(() => {
+            setOtherUserTyping(false);
+        }, 6000);
+        return () => clearTimeout(timer);
+    }, [otherUserTyping]);
 
     useEffect(() => {
         const requestId = activeMatch?.interestRequest?.id;
@@ -472,6 +558,32 @@ export function ChatScreen({
         }
     }
 
+    async function handleDraftChange(text: string) {
+        setDraft(text);
+
+        if (!activeMatch) return;
+
+        const trimmed = text.trim();
+        if (!trimmed) {
+            try {
+                await clearTypingIndicator(activeMatch.id);
+            } catch (err) {
+                // silent
+            }
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastSentTypingAt.current > 3000) {
+            lastSentTypingAt.current = now;
+            try {
+                await setTypingIndicator(activeMatch.id);
+            } catch (err) {
+                // silent
+            }
+        }
+    }
+
     async function handleSend() {
         if (!activeMatch || sending || !draft.trim()) {
             return;
@@ -481,6 +593,11 @@ export function ChatScreen({
         setNotice(null);
 
         try {
+            try {
+                void clearTypingIndicator(activeMatch.id);
+            } catch (err) {
+                // silent
+            }
             const result = await sendEscrowMessage(activeMatch.id, draft);
             setDraft('');
             setMessages((current) => mergeMessages(current, [result.message]));
@@ -994,6 +1111,17 @@ export function ChatScreen({
                             <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
                                 {activeMatch ? activeMatch.otherUserName : currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
                             </Text>
+                            {activeMatch ? (
+                                <Text
+                                    style={[
+                                        styles.headerSubtitle,
+                                        otherUserTyping ? styles.headerSubtitleTyping : null,
+                                    ]}
+                                    numberOfLines={1}
+                                >
+                                    {otherUserTyping ? 'typing...' : getPresenceStatusText(otherUserPresence)}
+                                </Text>
+                            ) : null}
                         </View>
 
                         {activeMatch ? (
@@ -1851,7 +1979,7 @@ export function ChatScreen({
                                 placeholder="Write a message"
                                 placeholderTextColor="#7d8c90"
                                 value={draft}
-                                onChangeText={setDraft}
+                                onChangeText={handleDraftChange}
                                 multiline
                                 maxLength={2000}
                             />
@@ -4064,5 +4192,14 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 14,
         fontWeight: '800',
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        color: '#7d8c90',
+        marginTop: 2,
+    },
+    headerSubtitleTyping: {
+        color: '#1a7a5e',
+        fontWeight: '700',
     },
 });

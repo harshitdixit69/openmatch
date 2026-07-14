@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { ChatMatch } from '../lib/chat';
-import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel } from '../lib/chatApi';
+import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel, updateUserPresence } from '../lib/chatApi';
 import { fetchPremiumAnalyticsSummary, PremiumAnalyticsSummary, trackPremiumEvent } from '../lib/premiumAnalytics';
 import { getDisplayFirstName } from '../lib/profile';
 import { fetchCurrentProfile } from '../lib/profileApi';
@@ -87,6 +87,53 @@ export function MainTabsScreen() {
     const tabBarBottomPadding = insets.bottom > 0 ? insets.bottom + 6 : 16;
     // Total space the tab bar reserves, shared with child screens via context.
     const tabBarSpacing = TAB_BAR_BASE_HEIGHT + insets.bottom;
+    useEffect(() => {
+        let isMounted = true;
+        let heartbeatInterval: any = null;
+
+        async function triggerPresence(status: 'online' | 'offline') {
+            try {
+                await updateUserPresence(status);
+            } catch (err) {
+                console.warn('Failed to update presence state:', err);
+            }
+        }
+
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            void triggerPresence('online');
+            heartbeatInterval = setInterval(() => {
+                if (isMounted) {
+                    void triggerPresence('online');
+                }
+            }, 30000);
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            void triggerPresence('offline');
+        }
+
+        startHeartbeat();
+
+        const appStateSub = AppState.addEventListener('change', (nextState) => {
+            if (!isMounted) return;
+            if (nextState === 'active') {
+                startHeartbeat();
+            } else if (nextState === 'background' || nextState === 'inactive') {
+                stopHeartbeat();
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            stopHeartbeat();
+            appStateSub.remove();
+        };
+    }, []);
 
     useEffect(() => {
         void loadShellData();

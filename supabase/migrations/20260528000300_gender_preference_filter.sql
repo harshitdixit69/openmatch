@@ -1,6 +1,5 @@
 alter table public.profiles
 add column if not exists partner_gender_preference text;
-
 create or replace function public.normalize_match_gender(value text)
 returns text
 language sql
@@ -15,7 +14,6 @@ as $$
         else lower(btrim(value))
     end
 $$;
-
 create or replace function public.default_partner_gender_preference(profile_gender text)
 returns text
 language sql
@@ -27,7 +25,6 @@ as $$
         else 'Everyone'
     end
 $$;
-
 create or replace function public.is_partner_gender_match(candidate_gender text, preference text)
 returns boolean
 language sql
@@ -39,14 +36,11 @@ as $$
         else public.normalize_match_gender(candidate_gender) = public.normalize_match_gender(preference)
     end
 $$;
-
 update public.profiles
 set partner_gender_preference = public.default_partner_gender_preference(gender)
 where partner_gender_preference is null
    or btrim(partner_gender_preference) = '';
-
 drop function if exists public.match_profiles(integer);
-
 create function public.match_profiles(result_limit integer default 20)
 returns table (
     id uuid,
@@ -108,5 +102,4 @@ as $$
     order by candidate.embedding <=> viewer.embedding
     limit greatest(coalesce(result_limit, 20), 1)
 $$;
-
 grant execute on function public.match_profiles(integer) to authenticated;

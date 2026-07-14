@@ -108,5 +108,4 @@ begin
   );
 end;
 $$;
-
 grant execute on function public.get_activity_stats(uuid) to authenticated;
