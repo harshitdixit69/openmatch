@@ -11,6 +11,7 @@ import { fetchCurrentProfile } from '../lib/profileApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
 import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
+import { ModerationQueueScreen } from './ModerationQueueScreen';
 import { DashboardScreen } from './DashboardScreen';
 import { MyMatchesScreen } from './MyMatchesScreen';
 import { NotificationsScreen } from './NotificationsScreen';
@@ -26,7 +27,7 @@ import { WhoViewedMeScreen } from './WhoViewedMeScreen';
 // screens never hide content behind the pinned tab bar.
 const TAB_BAR_BASE_HEIGHT = 64;
 
-type AppTab = 'home' | 'matches' | 'inbox' | 'chat' | 'premium';
+type AppTab = 'home' | 'matches' | 'inbox' | 'chat' | 'premium' | 'moderation';
 
 type ShellCounts = {
     total: number;
@@ -51,6 +52,7 @@ export function MainTabsScreen() {
     const [shellLoading, setShellLoading] = useState(true);
     const [viewerFirstName, setViewerFirstName] = useState('');
     const [shellCounts, setShellCounts] = useState<ShellCounts>(emptyShellCounts);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [showPartnerPrefs, setShowPartnerPrefs] = useState(false);
     const [showProfileEdit, setShowProfileEdit] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -185,6 +187,7 @@ export function MainTabsScreen() {
 
             setViewerFirstName(getDisplayFirstName(profile?.full_name));
             setShellCounts(buildShellCounts(matches));
+            setIsAdmin(profile?.is_admin === true);
         } catch (error) {
             console.warn('Failed to refresh main tab summary.', error);
         } finally {
@@ -193,26 +196,40 @@ export function MainTabsScreen() {
     }
 
     const tabItems = useMemo(
-        () => [
-            { label: 'Home', subtitle: 'Dashboard', value: 'home' as const, badge: undefined, disabled: false },
-            { label: 'Matches', subtitle: 'Feed', value: 'matches' as const, badge: undefined, disabled: false },
-            {
-                label: 'Inbox',
-                subtitle: 'Requests',
-                value: 'inbox' as const,
-                badge: shellCounts.received > 0 ? shellCounts.received : undefined,
-                disabled: false,
-            },
-            {
-                label: 'Chat',
-                subtitle: 'Active',
-                value: 'chat' as const,
-                badge: shellCounts.unread > 0 ? shellCounts.unread : undefined,
-                disabled: false,
-            },
-            { label: 'Premium', subtitle: 'Insights', value: 'premium' as const, badge: undefined, disabled: false },
-        ],
-        [shellCounts.contacts, shellCounts.received, shellCounts.unread],
+        () => {
+            const items: { label: string; subtitle: string; value: AppTab; badge: number | undefined; disabled: boolean }[] = [
+                { label: 'Home', subtitle: 'Dashboard', value: 'home' as const, badge: undefined, disabled: false },
+                { label: 'Matches', subtitle: 'Feed', value: 'matches' as const, badge: undefined, disabled: false },
+                {
+                    label: 'Inbox',
+                    subtitle: 'Requests',
+                    value: 'inbox' as const,
+                    badge: shellCounts.received > 0 ? shellCounts.received : undefined,
+                    disabled: false,
+                },
+                {
+                    label: 'Chat',
+                    subtitle: 'Active',
+                    value: 'chat' as const,
+                    badge: shellCounts.unread > 0 ? shellCounts.unread : undefined,
+                    disabled: false,
+                },
+                { label: 'Premium', subtitle: 'Insights', value: 'premium' as const, badge: undefined, disabled: false },
+            ];
+
+            if (isAdmin) {
+                items.push({
+                    label: 'Moderate',
+                    subtitle: 'Queue',
+                    value: 'moderation' as const,
+                    badge: undefined,
+                    disabled: false,
+                });
+            }
+
+            return items;
+        },
+        [shellCounts.contacts, shellCounts.received, shellCounts.unread, isAdmin],
     );
 
     function openTab(tab: AppTab) {
@@ -265,6 +282,14 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="accepted"
                     initialVisibilityFilter={shellCounts.unread > 0 ? 'unread' : 'all'}
+                />
+            );
+        }
+
+        if (activeTab === 'moderation') {
+            return (
+                <ModerationQueueScreen
+                    onClose={() => openTab('home')}
                 />
             );
         }

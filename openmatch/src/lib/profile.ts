@@ -31,6 +31,8 @@ export type ProfileRecord = {
     num_siblings: number | null;
     drinks_alcohol: boolean | null;
     smokes: boolean | null;
+    is_admin?: boolean;
+    verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
 };
 
 export type ProfileContactDetails = {

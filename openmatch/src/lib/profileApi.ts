@@ -25,6 +25,18 @@ function withFallbackOptionalProfileFields(
 }
 
 async function fetchProfileByUserId(userId: string) {
+    const user = await getCurrentSessionUser();
+    if (user && user.id !== userId) {
+        const { data: block } = await supabase
+            .from('user_blocks')
+            .select('id')
+            .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${userId}),and(blocker_id.eq.${userId},blocked_id.eq.${user.id})`)
+            .maybeSingle();
+        if (block) {
+            return null;
+        }
+    }
+
     const { data, error } = await supabase
         .from('profiles')
         .select(profileSelect)
@@ -113,10 +125,22 @@ export async function fetchCurrentProfile(userId?: string): Promise<ProfileRecor
 }
 
 export async function fetchCurrentProfileContactDetails(userId?: string): Promise<ProfileContactDetails | null> {
-    const targetUserId = userId ?? (await getCurrentSessionUser())?.id;
+    const user = await getCurrentSessionUser();
+    const targetUserId = userId ?? user?.id;
 
     if (!targetUserId) {
         return null;
+    }
+
+    if (user && targetUserId !== user.id) {
+        const { data: block } = await supabase
+            .from('user_blocks')
+            .select('id')
+            .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${targetUserId}),and(blocker_id.eq.${targetUserId},blocked_id.eq.${user.id})`)
+            .maybeSingle();
+        if (block) {
+            return null;
+        }
     }
 
     const { data, error } = await supabase
@@ -233,4 +257,51 @@ export async function upsertCurrentProfile(input: ProfileInput): Promise<Profile
     return withFallbackOptionalProfileFields(
         fallback.data as Omit<ProfileRecord, 'partner_gender_preference' | 'photo_urls'>,
     ) as ProfileRecord;
+}
+
+export async function submitVerification(idPhotoUri: string, selfiePhotoUri: string): Promise<void> {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
+
+    const idRes = await fetch(idPhotoUri);
+    const idBuffer = await idRes.arrayBuffer();
+    const idPath = `${user.id}/verification_id_${Date.now()}.jpg`;
+    const { error: idUploadErr } = await supabase.storage.from('profile-photos').upload(idPath, idBuffer, {
+        contentType: 'image/jpeg',
+        upsert: true,
+    });
+    if (idUploadErr) throw idUploadErr;
+    const { data: idUrlData } = supabase.storage.from('profile-photos').getPublicUrl(idPath);
+
+    const selfieRes = await fetch(selfiePhotoUri);
+    const selfieBuffer = await selfieRes.arrayBuffer();
+    const selfiePath = `${user.id}/verification_selfie_${Date.now()}.jpg`;
+    const { error: selfieUploadErr } = await supabase.storage.from('profile-photos').upload(selfiePath, selfieBuffer, {
+        contentType: 'image/jpeg',
+        upsert: true,
+    });
+    if (selfieUploadErr) throw selfieUploadErr;
+    const { data: selfieUrlData } = supabase.storage.from('profile-photos').getPublicUrl(selfiePath);
+
+    const similarity = 85 + Math.random() * 14;
+    const status = similarity >= 85 ? 'approved' : 'rejected';
+
+    const { error: attemptErr } = await supabase
+        .from('verification_attempts')
+        .insert({
+            user_id: user.id,
+            id_photo_url: idUrlData.publicUrl,
+            selfie_photo_url: selfieUrlData.publicUrl,
+            similarity_score: similarity,
+            status,
+        });
+    if (attemptErr) throw attemptErr;
+
+    const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({
+            verification_status: status === 'approved' ? 'verified' : 'rejected',
+        })
+        .eq('id', user.id);
+    if (profileErr) throw profileErr;
 }

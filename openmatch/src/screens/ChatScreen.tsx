@@ -55,6 +55,8 @@ import {
     setTypingIndicator,
     subscribeToTypingIndicators,
     subscribeToUserPresence,
+    blockUser,
+    reportUser,
 } from '../lib/chatApi';
 import { fetchCurrentProfile } from '../lib/profileApi';
 import {
@@ -558,6 +560,142 @@ export function ChatScreen({
         }
     }
 
+    function handleMoreOptions() {
+        if (!activeMatch) return;
+        
+        if (Platform.OS === 'web') {
+            const action = window.prompt(
+                `Choose an option for ${activeMatch.otherUserName}:\nType "block" to block, or "report" to report.`
+            );
+            if (action === null) return;
+            const normalizedAction = action.trim().toLowerCase();
+            if (normalizedAction === 'block') {
+                confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
+            } else if (normalizedAction === 'report') {
+                promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
+            } else if (normalizedAction) {
+                alert('Invalid choice. Please type "block" or "report".');
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Options',
+            `Choose an action for ${activeMatch.otherUserName}`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Report User',
+                    style: 'destructive',
+                    onPress: () => promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName),
+                },
+                {
+                    text: 'Block User',
+                    style: 'destructive',
+                    onPress: () => confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName),
+                },
+            ]
+        );
+    }
+
+    function promptReportUser(reportedId: string, reportedName: string) {
+        if (Platform.OS === 'web') {
+            const reason = window.prompt(
+                `Report ${reportedName}:\nType a reason (e.g. "Inappropriate Messages", "Fake Profile / Scam", "Harassment", "Other"):`
+            );
+            if (reason) {
+                submitUserReport(reportedId, reason.trim());
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Report User',
+            `Why are you reporting ${reportedName}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Inappropriate Messages',
+                    onPress: () => submitUserReport(reportedId, 'Inappropriate Messages'),
+                },
+                {
+                    text: 'Fake Profile / Scam',
+                    onPress: () => submitUserReport(reportedId, 'Fake Profile / Scam'),
+                },
+                {
+                    text: 'Harassment',
+                    onPress: () => submitUserReport(reportedId, 'Harassment'),
+                },
+                {
+                    text: 'Other',
+                    onPress: () => submitUserReport(reportedId, 'Other (General)'),
+                }
+            ]
+        );
+    }
+
+    async function submitUserReport(reportedId: string, reason: string) {
+        try {
+            await reportUser(reportedId, reason, `Reported via chat screen.`);
+            if (Platform.OS === 'web') {
+                alert('Report Submitted. Thank you.');
+            } else {
+                Alert.alert('Report Submitted', 'Thank you. The moderation team has been notified.');
+            }
+        } catch (err) {
+            console.error('Failed to submit report:', err);
+            if (Platform.OS === 'web') {
+                alert('Could not submit report.');
+            } else {
+                Alert.alert('Error', 'Could not submit report.');
+            }
+        }
+    }
+
+    function confirmBlockUser(blockedId: string, blockedName: string) {
+        if (Platform.OS === 'web') {
+            const confirm = window.confirm(`Are you sure you want to block ${blockedName}? You will not see each other or be able to chat again.`);
+            if (confirm) {
+                void executeBlockUser(blockedId, blockedName);
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Block User',
+            `Are you sure you want to block ${blockedName}? You will not see each other or be able to chat again.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Block',
+                    style: 'destructive',
+                    onPress: () => void executeBlockUser(blockedId, blockedName),
+                }
+            ]
+        );
+    }
+
+    async function executeBlockUser(blockedId: string, blockedName: string) {
+        try {
+            await blockUser(blockedId);
+            if (Platform.OS === 'web') {
+                alert(`${blockedName} has been blocked.`);
+            } else {
+                Alert.alert('User Blocked', `${blockedName} has been blocked.`);
+            }
+            setActiveMatch(null);
+            setNotice(null);
+            void loadMatches(false);
+        } catch (err) {
+            console.error('Failed to block user:', err);
+            if (Platform.OS === 'web') {
+                alert('Could not block user.');
+            } else {
+                Alert.alert('Error', 'Could not block user.');
+            }
+        }
+    }
+
     async function handleDraftChange(text: string) {
         setDraft(text);
 
@@ -603,6 +741,18 @@ export function ChatScreen({
             setMessages((current) => mergeMessages(current, [result.message]));
             setContactShareBlocked(result.blocked && !result.unlocked);
             setNotice(result.blocked ? null : result.notice);
+
+            if (result.blocked && !result.unlocked) {
+                if (Platform.OS === 'web') {
+                    alert('Sharing Blocked: Direct contact details are hidden until mutual unlock. Upgrade to share contact info.');
+                } else {
+                    Alert.alert(
+                        'Sharing Blocked',
+                        'Direct contact details are hidden until mutual unlock. Upgrade to share contact info.',
+                        [{ text: 'OK' }]
+                    );
+                }
+            }
 
             if (
                 activeMatch.interestRequest?.status === 'accepted' &&
@@ -1108,9 +1258,14 @@ export function ChatScreen({
                         />
 
                         <View style={styles.headerCopy}>
-                            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                                {activeMatch ? activeMatch.otherUserName : currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
-                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                    {activeMatch ? activeMatch.otherUserName : currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
+                                </Text>
+                                {activeMatch && activeMatch.otherUserVerificationStatus === 'verified' ? (
+                                    <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
+                                ) : null}
+                            </View>
                             {activeMatch ? (
                                 <Text
                                     style={[
@@ -1125,27 +1280,40 @@ export function ChatScreen({
                         </View>
 
                         {activeMatch ? (
-                            <Pressable
-                                style={({ pressed }) => [
-                                    styles.copilotHeaderButton,
-                                    pressed && styles.headerButtonPressed,
-                                ]}
-                                onPress={() => {
-                                    if (promptSuggestions.length > 0 || chemistry) {
-                                        setPromptSuggestions([]);
-                                        setChemistry(null);
-                                    } else {
-                                        void handleLoadPromptSuggestions();
-                                    }
-                                }}
-                                disabled={promptsLoading}
-                                accessibilityRole="button"
-                                accessibilityLabel="AI chat copilot"
-                            >
-                                <Text style={styles.copilotHeaderButtonText}>
-                                    {promptsLoading ? '✨…' : '✨ Help'}
-                                </Text>
-                            </Pressable>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.copilotHeaderButton,
+                                        pressed && styles.headerButtonPressed,
+                                    ]}
+                                    onPress={() => {
+                                        if (promptSuggestions.length > 0 || chemistry) {
+                                            setPromptSuggestions([]);
+                                            setChemistry(null);
+                                        } else {
+                                            void handleLoadPromptSuggestions();
+                                        }
+                                    }}
+                                    disabled={promptsLoading}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="AI chat copilot"
+                                >
+                                    <Text style={styles.copilotHeaderButtonText}>
+                                        {promptsLoading ? '✨…' : '✨ Help'}
+                                    </Text>
+                                </Pressable>
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.moreHeaderButton,
+                                        pressed && styles.headerButtonPressed,
+                                    ]}
+                                    onPress={() => handleMoreOptions()}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="More options"
+                                >
+                                    <Text style={styles.moreHeaderButtonText}>⋮</Text>
+                                </Pressable>
+                            </View>
                         ) : null}
 
                         {activeMatch?.isUnlocked ? (
@@ -4201,5 +4369,21 @@ const styles = StyleSheet.create({
     headerSubtitleTyping: {
         color: '#1a7a5e',
         fontWeight: '700',
+    },
+    moreHeaderButton: {
+        marginLeft: 8,
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: '#f1f3f4',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 36,
+        height: 36,
+    },
+    moreHeaderButtonText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#4a5568',
+        lineHeight: 20,
     },
 });

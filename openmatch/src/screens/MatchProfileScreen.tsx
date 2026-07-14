@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -17,9 +18,13 @@ import { ProfileReliabilitySummary } from '../lib/intentEscrow';
 import { getRequestTrustSummary } from '../lib/intentEscrowApi';
 import { MatchCandidate } from '../lib/matchmaking';
 import { trackPremiumEvent } from '../lib/premiumAnalytics';
-import { getDisplayFirstName, matchesPartnerGenderPreference, ProfileRecord } from '../lib/profile';
+import { getDisplayFirstName, matchesPartnerGenderPreference, ProfileRecord, ProfileContactDetails } from '../lib/profile';
 import { recordProfileView } from '../lib/profileViewsApi';
 import { MAX_CONTENT_WIDTH, useResponsiveLayout } from '../lib/responsiveLayout';
+import { blockUser, reportUser } from '../lib/chatApi';
+import { PartnerPreferences, cmToFeetInches, PREF_MARITAL_STATUS_LABELS } from '../lib/partnerPreferences';
+import { fetchPartnerPreferences } from '../lib/partnerPreferencesApi';
+import { fetchCurrentProfile, fetchCurrentProfileContactDetails } from '../lib/profileApi';
 
 type MatchProfileScreenProps = {
     candidate: MatchCandidate;
@@ -50,11 +55,71 @@ export function MatchProfileScreen({
     const [trustSummary, setTrustSummary] = useState<ProfileReliabilitySummary | null>(null);
     const [trustLoading, setTrustLoading] = useState(false);
     const [trustDrawerVisible, setTrustDrawerVisible] = useState(false);
+    const [viewerPrefs, setViewerPrefs] = useState<PartnerPreferences | null>(null);
+    const [candidateProfile, setCandidateProfile] = useState<ProfileRecord | null>(null);
+    const [contactDetails, setContactDetails] = useState<ProfileContactDetails | null>(null);
     const { height } = useResponsiveLayout();
 
     // Cap the hero image so it never dominates short viewports while still
     // scaling with the content column width via `aspectRatio`.
     const heroMaxHeight = Math.min(420, Math.round(height * 0.46));
+
+    // Load viewer partner preferences
+    useEffect(() => {
+        let active = true;
+        async function loadPrefs() {
+            try {
+                const prefs = await fetchPartnerPreferences();
+                if (active) {
+                    setViewerPrefs(prefs);
+                }
+            } catch (err) {
+                console.warn('Failed to load viewer partner preferences:', err);
+            }
+        }
+        void loadPrefs();
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    // Load full candidate profile record
+    useEffect(() => {
+        let active = true;
+        async function loadCandidateProfile() {
+            try {
+                const profile = await fetchCurrentProfile(candidate.id);
+                if (active) {
+                    setCandidateProfile(profile);
+                }
+            } catch (err) {
+                console.warn('Failed to load full candidate profile:', err);
+            }
+        }
+        void loadCandidateProfile();
+        return () => {
+            active = false;
+        };
+    }, [candidate.id]);
+
+    // Load candidate contact details
+    useEffect(() => {
+        let active = true;
+        async function loadContactDetails() {
+            try {
+                const details = await fetchCurrentProfileContactDetails(candidate.id);
+                if (active) {
+                    setContactDetails(details);
+                }
+            } catch (err) {
+                console.warn('Failed to load candidate contact details:', err);
+            }
+        }
+        void loadContactDetails();
+        return () => {
+            active = false;
+        };
+    }, [candidate.id]);
 
     useEffect(() => {
         setSelectedPhotoIndex(0);
@@ -123,6 +188,226 @@ export function MatchProfileScreen({
         );
     }
 
+    async function handleBlock() {
+        if (Platform.OS === 'web') {
+            const confirm = window.confirm(`Are you sure you want to block ${candidate.full_name}? You will not see their profile in your feed again.`);
+            if (confirm) {
+                try {
+                    await blockUser(candidate.id);
+                    alert(`${candidate.full_name} has been blocked.`);
+                    onPass();
+                } catch (err) {
+                    console.error('Failed to block profile:', err);
+                    alert('Could not block profile.');
+                }
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Block Profile',
+            `Are you sure you want to block ${candidate.full_name}? You will not see their profile in your feed again.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Block',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await blockUser(candidate.id);
+                            Alert.alert('Blocked', `${candidate.full_name} has been blocked.`);
+                            onPass();
+                        } catch (err) {
+                            console.error('Failed to block profile:', err);
+                            Alert.alert('Error', 'Could not block profile.');
+                        }
+                    }
+                }
+            ]
+        );
+    }
+
+    function handleReport() {
+        if (Platform.OS === 'web') {
+            const reason = window.prompt(
+                `Report ${candidate.full_name}:\nType a reason (e.g. "Inappropriate Photos", "Fake Profile", "Harassment", "Other"):`
+            );
+            if (reason) {
+                void submitReport(reason.trim());
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Report Profile',
+            `Why are you reporting ${candidate.full_name}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Inappropriate Photos',
+                    onPress: () => submitReport('Inappropriate Photos'),
+                },
+                {
+                    text: 'Fake Profile',
+                    onPress: () => submitReport('Fake Profile'),
+                },
+                {
+                    text: 'Harassment',
+                    onPress: () => submitReport('Harassment'),
+                },
+                {
+                    text: 'Other',
+                    onPress: () => submitReport('Other (General)'),
+                }
+            ]
+        );
+    }
+
+    async function submitReport(reason: string) {
+        try {
+            await reportUser(candidate.id, reason, 'Reported via profile screen.');
+            if (Platform.OS === 'web') {
+                alert('Report Submitted. Thank you. Our moderation team will review this profile.');
+            } else {
+                Alert.alert('Report Submitted', 'Thank you. Our moderation team will review this profile.');
+            }
+        } catch (err) {
+            console.error('Failed to submit report:', err);
+            if (Platform.OS === 'web') {
+                alert('Could not submit report.');
+            } else {
+                Alert.alert('Error', 'Could not submit report.');
+            }
+        }
+    }
+
+    function calculateAge(dobString: string): number {
+        const dob = new Date(dobString);
+        if (Number.isNaN(dob.getTime())) return 0;
+        const ageDifMs = Date.now() - dob.getTime();
+        const ageDate = new Date(ageDifMs);
+        return Math.abs(ageDate.getUTCFullYear() - 1970);
+    }
+
+    interface ChecklistItem {
+        label: string;
+        value: string;
+        preferenceLabel: string;
+        isMatched: boolean;
+    }
+
+    const getChecklistItems = (): ChecklistItem[] => {
+        if (!viewerPrefs || !candidateProfile) return [];
+        
+        const items: ChecklistItem[] = [];
+        const age = calculateAge(candidateProfile.dob);
+        
+        // 1. Age
+        const ageMin = viewerPrefs.pref_age_min ?? 18;
+        const ageMax = viewerPrefs.pref_age_max ?? 99;
+        items.push({
+            label: 'Age',
+            value: `${age} years`,
+            preferenceLabel: `${ageMin}-${ageMax} years`,
+            isMatched: age >= ageMin && age <= ageMax,
+        });
+        
+        // 2. Height
+        if (candidateProfile.height_cm) {
+            const heightMin = viewerPrefs.pref_height_min;
+            const heightMax = viewerPrefs.pref_height_max;
+            const minLabel = heightMin ? `${heightMin}cm` : 'Any';
+            const maxLabel = heightMax ? `${heightMax}cm` : 'Any';
+            const matchesMin = !heightMin || candidateProfile.height_cm >= heightMin;
+            const matchesMax = !heightMax || candidateProfile.height_cm <= heightMax;
+            items.push({
+                label: 'Height',
+                value: `${candidateProfile.height_cm}cm (${cmToFeetInches(candidateProfile.height_cm)})`,
+                preferenceLabel: heightMin || heightMax ? `${minLabel}-${maxLabel}` : 'Any',
+                isMatched: matchesMin && matchesMax,
+            });
+        }
+        
+        // 3. Religion
+        const prefReligion = viewerPrefs.pref_religion ?? 'Any';
+        items.push({
+            label: 'Religion',
+            value: candidateProfile.religion ?? 'Not specified',
+            preferenceLabel: prefReligion,
+            isMatched: prefReligion === 'Any' || (candidateProfile.religion ? candidateProfile.religion.toLowerCase() === prefReligion.toLowerCase() : false),
+        });
+        
+        // 4. Marital Status
+        const prefMarital = viewerPrefs.pref_marital_status ?? [];
+        const maritalMatch = prefMarital.length === 0 || (candidateProfile.marital_status ? prefMarital.includes(candidateProfile.marital_status as any) : false);
+        const prefMaritalLabel = prefMarital.length === 0 ? 'Any' : prefMarital.map(s => (PREF_MARITAL_STATUS_LABELS as any)[s] || s).join(', ');
+        const candidateMaritalLabel = candidateProfile.marital_status ? ((PREF_MARITAL_STATUS_LABELS as any)[candidateProfile.marital_status] || candidateProfile.marital_status) : 'Not specified';
+        items.push({
+            label: 'Marital Status',
+            value: candidateMaritalLabel,
+            preferenceLabel: prefMaritalLabel,
+            isMatched: maritalMatch,
+        });
+        
+        // 5. Diet
+        const prefDiet = viewerPrefs.pref_diet ?? 'Any';
+        items.push({
+            label: 'Diet',
+            value: candidateProfile.diet ?? 'Not specified',
+            preferenceLabel: prefDiet,
+            isMatched: prefDiet === 'Any' || (candidateProfile.diet ? candidateProfile.diet.toLowerCase() === prefDiet.toLowerCase() : false),
+        });
+        
+        // 6. Mother Tongue
+        const prefLang = viewerPrefs.pref_mother_tongue;
+        items.push({
+            label: 'Mother Tongue',
+            value: candidateProfile.mother_tongue ?? 'Not specified',
+            preferenceLabel: prefLang ?? 'Any',
+            isMatched: !prefLang || (candidateProfile.mother_tongue ? candidateProfile.mother_tongue.toLowerCase() === prefLang.toLowerCase() : false),
+        });
+
+        return items;
+    };
+
+    const getCommonIntersections = (): string[] => {
+        if (!viewerProfile || !candidateProfile) return [];
+        
+        const intersections: string[] = [];
+        
+        // Diet
+        if (candidateProfile.diet && viewerProfile.diet && candidateProfile.diet.toLowerCase() === viewerProfile.diet.toLowerCase()) {
+            intersections.push(`🥗 Shared Diet: Both prefer ${candidateProfile.diet}`);
+        }
+        
+        // Religion
+        if (candidateProfile.religion && viewerProfile.religion && candidateProfile.religion.toLowerCase() === viewerProfile.religion.toLowerCase()) {
+            intersections.push(`🤝 Shared Religion: Both practice ${candidateProfile.religion}`);
+        }
+        
+        // Mother Tongue
+        if (candidateProfile.mother_tongue && viewerProfile.mother_tongue && candidateProfile.mother_tongue.toLowerCase() === viewerProfile.mother_tongue.toLowerCase()) {
+            intersections.push(`🗣️ Shared Mother Tongue: Both speak ${candidateProfile.mother_tongue}`);
+        }
+        
+        // Education
+        if (candidateProfile.education && viewerProfile.education && candidateProfile.education.toLowerCase() === viewerProfile.education.toLowerCase()) {
+            intersections.push(`🎓 Shared Education: Both have ${candidateProfile.education} background`);
+        }
+        
+        // Location
+        if (candidateProfile.location && viewerProfile.location && candidateProfile.location.toLowerCase() === viewerProfile.location.toLowerCase()) {
+            intersections.push(`📍 Location: Both reside in ${candidateProfile.location}`);
+        }
+
+        return intersections;
+    };
+
+    const checklistItems = getChecklistItems();
+    const matchedCount = checklistItems.filter(item => item.isMatched).length;
+    const totalCount = checklistItems.length;
+    const commonGround = getCommonIntersections();
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
@@ -131,7 +416,12 @@ export function MatchProfileScreen({
 
                     <View style={styles.headerCopy}>
                         <Text style={styles.eyebrow}>Full Profile</Text>
-                        <Text style={styles.title}>{candidate.full_name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.title}>{candidate.full_name}</Text>
+                            {candidate.verification_status === 'verified' ? (
+                                <Text style={{ fontSize: 16, marginLeft: 6, color: '#1a7a5e' }}>✅</Text>
+                            ) : null}
+                        </View>
                         <Text style={styles.subtitle}>Review photos, profile details, family context, and your AI compatibility view.</Text>
                     </View>
                 </View>
@@ -203,6 +493,27 @@ export function MatchProfileScreen({
                         </Text>
                     </SectionCard>
 
+                    {viewerPrefs && checklistItems.length > 0 ? (
+                        <SectionCard title={`Preference Match (${matchedCount}/${totalCount})`}>
+                            <View style={styles.checklistRows}>
+                                {checklistItems.map((item, idx) => (
+                                    <View key={`${item.label}-${idx}`} style={styles.preferenceRow}>
+                                        <View style={styles.preferenceMain}>
+                                            <View style={[styles.checklistIndicator, item.isMatched ? styles.checklistIndicatorMatched : styles.checklistIndicatorOpen]}>
+                                                <Text style={[styles.checklistIndicatorText, item.isMatched ? styles.checklistIndicatorTextMatched : styles.checklistIndicatorTextOpen]}>
+                                                    {item.isMatched ? '✓' : '✗'}
+                                                </Text>
+                                            </View>
+                                            <Text style={styles.preferenceLabel}>{item.label}: </Text>
+                                            <Text style={styles.preferenceValue}>{item.value}</Text>
+                                        </View>
+                                        <Text style={styles.preferencePref}>Stated preference: {item.preferenceLabel}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </SectionCard>
+                    ) : null}
+
                     <View style={styles.twoColumnRow}>
                         <SectionCard title="Family" compact>
                             <Text style={styles.sectionBody}>
@@ -228,6 +539,19 @@ export function MatchProfileScreen({
                         )}
                     </SectionCard>
 
+                    {commonGround.length > 0 ? (
+                        <SectionCard title="Common Ground (Intersections)">
+                            <View style={styles.checklistRows}>
+                                {commonGround.map((item, idx) => (
+                                    <View key={`cg-${idx}`} style={styles.insightRow}>
+                                        <View style={[styles.insightDot, styles.insightDotFit]} />
+                                        <Text style={styles.insightText}>{item}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </SectionCard>
+                    ) : null}
+
                     {fitPoints.length > 0 ? (
                         <SectionCard title="Common between both of you">
                             {fitPoints.map((point) => (
@@ -244,7 +568,11 @@ export function MatchProfileScreen({
                         </SectionCard>
                     ) : null}
 
-                    <MaskedContactCard firstName={firstName} onUnlock={onConnect} onUnlockWithPremium={handleUnlockWithPremium} />
+                    {contactDetails ? (
+                        <UnlockedContactCard firstName={firstName} contactDetails={contactDetails} />
+                    ) : (
+                        <MaskedContactCard firstName={firstName} onUnlock={onConnect} onUnlockWithPremium={handleUnlockWithPremium} />
+                    )}
 
                     <View style={styles.trustStripCard}>
                         <View style={styles.trustStripHeader}>
@@ -274,6 +602,16 @@ export function MatchProfileScreen({
                                 Trust details are still being prepared for this profile.
                             </Text>
                         )}
+                    </View>
+
+                    <View style={styles.blockReportRow}>
+                        <Pressable style={styles.secondaryActionButton} onPress={() => handleReport()}>
+                            <Text style={styles.secondaryActionText}>Report Profile</Text>
+                        </Pressable>
+                        <View style={styles.divider} />
+                        <Pressable style={styles.secondaryActionButton} onPress={() => handleBlock()}>
+                            <Text style={styles.secondaryActionText}>Block Profile</Text>
+                        </Pressable>
                     </View>
                 </ScrollView>
 
@@ -411,6 +749,62 @@ function MaskedContactRow({ label, masked }: { label: string; masked: string }) 
             <View style={styles.contactRowLockChip}>
                 <Text style={styles.contactRowLockChipText}>Locked</Text>
             </View>
+        </View>
+    );
+}
+
+function RevealedContactRow({ label, value }: { label: string; value: string }) {
+    return (
+        <View style={styles.contactRow}>
+            <View style={styles.contactRowLeft}>
+                <Text style={styles.contactRowLabel}>{label}</Text>
+                <Text style={styles.unlockedRowValue}>{value}</Text>
+            </View>
+
+            <View style={styles.unlockedRowChip}>
+                <Text style={styles.unlockedRowChipText}>Unlocked</Text>
+            </View>
+        </View>
+    );
+}
+
+function UnlockedContactCard({
+    firstName,
+    contactDetails,
+}: {
+    firstName: string;
+    contactDetails: ProfileContactDetails;
+}) {
+    return (
+        <View style={styles.unlockedContactCard}>
+            <View style={styles.contactCardHeader}>
+                <View style={styles.unlockedBadge}>
+                    <Text style={styles.contactLockGlyph}>🔓</Text>
+                </View>
+
+                <View style={styles.contactHeaderCopy}>
+                    <Text style={styles.unlockedEyebrow}>Mutual Unlock Complete</Text>
+                    <Text style={styles.contactTitle}>{firstName}'s contact details</Text>
+                </View>
+            </View>
+
+            <View style={styles.contactRows}>
+                {contactDetails.phone_number ? (
+                    <RevealedContactRow label="Phone" value={contactDetails.phone_number} />
+                ) : null}
+                {contactDetails.whatsapp_number ? (
+                    <RevealedContactRow label="WhatsApp" value={contactDetails.whatsapp_number} />
+                ) : null}
+                {!contactDetails.phone_number && !contactDetails.whatsapp_number ? (
+                    <Text style={styles.contactBody}>
+                        {firstName} hasn't added contact details yet.
+                    </Text>
+                ) : null}
+            </View>
+
+            <Text style={styles.unlockedFooter}>
+                Both of you completed the micro-transaction. Contact info is now visible to both sides.
+            </Text>
         </View>
     );
 }
@@ -697,6 +1091,29 @@ const styles = StyleSheet.create({
         fontSize: 14,
         lineHeight: 21,
     },
+    preferenceRow: {
+        paddingVertical: 4,
+    },
+    preferenceMain: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 10,
+    },
+    preferenceLabel: {
+        color: '#14313a',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    preferenceValue: {
+        color: '#35515c',
+        fontSize: 14,
+    },
+    preferencePref: {
+        color: '#5d6d71',
+        fontSize: 12,
+        marginLeft: 32,
+        marginTop: 2,
+    },
     checklistRows: {
         gap: 10,
     },
@@ -884,6 +1301,54 @@ const styles = StyleSheet.create({
         lineHeight: 18,
         textAlign: 'center',
     },
+    // ── Unlocked Contact Card ──
+    unlockedContactCard: {
+        backgroundColor: '#f0faf5',
+        borderColor: '#b8e0cc',
+        borderRadius: 24,
+        borderWidth: 1,
+        gap: 14,
+        padding: 16,
+    },
+    unlockedBadge: {
+        alignItems: 'center',
+        backgroundColor: '#d4f0e1',
+        borderRadius: 14,
+        height: 44,
+        justifyContent: 'center',
+        width: 44,
+    },
+    unlockedEyebrow: {
+        color: '#2e8b57',
+        fontSize: 12,
+        fontWeight: '800',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+    },
+    unlockedRowValue: {
+        color: '#14313a',
+        fontSize: 16,
+        fontWeight: '800',
+        letterSpacing: 0.6,
+    },
+    unlockedRowChip: {
+        backgroundColor: '#d4f0e1',
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+    },
+    unlockedRowChipText: {
+        color: '#2e8b57',
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+    },
+    unlockedFooter: {
+        color: '#5a9a78',
+        fontSize: 12,
+        lineHeight: 18,
+        textAlign: 'center',
+    },
     trustStripCopy: {
         flex: 1,
         gap: 4,
@@ -951,5 +1416,27 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 14,
         fontWeight: '800',
+    },
+    blockReportRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginVertical: 20,
+        gap: 15,
+    },
+    secondaryActionButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+    },
+    secondaryActionText: {
+        color: '#7d8c90',
+        fontSize: 13,
+        fontWeight: '600',
+        textDecorationLine: 'underline',
+    },
+    divider: {
+        width: 1,
+        height: 16,
+        backgroundColor: '#cbd5e0',
     },
 });
