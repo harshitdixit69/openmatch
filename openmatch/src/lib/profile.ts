@@ -33,6 +33,8 @@ export type ProfileRecord = {
     smokes: boolean | null;
     is_admin?: boolean;
     verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
+    busy_mode?: boolean;
+    busy_mode_changed_at?: string;
 };
 
 export type ProfileContactDetails = {

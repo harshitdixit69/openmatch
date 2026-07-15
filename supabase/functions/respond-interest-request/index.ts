@@ -224,7 +224,7 @@ async function acceptInterestRequest(serviceClient: ReturnType<typeof createClie
         .update({
             status: 'accepted',
             accepted_at: new Date().toISOString(),
-            first_reply_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            first_reply_due_at: calculateFirstReplyDueAt(),
         })
         .eq('id', requestRecord.id)
         .select('id, match_id, sender_id, receiver_id, status, personalized_reason, accepted_at, first_reply_due_at')
@@ -281,7 +281,7 @@ async function insertLegacyInterestRequest(
             sender_ghost_risk_score: 0,
             accepted_at: targetStatus === 'accepted' ? new Date().toISOString() : null,
             first_reply_due_at:
-                targetStatus === 'accepted' ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
+                targetStatus === 'accepted' ? calculateFirstReplyDueAt() : null,
         })
         .select('id, match_id, sender_id, receiver_id, status, personalized_reason, accepted_at, first_reply_due_at')
         .single<InterestRequestRow>();
@@ -430,4 +430,10 @@ function json(body: unknown, status = 200) {
             'Content-Type': 'application/json',
         },
     });
+}
+
+function calculateFirstReplyDueAt(baseDate = new Date()): string {
+    const day = baseDate.getUTCDay(); // UTC day: 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+    const hours = (day === 5 || day === 6) ? 48 : 24;
+    return new Date(baseDate.getTime() + hours * 60 * 60 * 1000).toISOString();
 }

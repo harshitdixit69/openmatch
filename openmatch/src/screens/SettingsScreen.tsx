@@ -202,6 +202,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
     const [signingOut, setSigningOut] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'unverified' | 'pending' | 'verified' | 'rejected'>('unverified');
     const [showVerifyScreen, setShowVerifyScreen] = useState(false);
+    const [busyMode, setBusyMode] = useState(false);
 
     useEffect(() => {
         let mounted = true;
@@ -226,11 +227,14 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
         async function fetchStatus() {
             try {
                 const profile = await fetchCurrentProfile();
-                if (profile?.verification_status && mounted) {
-                    setVerificationStatus(profile.verification_status);
+                if (profile && mounted) {
+                    if (profile.verification_status) {
+                        setVerificationStatus(profile.verification_status);
+                    }
+                    setBusyMode(Boolean(profile.busy_mode));
                 }
             } catch (err) {
-                console.warn('Failed to load verification status:', err);
+                console.warn('Failed to load status:', err);
             }
         }
         void fetchStatus();
@@ -239,6 +243,28 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
             mounted = false;
         };
     }, []);
+
+    const toggleBusyMode = async () => {
+        const next = !busyMode;
+        setBusyMode(next);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({
+                        busy_mode: next,
+                        busy_mode_changed_at: new Date().toISOString()
+                    })
+                    .eq('id', user.id);
+                if (error) throw error;
+            }
+        } catch (err) {
+            console.error('Failed to update busy mode:', err);
+            Alert.alert('Error', 'Could not update Busy mode. Please try again.');
+            setBusyMode(!next);
+        }
+    };
 
     const toggleNotif = useCallback(async (key: keyof NotificationPrefs) => {
         const next = { ...notifPrefs, [key]: !notifPrefs[key] };
@@ -369,6 +395,21 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                         <Divider />
                         <ChangePasswordRow />
                     </SettingsSection>
+
+                    {/* ── Availability ── */}
+                    <SettingsSection title="Availability">
+                        <SettingsRow
+                            label="Busy Mode"
+                            subtitle="Temporarily pause reply deadline countdowns"
+                            right={
+                                <Switch
+                                    value={busyMode}
+                                    onValueChange={toggleBusyMode}
+                                    trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                                    thumbColor="#fff"
+                                />
+                            }
+                        />
 
                     {/* ── Notifications ── */}
                     <SettingsSection title="Notifications">
