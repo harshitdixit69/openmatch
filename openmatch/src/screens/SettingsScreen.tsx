@@ -410,6 +410,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                                 />
                             }
                         />
+                    </SettingsSection>
 
                     {/* ── Notifications ── */}
                     <SettingsSection title="Notifications">
