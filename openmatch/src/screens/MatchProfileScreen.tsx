@@ -36,6 +36,7 @@ type MatchProfileScreenProps = {
     summaryLoading: boolean;
     onClose: () => void;
     onPass: () => void;
+    onHardReject?: () => void;
     onConnect: () => void;
     onUnlockWithPremium?: () => void;
     onOpenChat?: (otherUserId: string) => void;
@@ -50,6 +51,7 @@ export function MatchProfileScreen({
     summaryLoading,
     onClose,
     onPass,
+    onHardReject,
     onConnect,
     onUnlockWithPremium,
     onOpenChat,
@@ -315,6 +317,8 @@ export function MatchProfileScreen({
                 try {
                     await blockUser(candidate.id);
                     alert(`${candidate.full_name} has been blocked.`);
+                    // Also hard-reject in matches table so they never reappear in the feed
+                    onHardReject?.();
                     onPass();
                 } catch (err) {
                     console.error('Failed to block profile:', err);
@@ -336,6 +340,8 @@ export function MatchProfileScreen({
                         try {
                             await blockUser(candidate.id);
                             Alert.alert('Blocked', `${candidate.full_name} has been blocked.`);
+                            // Also hard-reject in matches table so they never reappear in the feed
+                            onHardReject?.();
                             onPass();
                         } catch (err) {
                             console.error('Failed to block profile:', err);

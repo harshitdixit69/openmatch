@@ -187,8 +187,14 @@ export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult>
             return candidate;
         })
         .filter((candidate) => {
-            // Keep 'rejected' (passed) and 'none' (unconnected). Filter out active matches ('accepted', 'pending')
-            return candidate.matchStatus !== 'accepted' && candidate.matchStatus !== 'pending';
+            // Filter out active matches and recently-passed profiles from the current session.
+            // 'passed' profiles reappear automatically after 30 days (enforced on DB side).
+            return (
+                candidate.matchStatus !== 'accepted' &&
+                candidate.matchStatus !== 'pending' &&
+                candidate.matchStatus !== 'passed' &&
+                candidate.matchStatus !== 'rejected'
+            );
         });
 
     return {
@@ -275,7 +281,29 @@ export async function recordPassedProfile(candidateProfileId: string) {
         return;
     }
 
-    const { error } = await supabase.rpc('reject_profile', { p_candidate_id: candidateProfileId });
+    const { error } = await supabase.rpc('soft_pass_profile', { p_candidate_id: candidateProfileId });
+    if (error) {
+        throw error;
+    }
+}
+
+/** Permanently hard-reject a profile (never reintroduced to the feed).
+ *  Called when the user explicitly taps "Block Profile" from the detail sheet. */
+export async function recordHardRejectProfile(candidateProfileId: string) {
+    const {
+        data: { user },
+        error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+        throw userError;
+    }
+
+    if (!user || candidateProfileId === user.id) {
+        return;
+    }
+
+    const { error } = await supabase.rpc('hard_reject_profile', { p_candidate_id: candidateProfileId });
     if (error) {
         throw error;
     }
