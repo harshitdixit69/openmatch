@@ -747,17 +747,7 @@ export function ChatScreen({
             setContactShareBlocked(result.blocked && !result.unlocked);
             setNotice(result.blocked ? null : result.notice);
 
-            if (result.blocked && !result.unlocked) {
-                if (Platform.OS === 'web') {
-                    alert('Sharing Blocked: Direct contact details are hidden until mutual unlock. Upgrade to share contact info.');
-                } else {
-                    Alert.alert(
-                        'Sharing Blocked',
-                        'Direct contact details are hidden until mutual unlock. Upgrade to share contact info.',
-                        [{ text: 'OK' }]
-                    );
-                }
-            }
+
 
             if (
                 activeMatch.interestRequest?.status === 'accepted' &&
