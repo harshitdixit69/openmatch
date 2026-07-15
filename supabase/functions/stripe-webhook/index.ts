@@ -139,15 +139,72 @@ async function handleSucceededPayment(
         throw updateUnlockError;
     }
 
-    if (bothPaid && !match.is_unlocked) {
-        const { error: updateMatchError } = await serviceClient
-            .from('matches')
-            .update({ is_unlocked: true })
-            .eq('id', matchId);
+    if (bothPaid) {
+        if (!match.is_unlocked) {
+            const { error: updateMatchError } = await serviceClient
+                .from('matches')
+                .update({ is_unlocked: true })
+                .eq('id', matchId);
 
-        if (updateMatchError) {
-            throw updateMatchError;
+            if (updateMatchError) {
+                throw updateMatchError;
+            }
         }
+
+        // Notify both users that contacts are now unlocked
+        const otherUserId = match.user_1_id === payerUserId ? match.user_2_id : match.user_1_id;
+        await Promise.all([
+            safeInsertNotification(serviceClient, payerUserId, 'contact_unlocked', {
+                title: 'Contacts unlocked!',
+                body: 'Both of you paid. Contacts are now revealed!',
+                metadata: { matchId: matchId },
+            }),
+            safeInsertNotification(serviceClient, otherUserId, 'contact_unlocked', {
+                title: 'Contacts unlocked!',
+                body: 'Both of you paid. Contacts are now revealed!',
+                metadata: { matchId: matchId },
+            }),
+        ]);
+    } else {
+        // Only one paid (escrow hold state) - notify the other user
+        const otherUserId = match.user_1_id === payerUserId ? match.user_2_id : match.user_1_id;
+        let payerName = 'Your match';
+        const { data: profile } = await serviceClient
+            .from('profiles')
+            .select('full_name')
+            .eq('id', payerUserId)
+            .maybeSingle();
+        if (profile?.full_name) {
+            payerName = profile.full_name;
+        }
+
+        const formattedAmount = `${intent.currency.toUpperCase() === 'INR' ? '₹' : intent.currency.toUpperCase() + ' '}${intent.amount / 100}`;
+
+        await safeInsertNotification(serviceClient, otherUserId, 'contact_unlocked', {
+            title: `${payerName} paid to unlock contacts`,
+            body: `Your match paid to unlock contacts. Pay ${formattedAmount} to accept and reveal.`,
+            metadata: { matchId: matchId },
+        });
+    }
+}
+
+async function safeInsertNotification(
+    serviceClient: ReturnType<typeof createClient>,
+    userId: string,
+    type: string,
+    opts: { title: string; body: string; metadata: Record<string, string> },
+) {
+    const { error } = await serviceClient.from('notifications').insert({
+        user_id: userId,
+        type,
+        title: opts.title,
+        body: opts.body,
+        metadata: opts.metadata,
+        is_read: false,
+    });
+
+    if (error && !/does not exist/i.test(error.message ?? '')) {
+        console.warn('safeInsertNotification failed:', error.message);
     }
 }
 
