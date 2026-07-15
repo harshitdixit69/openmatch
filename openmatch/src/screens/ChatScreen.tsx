@@ -1978,23 +1978,55 @@ export function ChatScreen({
                                     removeClippedSubviews
                                     renderItem={({ item }) => {
                                         const isOwnMessage = item.senderId === currentUserId;
-                                        const shouldRedact =
-                                            item.isFlaggedBySystem && !isOwnMessage && !activeMatch?.isUnlocked;
-                                        const displayContent = shouldRedact
-                                            ? '[Contact details blocked until mutual unlock]'
+                                        
+                                        // Show redacted interactive CTA if system flagged and locked
+                                        const isFlaggedAndLocked = item.isFlaggedBySystem && !activeMatch?.isUnlocked;
+                                        
+                                        const rawContent = isFlaggedAndLocked && !item.content.includes('[Contact Details Hidden]')
+                                            ? '[Contact Details Hidden]'
                                             : item.content;
+
+                                        const displayContent = isFlaggedAndLocked
+                                            ? rawContent.replace(/\[Contact Details Hidden\]/g, '[Contact Details Hidden] ➔ Tap here to send a Mutual Unlock Request')
+                                            : item.content;
+
+                                        const WrapperComponent = isFlaggedAndLocked ? Pressable : View;
+                                        
+                                        const wrapperProps = isFlaggedAndLocked ? {
+                                            onPress: () => {
+                                                if (activeMatch?.unlockState?.canAccept) {
+                                                    void handleUnlockAction('accept');
+                                                } else if (activeMatch?.unlockState?.canPay) {
+                                                    void handleUnlock();
+                                                } else if (activeMatch?.unlockState?.waitingOn === 'other_acceptance') {
+                                                    Alert.alert('Request Pending', `${activeMatch.otherUserName} needs to accept your unlock request before you can pay.`);
+                                                } else if (activeMatch?.unlockState?.waitingOn === 'other_payment') {
+                                                    Alert.alert('Payment Pending', `You have paid. We are waiting for ${activeMatch.otherUserName} to pay and unlock the chat.`);
+                                                } else {
+                                                    void handleUnlockAction('request');
+                                                }
+                                            },
+                                            style: ({ pressed }) => [
+                                                styles.messageBubble,
+                                                isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
+                                                styles.messageBubbleFlagged,
+                                                pressed ? { opacity: 0.7 } : null
+                                            ]
+                                        } : {
+                                            style: [
+                                                styles.messageBubble,
+                                                isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
+                                                item.isFlaggedBySystem ? styles.messageBubbleFlagged : null,
+                                            ]
+                                        };
+
                                         return (
-                                            <View
-                                                style={[
-                                                    styles.messageBubble,
-                                                    isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
-                                                    item.isFlaggedBySystem ? styles.messageBubbleFlagged : null,
-                                                ]}
-                                            >
+                                            <WrapperComponent {...wrapperProps}>
                                                 <Text
                                                     style={[
                                                         styles.messageText,
                                                         isOwnMessage ? styles.messageTextOwn : styles.messageTextOther,
+                                                        isFlaggedAndLocked ? styles.messageTextFlagged : null,
                                                     ]}
                                                 >
                                                     {displayContent}
@@ -2009,7 +2041,7 @@ export function ChatScreen({
                                                     {isOwnMessage && item.readAt ? ' • seen' : ''}
                                                     {item.isFlaggedBySystem ? ' • filtered' : ''}
                                                 </Text>
-                                            </View>
+                                            </WrapperComponent>
                                         );
                                     }}
                                     ListHeaderComponent={
@@ -4530,6 +4562,10 @@ const styles = StyleSheet.create({
     },
     messageTextOther: {
         color: '#26434b',
+    },
+    messageTextFlagged: {
+        color: '#d9643d',
+        fontWeight: '600',
     },
     messageMeta: {
         fontSize: 11,
