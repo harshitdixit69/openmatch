@@ -15,6 +15,7 @@ export type MatchCandidate = {
     similarity: number;
     verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
     distance_km?: number | null;
+    matchStatus?: string;
 };
 
 export type ViewerEmbeddingStatus = 'ready' | 'pending' | 'delayed';

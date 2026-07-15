@@ -31,7 +31,6 @@ import {
     fetchSemanticMatches,
     recordPassedProfile,
     clearPassedProfiles,
-    fetchPassedProfileIds,
 } from '../lib/matchmakingApi';
 import {
     fetchCurrentProfile,
@@ -82,7 +81,6 @@ export function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFeedFilter, setActiveFeedFilter] = useState<FeedFilter>('new');
-    const [passedProfileIds, setPassedProfileIds] = useState<Set<string>>(new Set());
     const [viewerEmbeddingStatus, setViewerEmbeddingStatus] = useState<ViewerEmbeddingStatus>('ready');
     const [usingLegacyMatchFunction, setUsingLegacyMatchFunction] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState<MatchCandidate | null>(null);
@@ -127,19 +125,19 @@ export function HomeScreen() {
                 return false;
             }
 
-            return matchesFeedFilter(candidate, activeFeedFilter, viewerProfile?.location ?? null, passedProfileIds);
+            return matchesFeedFilter(candidate, activeFeedFilter, viewerProfile?.location ?? null);
         });
-    }, [activeFeedFilter, candidates, searchQuery, viewerProfile?.location, passedProfileIds]);
+    }, [activeFeedFilter, candidates, searchQuery, viewerProfile?.location]);
 
     const feedFilterCounts = useMemo<Record<FeedFilter, number>>(
         () => ({
-            new: candidates.filter((candidate) => matchesFeedFilter(candidate, 'new', viewerProfile?.location ?? null, passedProfileIds)).length,
-            daily: candidates.filter((candidate) => matchesFeedFilter(candidate, 'daily', viewerProfile?.location ?? null, passedProfileIds)).length,
-            withPhotos: candidates.filter((candidate) => matchesFeedFilter(candidate, 'withPhotos', viewerProfile?.location ?? null, passedProfileIds)).length,
-            nearby: candidates.filter((candidate) => matchesFeedFilter(candidate, 'nearby', viewerProfile?.location ?? null, passedProfileIds)).length,
-            passed: candidates.filter((candidate) => matchesFeedFilter(candidate, 'passed', viewerProfile?.location ?? null, passedProfileIds)).length,
+            new: candidates.filter((candidate) => matchesFeedFilter(candidate, 'new', viewerProfile?.location ?? null)).length,
+            daily: candidates.filter((candidate) => matchesFeedFilter(candidate, 'daily', viewerProfile?.location ?? null)).length,
+            withPhotos: candidates.filter((candidate) => matchesFeedFilter(candidate, 'withPhotos', viewerProfile?.location ?? null)).length,
+            nearby: candidates.filter((candidate) => matchesFeedFilter(candidate, 'nearby', viewerProfile?.location ?? null)).length,
+            passed: candidates.filter((candidate) => matchesFeedFilter(candidate, 'passed', viewerProfile?.location ?? null)).length,
         }),
-        [candidates, viewerProfile?.location, passedProfileIds],
+        [candidates, viewerProfile?.location],
     );
 
     async function onSignOut() {
@@ -161,7 +159,6 @@ export function HomeScreen() {
 
     async function resetFeedAndPassed() {
         await clearPassedProfiles();
-        setPassedProfileIds(new Set());
         resetFeedFilters();
         await loadFeed(true);
     }
@@ -174,11 +171,6 @@ export function HomeScreen() {
         }
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const passed = await fetchPassedProfileIds(user.id);
-                setPassedProfileIds(passed);
-            }
             const result = await fetchSemanticMatches();
             setCandidates(result.candidates);
             setViewerEmbeddingStatus(result.viewerEmbeddingStatus);
@@ -447,11 +439,9 @@ export function HomeScreen() {
     async function savePass(candidate: MatchCandidate) {
         try {
             await recordPassedProfile(candidate.id);
-            setPassedProfileIds((prev) => {
-                const next = new Set(prev);
-                next.add(candidate.id);
-                return next;
-            });
+            setCandidates((prev) =>
+                prev.map((c) => (c.id === candidate.id ? { ...c, matchStatus: 'rejected' } : c)),
+            );
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not save this pass.';
             Alert.alert('Pass save failed', message);
@@ -1086,12 +1076,12 @@ function getPremiumHighlightForCandidate(candidate: MatchCandidate) {
     return null;
 }
 
-function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewerLocation: string | null, passedProfileIds: Set<string>) {
+function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewerLocation: string | null) {
     if (filter === 'passed') {
-        return passedProfileIds.has(candidate.id);
+        return candidate.matchStatus === 'rejected';
     }
 
-    if (passedProfileIds.has(candidate.id)) {
+    if (candidate.matchStatus === 'rejected') {
         return false;
     }
 
