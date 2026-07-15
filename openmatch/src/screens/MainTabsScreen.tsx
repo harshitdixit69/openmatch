@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { ChatMatch } from '../lib/chat';
 import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel } from '../lib/chatApi';
 import { fetchPremiumAnalyticsSummary, PremiumAnalyticsSummary, trackPremiumEvent } from '../lib/premiumAnalytics';
-import { getDisplayFirstName } from '../lib/profile';
+import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { fetchCurrentProfile } from '../lib/profileApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
 import { ChatScreen } from './ChatScreen';
@@ -20,6 +20,8 @@ import { SearchScreen } from './SearchScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { ShortlistScreen } from './ShortlistScreen';
 import { WhoViewedMeScreen } from './WhoViewedMeScreen';
+import { MatchProfileScreen } from './MatchProfileScreen';
+import { MatchCandidate } from '../lib/matchmaking';
 
 // Base height of the tab bar content (padding + tab button minHeight) before the
 // device's bottom safe-area inset is added. Used to reserve space so scrollable
@@ -60,6 +62,49 @@ export function MainTabsScreen() {
     const [showWhoViewedMe, setShowWhoViewedMe] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showDashboard, setShowDashboard] = useState(false);
+    
+    const [viewerProfile, setViewerProfile] = useState<ProfileRecord | null>(null);
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [selectedProfileCandidate, setSelectedProfileCandidate] = useState<MatchCandidate | null>(null);
+    const [selectedProfileLoading, setSelectedProfileLoading] = useState(false);
+
+    useEffect(() => {
+        if (!selectedProfileId) {
+            setSelectedProfileCandidate(null);
+            return;
+        }
+
+        async function loadProfile() {
+            setSelectedProfileLoading(true);
+            try {
+                const profile = await fetchCurrentProfile(selectedProfileId || undefined);
+                if (profile) {
+                    const candidate: MatchCandidate = {
+                        id: profile.id,
+                        full_name: profile.full_name,
+                        gender: profile.gender,
+                        dob: profile.dob,
+                        location: profile.location,
+                        bio: profile.bio,
+                        preferences: profile.preferences,
+                        photo_urls: profile.photo_urls,
+                        height_cm: profile.height_cm,
+                        profile_owner: profile.profile_owner,
+                        partner_gender_preference: profile.partner_gender_preference,
+                        similarity: 0,
+                    };
+                    setSelectedProfileCandidate(candidate);
+                }
+            } catch (err) {
+                console.error('Failed to load profile for view:', err);
+            } finally {
+                setSelectedProfileLoading(false);
+            }
+        }
+
+        void loadProfile();
+    }, [selectedProfileId]);
+
     const insets = useSafeAreaInsets();
     // Debounce ref: track the last time loadShellData was triggered by a tab
     // switch so rapid tab changes don't fire multiple heavy fetchChatMatches calls.
@@ -68,6 +113,7 @@ export function MainTabsScreen() {
     // Android back button: dismiss the topmost open modal instead of exiting the app.
     useEffect(() => {
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (selectedProfileId) { setSelectedProfileId(null); return true; }
             if (showDashboard) { setShowDashboard(false); return true; }
             if (showNotifications) { setShowNotifications(false); return true; }
             if (showWhoViewedMe) { setShowWhoViewedMe(false); return true; }
@@ -80,7 +126,7 @@ export function MainTabsScreen() {
             return false;
         });
         return () => handler.remove();
-    }, [showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
+    }, [selectedProfileId, showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
 
     // Keep the home-indicator clear on notched devices while still leaving a
     // comfortable tap area on phones without a bottom inset.
@@ -136,6 +182,7 @@ export function MainTabsScreen() {
                 fetchChatMatches().catch(() => [] as ChatMatch[]),
             ]);
 
+            setViewerProfile(profile);
             setViewerFirstName(getDisplayFirstName(profile?.full_name));
             setShellCounts(buildShellCounts(matches));
         } catch (error) {
@@ -207,6 +254,8 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="received"
                     initialVisibilityFilter="all"
+                    isChatScreen={false}
+                    onViewProfile={setSelectedProfileId}
                 />
             );
         }
@@ -218,6 +267,8 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="accepted"
                     initialVisibilityFilter={shellCounts.unread > 0 ? 'unread' : 'all'}
+                    isChatScreen={true}
+                    onViewProfile={setSelectedProfileId}
                 />
             );
         }
@@ -330,6 +381,39 @@ export function MainTabsScreen() {
                         />
                     ))}
                 </View>
+
+                <Modal
+                    transparent={false}
+                    animationType="slide"
+                    visible={Boolean(selectedProfileId)}
+                    onRequestClose={() => setSelectedProfileId(null)}
+                >
+                    {selectedProfileLoading ? (
+                        <View style={styles.modalLoadingContainer}>
+                            <ActivityIndicator size="large" color="#e56a3a" />
+                            <Text style={styles.modalLoadingText}>Loading profile...</Text>
+                        </View>
+                    ) : selectedProfileCandidate ? (
+                        <MatchProfileScreen
+                            candidate={selectedProfileCandidate}
+                            viewerProfile={viewerProfile}
+                            compatibilitySummary={null}
+                            fitPoints={[]}
+                            frictionPoints={[]}
+                            summaryLoading={false}
+                            onClose={() => setSelectedProfileId(null)}
+                            onPass={() => setSelectedProfileId(null)}
+                            onConnect={() => setSelectedProfileId(null)}
+                        />
+                    ) : (
+                        <View style={styles.modalErrorContainer}>
+                            <Text style={styles.modalErrorText}>Could not load profile details.</Text>
+                            <Pressable style={styles.modalCloseButton} onPress={() => setSelectedProfileId(null)}>
+                                <Text style={styles.modalCloseButtonText}>Close</Text>
+                            </Pressable>
+                        </View>
+                    )}
+                </Modal>
             </View>
         </TabBarSpacingContext.Provider>
     );
@@ -1063,5 +1147,42 @@ const styles = StyleSheet.create({
         color: '#5d6d71',
         fontSize: 14,
         lineHeight: 21,
+    },
+    modalLoadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#edf3f2',
+    },
+    modalLoadingText: {
+        marginTop: 14,
+        fontSize: 16,
+        color: '#14313a',
+        fontWeight: '600',
+    },
+    modalErrorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#edf3f2',
+        padding: 24,
+    },
+    modalErrorText: {
+        fontSize: 16,
+        color: '#7a4a2c',
+        fontWeight: '600',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    modalCloseButton: {
+        backgroundColor: '#14313a',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 20,
+    },
+    modalCloseButtonText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '700',
     },
 });
