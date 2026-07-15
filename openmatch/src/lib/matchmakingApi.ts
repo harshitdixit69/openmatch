@@ -1,5 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { MatchCandidate, MatchFeedResult, ViewerEmbeddingStatus } from './matchmaking';
 import { getDefaultPartnerGenderPreference } from './profile';
 import { supabase } from './supabase';
@@ -13,11 +11,6 @@ type ViewerEmbeddingRow = {
 };
 
 type LegacyViewerEmbeddingRow = Omit<ViewerEmbeddingRow, 'partner_gender_preference'>;
-
-type ExistingMatchRow = {
-    user_1_id: string;
-    user_2_id: string;
-};
 
 export type MatchRequestMessage = {
     id: string;
@@ -45,7 +38,6 @@ export type MatchRequestResponse = {
 };
 
 const delayedEmbeddingThresholdMs = 3 * 60 * 1000;
-const passedProfilesStorageKeyPrefix = 'openmatch:passedProfiles:';
 
 function normalizeCandidates(data: unknown, currentUserId: string): MatchCandidate[] {
     if (!Array.isArray(data)) {
@@ -100,10 +92,6 @@ function resolveViewerEmbeddingStatus(viewerProfile: ViewerEmbeddingRow | null |
     return Date.now() - requestedAt.getTime() >= delayedEmbeddingThresholdMs ? 'delayed' : 'pending';
 }
 
-function getPassedProfilesStorageKey(userId: string) {
-    return `${passedProfilesStorageKeyPrefix}${userId}`;
-}
-
 function isMissingPartnerGenderPreferenceColumn(error: { message?: string } | null | undefined) {
     const message = error?.message ?? '';
     return /partner_gender_preference/i.test(message) && /column/i.test(message) && /does not exist/i.test(message);
@@ -140,46 +128,6 @@ async function fetchViewerMatchProfile(currentUserId: string) {
     } satisfies ViewerEmbeddingRow;
 }
 
-async function fetchPassedProfileIds(currentUserId: string) {
-    const storedValue = await AsyncStorage.getItem(getPassedProfilesStorageKey(currentUserId));
-    if (!storedValue) {
-        return new Set<string>();
-    }
-
-    try {
-        const parsed = JSON.parse(storedValue);
-        if (!Array.isArray(parsed)) {
-            return new Set<string>();
-        }
-
-        return new Set(parsed.filter((profileId): profileId is string => typeof profileId === 'string'));
-    } catch {
-        return new Set<string>();
-    }
-}
-
-async function savePassedProfileIds(currentUserId: string, profileIds: Set<string>) {
-    await AsyncStorage.setItem(getPassedProfilesStorageKey(currentUserId), JSON.stringify([...profileIds]));
-}
-
-async function fetchExistingMatchedProfileIds(currentUserId: string) {
-    const { data, error } = await supabase
-        .from('matches')
-        .select('user_1_id, user_2_id')
-        .or(`user_1_id.eq.${currentUserId},user_2_id.eq.${currentUserId}`)
-        .returns<ExistingMatchRow[]>();
-
-    if (error) {
-        throw error;
-    }
-
-    return new Set(
-        (data ?? []).map((match) =>
-            match.user_1_id === currentUserId ? match.user_2_id : match.user_1_id,
-        ),
-    );
-}
-
 export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult> {
     const {
         data: { user },
@@ -205,12 +153,22 @@ export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult>
         };
     }
 
-    const [existingMatchedProfileIds, passedProfileIds] = await Promise.all([
-        fetchExistingMatchedProfileIds(user.id),
-        fetchPassedProfileIds(user.id),
-    ]);
+    const { data: matchesData, error: matchesErr } = await supabase
+        .from('matches')
+        .select('user_1_id, user_2_id, status')
+        .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`);
 
-    const excludedProfileIds = new Set<string>([...existingMatchedProfileIds, ...passedProfileIds]);
+    if (matchesErr) {
+        throw matchesErr;
+    }
+
+    const matchStatusMap = new Map<string, string>();
+    if (matchesData) {
+        for (const row of matchesData) {
+            const otherId = row.user_1_id === user.id ? row.user_2_id : row.user_1_id;
+            matchStatusMap.set(otherId, row.status);
+        }
+    }
 
     const { data, error } = await supabase.rpc('match_profiles', {
         result_limit: limit,
@@ -223,9 +181,15 @@ export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult>
 
     // Gender filtering is already applied inside match_profiles() on the DB.
     // We only normalize (type-safe field coercion + self-exclusion) here.
-    const candidates = normalizeCandidates(data, user.id).filter(
-        (candidate) => !excludedProfileIds.has(candidate.id),
-    );
+    const candidates = normalizeCandidates(data, user.id)
+        .map((candidate) => {
+            candidate.matchStatus = matchStatusMap.get(candidate.id) || 'none';
+            return candidate;
+        })
+        .filter((candidate) => {
+            // Keep 'rejected' (passed) and 'none' (unconnected). Filter out active matches ('accepted', 'pending')
+            return candidate.matchStatus !== 'accepted' && candidate.matchStatus !== 'pending';
+        });
 
     return {
         candidates,
@@ -294,14 +258,6 @@ export async function createPendingMatch(
 
     const result = data as MatchRequestResponse;
 
-    const passedProfileIds = await fetchPassedProfileIds(user.id);
-    if (!passedProfileIds.has(candidateProfileId)) {
-        return result;
-    }
-
-    passedProfileIds.delete(candidateProfileId);
-    await savePassedProfileIds(user.id, passedProfileIds);
-
     return result;
 }
 
@@ -319,15 +275,17 @@ export async function recordPassedProfile(candidateProfileId: string) {
         return;
     }
 
-    const passedProfileIds = await fetchPassedProfileIds(user.id);
-    passedProfileIds.add(candidateProfileId);
-    await savePassedProfileIds(user.id, passedProfileIds);
+    const { error } = await supabase.rpc('reject_profile', { p_candidate_id: candidateProfileId });
+    if (error) {
+        throw error;
+    }
 }
 
-/** Clear all locally-stored passed/swiped-left profile IDs for the current user.
+/** Clear all passed/swiped-left profile IDs for the current user from the database.
  *  Used by the "Reset feed" button so profiles the user swiped away reappear. */
 export async function clearPassedProfiles(): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await AsyncStorage.removeItem(getPassedProfilesStorageKey(user.id));
+    const { error } = await supabase.rpc('clear_rejected_profiles');
+    if (error) {
+        throw error;
+    }
 }

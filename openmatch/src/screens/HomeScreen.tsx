@@ -135,6 +135,7 @@ export function HomeScreen() {
             daily: candidates.filter((candidate) => matchesFeedFilter(candidate, 'daily', viewerProfile?.location ?? null)).length,
             withPhotos: candidates.filter((candidate) => matchesFeedFilter(candidate, 'withPhotos', viewerProfile?.location ?? null)).length,
             nearby: candidates.filter((candidate) => matchesFeedFilter(candidate, 'nearby', viewerProfile?.location ?? null)).length,
+            passed: candidates.filter((candidate) => matchesFeedFilter(candidate, 'passed', viewerProfile?.location ?? null)).length,
         }),
         [candidates, viewerProfile?.location],
     );
@@ -438,6 +439,9 @@ export function HomeScreen() {
     async function savePass(candidate: MatchCandidate) {
         try {
             await recordPassedProfile(candidate.id);
+            setCandidates((prev) =>
+                prev.map((c) => (c.id === candidate.id ? { ...c, matchStatus: 'rejected' } : c)),
+            );
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not save this pass.';
             Alert.alert('Pass save failed', message);
@@ -887,13 +891,14 @@ export function HomeScreen() {
     );
 }
 
-type FeedFilter = 'new' | 'daily' | 'withPhotos' | 'nearby';
+type FeedFilter = 'new' | 'daily' | 'withPhotos' | 'nearby' | 'passed';
 
 const feedFilters: { label: string; value: FeedFilter }[] = [
     { label: 'New', value: 'new' },
     { label: 'Daily', value: 'daily' },
     { label: 'With photos', value: 'withPhotos' },
     { label: 'Nearby', value: 'nearby' },
+    { label: 'Passed', value: 'passed' },
 ];
 
 type CandidateCardProps = {
@@ -1072,6 +1077,14 @@ function getPremiumHighlightForCandidate(candidate: MatchCandidate) {
 }
 
 function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewerLocation: string | null) {
+    if (filter === 'passed') {
+        return candidate.matchStatus === 'rejected';
+    }
+
+    if (candidate.matchStatus === 'rejected') {
+        return false;
+    }
+
     if (filter === 'new') {
         return true;
     }
