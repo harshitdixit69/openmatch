@@ -150,7 +150,7 @@ Deno.serve(async (request) => {
         // When blocked, store a redacted placeholder instead of the raw
         // contact info so even a direct DB read cannot leak the details.
         const storedContent = blocked
-            ? '<Upgrade to share contact info>'
+            ? await redactPII(content, env)
             : content;
 
         const { data: inserted, error: insertError } = await admin
@@ -411,4 +411,60 @@ function json(body: unknown, status = 200) {
             'Content-Type': 'application/json',
         },
     });
+}
+
+async function redactPII(content: string, env: ReturnType<typeof getEnv>): Promise<string> {
+    const deterministic = deterministicRedact(content);
+    if (!hasChatProvider()) {
+        return deterministic;
+    }
+
+    try {
+        const aiResult = await callAzureJsonChat({
+            apiKey: env.azureApiKey,
+            apiVersion: env.azureApiVersion,
+            endpoint: env.azureEndpoint,
+            deployment: env.chatDeployment,
+            maxTokens: 120,
+            messages: [
+                {
+                    role: 'system',
+                    content:
+                        'You are a redact tool for a matrimonial app. Your job is to replace any phone numbers, email addresses, social media handles, or messaging app info with the exact token "[Contact Details Hidden]". Keep all other words and structure exactly the same. Return a JSON object of the form {"redactedText": "..."}.',
+                },
+                {
+                    role: 'user',
+                    content: `Message:\n${content}`,
+                },
+            ],
+        });
+
+        if (aiResult.redactedText && aiResult.redactedText.includes('[Contact Details Hidden]')) {
+            return aiResult.redactedText;
+        }
+        return deterministic;
+    } catch (_error) {
+        return deterministic;
+    }
+}
+
+function deterministicRedact(content: string): string {
+    let text = content;
+    // Replace emails
+    text = text.replace(EMAIL_PATTERN, '[Contact Details Hidden]');
+    // Replace social handles
+    text = text.replace(HANDLE_PATTERN, (match) => {
+        const prefix = match.match(/^\s/);
+        return (prefix ? prefix[0] : '') + '@[Contact Details Hidden]';
+    });
+    // Replace app patterns
+    text = text.replace(APP_PATTERN, '[Contact Details Hidden]');
+    // Replace phone numbers/runs of 7+ digits
+    const candidatePattern = /\+?\d(?:[\d\s\-().]{5,}\d)/g;
+    text = text.replace(candidatePattern, '[Contact Details Hidden]');
+    
+    if (text === content) {
+        return '[Contact Details Hidden]';
+    }
+    return text;
 }
