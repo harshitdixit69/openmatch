@@ -22,6 +22,7 @@ export type MatchInterestRequest = {
     ghostedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    slaExtended?: boolean;
 };
 
 export type MatchUnlockState = {

@@ -57,6 +57,7 @@ import {
     subscribeToUserPresence,
     blockUser,
     reportUser,
+    extendSlaDeadline,
 } from '../lib/chatApi';
 import { fetchCurrentProfile } from '../lib/profileApi';
 import {
@@ -143,6 +144,7 @@ export function ChatScreen({
     const [callbackPendingRequestId, setCallbackPendingRequestId] = useState<string | null>(null);
     const [brokerConsentPendingRequestId, setBrokerConsentPendingRequestId] = useState<string | null>(null);
     const [brokerNudgePendingRequestId, setBrokerNudgePendingRequestId] = useState<string | null>(null);
+    const [extendingSla, setExtendingSla] = useState(false);
     const [brokerSummary, setBrokerSummary] = useState<BrokerCallSummary | null>(null);
     const [brokerSummaryLoading, setBrokerSummaryLoading] = useState(false);
     const [showBrokerTools, setShowBrokerTools] = useState(false);
@@ -1102,6 +1104,32 @@ export function ChatScreen({
         }
     }
 
+    async function handleExtendSla(match: ChatMatch) {
+        const requestId = match.interestRequest?.id;
+        if (!requestId) return;
+
+        setExtendingSla(true);
+        try {
+            const updatedRequest = await extendSlaDeadline(requestId);
+            Alert.alert('Deadline Extended', 'Your reply SLA deadline has been extended by 24 hours.');
+            
+            const nextMatch = await fetchChatMatchById(match.id);
+            if (nextMatch) {
+                applyMatchUpdate({
+                    ...nextMatch,
+                    interestRequest: updatedRequest,
+                });
+            } else {
+                await loadMatches(false);
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not extend deadline.';
+            Alert.alert('Extension failed', message);
+        } finally {
+            setExtendingSla(false);
+        }
+    }
+
     const chatHeaderSubtitle = useMemo(() => {
         if (!activeMatch) {
             return '';
@@ -1703,6 +1731,26 @@ export function ChatScreen({
                                 <Text style={styles.deadlineBodyMuted}>
                                     You still have {formatCountdownLabel(activeMatch.interestRequest.firstReplyDueAt, currentTime)} to follow up after acceptance.
                                 </Text>
+
+                                {!activeMatch.interestRequest.slaExtended ? (
+                                    <Pressable
+                                        style={[
+                                            styles.callbackActionButton,
+                                            { marginTop: 8, marginBottom: 12, alignSelf: 'flex-start', backgroundColor: '#d9643d' },
+                                            extendingSla ? styles.sendButtonDisabled : null
+                                        ]}
+                                        onPress={() => void handleExtendSla(activeMatch)}
+                                        disabled={extendingSla}
+                                    >
+                                        <Text style={[styles.callbackActionButtonText, { color: '#ffffff' }]}>
+                                            {extendingSla ? 'Extending…' : 'Extend Reply SLA (+24h)'}
+                                        </Text>
+                                    </Pressable>
+                                ) : (
+                                    <Text style={[styles.deadlineBodyMuted, { fontSize: 13, marginTop: 4, marginBottom: 12, fontStyle: 'italic', color: '#888' }]}>
+                                        (SLA has been extended by 24h)
+                                    </Text>
+                                )}
 
                                 <BrokerToolsToggle
                                     open={showBrokerTools}

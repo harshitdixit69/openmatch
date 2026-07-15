@@ -98,6 +98,7 @@ type InterestRequestRow = {
     ghosted_at: string | null;
     created_at: string;
     updated_at: string;
+    sla_extended?: boolean;
 };
 
 type SendEscrowMessageResponse = {
@@ -372,6 +373,7 @@ function mapInterestRequest(row: InterestRequestRow): MatchInterestRequest {
         ghostedAt: row.ghosted_at ?? null,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        slaExtended: row.sla_extended,
     };
 }
 
@@ -518,7 +520,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
             .returns<MatchListMessageRow[]>(),
         supabase
             .from('interest_requests')
-            .select('id, match_id, sender_id, receiver_id, status, personalized_reason, media_type, media_url, request_quality_score, sender_ghost_risk_score, accepted_at, first_reply_due_at, first_reply_at, ghosted_at, created_at, updated_at')
+            .select('id, match_id, sender_id, receiver_id, status, personalized_reason, media_type, media_url, request_quality_score, sender_ghost_risk_score, accepted_at, first_reply_due_at, first_reply_at, ghosted_at, created_at, updated_at, sla_extended')
             .in('match_id', matchIds)
             .order('created_at', { ascending: false })
             .returns<InterestRequestRow[]>(),
@@ -722,6 +724,23 @@ export async function sendEscrowMessage(matchId: string, content: string): Promi
         notice: payload.notice ?? null,
         unlocked: Boolean(payload.unlocked),
     };
+}
+
+export async function extendSlaDeadline(requestId: string): Promise<MatchInterestRequest> {
+    const { data, error } = await supabase.functions.invoke('extend-sla', {
+        body: { requestId },
+    });
+
+    if (error) {
+        throw error;
+    }
+
+    const payload = data as { success: boolean; updatedRequest: InterestRequestRow } | null;
+    if (!payload?.updatedRequest) {
+        throw new Error('SLA extension response did not include the updated request.');
+    }
+
+    return mapInterestRequest(payload.updatedRequest);
 }
 
 export async function createUnlockPaymentIntent(matchId: string): Promise<UnlockPaymentIntent> {

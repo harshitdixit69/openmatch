@@ -413,7 +413,7 @@ async function safeAcceptInterestRequest(
             .update({
                 status: 'accepted',
                 accepted_at: new Date().toISOString(),
-                first_reply_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                first_reply_due_at: calculateFirstReplyDueAt(),
             })
             .eq('id', existing.data.id)
             .select('id, status, first_reply_due_at')
@@ -440,7 +440,7 @@ async function safeAcceptInterestRequest(
             request_quality_score: DEFAULT_ACCEPTED_QUALITY_SCORE,
             sender_ghost_risk_score: ghostRiskScore,
             accepted_at: new Date().toISOString(),
-            first_reply_due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            first_reply_due_at: calculateFirstReplyDueAt(),
         })
         .select('id, status, first_reply_due_at')
         .single<InterestRequestRow>();
@@ -504,4 +504,10 @@ function json(body: unknown, status = 200) {
             'Content-Type': 'application/json',
         },
     });
+}
+
+function calculateFirstReplyDueAt(baseDate = new Date()): string {
+    const day = baseDate.getUTCDay(); // UTC day: 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+    const hours = (day === 5 || day === 6) ? 48 : 24;
+    return new Date(baseDate.getTime() + hours * 60 * 60 * 1000).toISOString();
 }
