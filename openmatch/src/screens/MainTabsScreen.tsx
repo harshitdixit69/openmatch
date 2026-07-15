@@ -28,6 +28,7 @@ import { ShortlistScreen } from './ShortlistScreen';
 import { WhoViewedMeScreen } from './WhoViewedMeScreen';
 import { MatchProfileScreen } from './MatchProfileScreen';
 
+
 // Base height of the tab bar content (padding + tab button minHeight) before the
 // device's bottom safe-area inset is added. Used to reserve space so scrollable
 // screens never hide content behind the pinned tab bar.
@@ -77,6 +78,7 @@ export function MainTabsScreen() {
     // Android back button: dismiss the topmost open modal instead of exiting the app.
     useEffect(() => {
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (selectedProfileId) { setSelectedProfileId(null); return true; }
             if (showDashboard) { setShowDashboard(false); return true; }
             if (showNotifications) { setShowNotifications(false); return true; }
             if (showWhoViewedMe) { setShowWhoViewedMe(false); return true; }
@@ -89,7 +91,7 @@ export function MainTabsScreen() {
             return false;
         });
         return () => handler.remove();
-    }, [showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
+    }, [selectedProfileId, showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
 
     // Keep the home-indicator clear on notched devices while still leaving a
     // comfortable tap area on phones without a bottom inset.
@@ -334,6 +336,7 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="received"
                     initialVisibilityFilter="all"
+                    isChatScreen={false}
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                 />
             );
@@ -346,6 +349,7 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="accepted"
                     initialVisibilityFilter={shellCounts.unread > 0 ? 'unread' : 'all'}
+                    isChatScreen={true}
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                 />
             );
@@ -1358,3 +1362,4 @@ function MatchProfileScreenModal({
         />
     );
 }
+

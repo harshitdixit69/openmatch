@@ -81,6 +81,7 @@ type ChatScreenProps = {
     onClose: () => void;
     initialMatchListFilter?: ChatListFilter;
     initialVisibilityFilter?: MessageVisibilityFilter;
+    isChatScreen?: boolean;
     onViewProfile?: (profileId: string) => void;
 };
 
@@ -115,6 +116,7 @@ export function ChatScreen({
     onClose,
     initialMatchListFilter = 'accepted',
     initialVisibilityFilter = 'all',
+    isChatScreen = false,
     onViewProfile,
 }: ChatScreenProps) {
     const { width: windowWidth } = useWindowDimensions();
@@ -1260,8 +1262,8 @@ export function ChatScreen({
                             }}
                         />
 
-                        <Pressable 
-                            style={styles.headerCopy}
+                        <Pressable
+                            style={styles.headerProfileContainer}
                             onPress={() => {
                                 if (activeMatch) {
                                     onViewProfile?.(activeMatch.otherUserId);
@@ -1269,25 +1271,44 @@ export function ChatScreen({
                             }}
                             disabled={!activeMatch}
                         >
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                                    {activeMatch ? activeMatch.otherUserName : currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
-                                </Text>
-                                {activeMatch && activeMatch.otherUserVerificationStatus === 'verified' ? (
-                                    <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
-                                ) : null}
-                            </View>
                             {activeMatch ? (
-                                <Text
-                                    style={[
-                                        styles.headerSubtitle,
-                                        otherUserTyping ? styles.headerSubtitleTyping : null,
-                                    ]}
-                                    numberOfLines={1}
-                                >
-                                    {otherUserTyping ? 'typing...' : getPresenceStatusText(otherUserPresence)}
-                                </Text>
-                            ) : null}
+                                <>
+                                    {activeMatch.otherUserPhotoUrls?.[0] ? (
+                                        <Image source={{ uri: activeMatch.otherUserPhotoUrls[0] }} style={styles.headerAvatar} />
+                                    ) : (
+                                        <View style={styles.headerAvatarPlaceholder}>
+                                            <Text style={styles.headerAvatarInitial}>
+                                                {activeMatch.otherUserName.slice(0, 1).toUpperCase()}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.headerCopy}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                                {activeMatch.otherUserName}
+                                            </Text>
+                                            {activeMatch.otherUserVerificationStatus === 'verified' ? (
+                                                <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
+                                            ) : null}
+                                        </View>
+                                        <Text
+                                            style={[
+                                                styles.headerSubtitle,
+                                                otherUserTyping ? styles.headerSubtitleTyping : null,
+                                            ]}
+                                            numberOfLines={1}
+                                        >
+                                            {otherUserTyping ? 'typing...' : getPresenceStatusText(otherUserPresence)}
+                                        </Text>
+                                    </View>
+                                </>
+                            ) : (
+                                <View style={styles.headerCopy}>
+                                    <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                        {currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
+                                    </Text>
+                                </View>
+                            )}
                         </Pressable>
 
                         {activeMatch ? (
@@ -1398,21 +1419,23 @@ export function ChatScreen({
                                         autoCorrect={false}
                                     />
 
-                                    <FlatList
-                                        data={chatListFilters}
-                                        horizontal
-                                        keyExtractor={(item) => item.value}
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={styles.matchFilterList}
-                                        renderItem={({ item }) => (
-                                            <MatchFilterChip
-                                                label={item.label}
-                                                count={inboxTabCounts[item.value]}
-                                                active={matchListFilter === item.value}
-                                                onPress={() => setMatchListFilter(item.value)}
-                                            />
-                                        )}
-                                    />
+                                    {!isChatScreen && (
+                                        <FlatList
+                                            data={chatListFilters}
+                                            horizontal
+                                            keyExtractor={(item) => item.value}
+                                            showsHorizontalScrollIndicator={false}
+                                            contentContainerStyle={styles.matchFilterList}
+                                            renderItem={({ item }) => (
+                                                <MatchFilterChip
+                                                    label={item.label}
+                                                    count={inboxTabCounts[item.value]}
+                                                    active={matchListFilter === item.value}
+                                                    onPress={() => setMatchListFilter(item.value)}
+                                                />
+                                            )}
+                                        />
+                                    )}
 
                                     <ScrollView
                                         horizontal
@@ -1432,12 +1455,14 @@ export function ChatScreen({
                                             active={messageVisibilityFilter === 'unread'}
                                             onPress={() => setMessageVisibilityFilter('unread')}
                                         />
-                                        <MatchFilterChip
-                                            label="Needs reply"
-                                            count={needsReplyCount}
-                                            active={messageVisibilityFilter === 'needs_reply'}
-                                            onPress={() => setMessageVisibilityFilter('needs_reply')}
-                                        />
+                                        {!isChatScreen && (
+                                            <MatchFilterChip
+                                                label="Needs reply"
+                                                count={needsReplyCount}
+                                                active={messageVisibilityFilter === 'needs_reply'}
+                                                onPress={() => setMessageVisibilityFilter('needs_reply')}
+                                            />
+                                        )}
                                     </ScrollView>
                                 </View>
 
@@ -1467,6 +1492,18 @@ export function ChatScreen({
                                         windowSize={7}
                                         removeClippedSubviews
                                         renderItem={({ item }) => {
+                                            if (isChatScreen) {
+                                                return (
+                                                    <ChatListItemCard
+                                                        item={item}
+                                                        onPress={() => {
+                                                            setNotice(null);
+                                                            setActiveMatch(item);
+                                                        }}
+                                                    />
+                                                );
+                                            }
+
                                             const handleCardPress = () => {
                                                 const premiumHighlight = getPremiumInboxHighlight(item);
                                                 if (premiumHighlight) {
@@ -2127,117 +2164,6 @@ function MessageSkeletonList() {
     );
 }
 
-function StateChip({ label, tone }: { label: string; tone: 'primary' | 'accent' | 'muted' }) {
-    return (
-        <View
-            style={[
-                styles.stateChip,
-                tone === 'primary' ? styles.stateChipPrimary : tone === 'accent' ? styles.stateChipAccent : styles.stateChipMuted,
-            ]}
-        >
-            <Text
-                style={[
-                    styles.stateChipText,
-                    tone === 'primary'
-                        ? styles.stateChipTextPrimary
-                        : tone === 'accent'
-                            ? styles.stateChipTextAccent
-                            : styles.stateChipTextMuted,
-                ]}
-            >
-                {label}
-            </Text>
-        </View>
-    );
-}
-
-function ChemistryMeter({ chemistry }: { chemistry: ChatChemistry }) {
-    const score = Math.max(0, Math.min(100, chemistry.score));
-    const fillStyle =
-        score >= 67 ? styles.chemistryFillHigh : score >= 34 ? styles.chemistryFillMid : styles.chemistryFillLow;
-
-    return (
-        <View style={styles.chemistryCard}>
-            <View style={styles.chemistryHeaderRow}>
-                <Text style={styles.chemistryTitle}>Chemistry</Text>
-                <Text style={styles.chemistryScore}>
-                    {score}
-                    <Text style={styles.chemistryScoreUnit}> / 100</Text>
-                </Text>
-            </View>
-
-            <View style={styles.chemistryTrack}>
-                <View style={[styles.chemistryFill, fillStyle, { width: `${score}%` }]} />
-            </View>
-
-            <View style={styles.chemistryFooterRow}>
-                <Text style={styles.chemistryLabel}>{chemistry.label}</Text>
-                {chemistry.signals.map((signal) => (
-                    <StateChip key={signal} label={signal} tone="muted" />
-                ))}
-            </View>
-        </View>
-    );
-}
-
-function BrokerToolsToggle({ open, onToggle, summary }: { open: boolean; onToggle: () => void; summary?: string | null }) {
-    return (
-        <Pressable style={styles.brokerToggleRow} onPress={onToggle} accessibilityRole="button">
-            {summary ? (
-                <Text style={styles.brokerToggleSummary} numberOfLines={1}>
-                    {summary}
-                </Text>
-            ) : (
-                <View style={styles.brokerToggleSpacer} />
-            )}
-            <Text style={styles.brokerToggleAction}>{open ? 'Hide follow-up tools' : 'Follow-up tools'}</Text>
-            <Text style={styles.brokerToggleChevron}>{open ? '\u2303' : '\u2304'}</Text>
-        </Pressable>
-    );
-}
-
-function FollowupJobStatusBlock({ match }: { match: ChatMatch }) {
-    const latestJob = match.followupJobSummary?.latestJob;
-    if (!latestJob) {
-        return null;
-    }
-
-    return (
-        <View style={styles.followupJobBlock}>
-            <Text style={styles.brokerInfoText}>{getFollowupJobPreview(match)}</Text>
-        </View>
-    );
-}
-
-function RecoverySuggestionCard({
-    suggestion,
-    pending,
-    onPress,
-}: {
-    suggestion: RecoverySuggestion;
-    pending: boolean;
-    onPress?: () => void;
-}) {
-    return (
-        <View style={styles.recoverySuggestionCard}>
-            <Text style={styles.recoverySuggestionTitle}>{suggestion.title}</Text>
-            <Text style={styles.recoverySuggestionBody}>{suggestion.body}</Text>
-
-            {suggestion.action && suggestion.actionLabel && onPress ? (
-                <Pressable
-                    style={[styles.callbackActionButtonSecondary, pending ? styles.sendButtonDisabled : null]}
-                    onPress={onPress}
-                    disabled={pending}
-                >
-                    <Text style={styles.callbackActionButtonSecondaryText}>
-                        {pending ? 'Working...' : suggestion.actionLabel}
-                    </Text>
-                </Pressable>
-            ) : null}
-        </View>
-    );
-}
-
 interface ProfileListItemCardProps {
     item: ChatMatch;
     onPress: () => void;
@@ -2442,6 +2368,184 @@ function ProfileListItemCard({
                         </Pressable>
                     ) : null}
                 </View>
+            ) : null}
+        </View>
+    );
+}
+
+function ChatListItemCard({ item, onPress }: { item: ChatMatch; onPress: () => void }) {
+    const lastMessage = getMatchInboxPreview(item);
+
+    return (
+        <Pressable
+            style={({ pressed }) => [styles.chatCard, pressed && styles.chatCardPressed]}
+            onPress={onPress}
+        >
+            <View style={styles.chatCardAvatarContainer}>
+                {item.otherUserPhotoUrls[0] ? (
+                    <Image source={{ uri: item.otherUserPhotoUrls[0] }} style={styles.chatAvatar} />
+                ) : (
+                    <View style={styles.chatAvatarPlaceholder}>
+                        <Text style={styles.chatAvatarInitial}>
+                            {getDisplayFirstName(item.otherUserName).slice(0, 1).toUpperCase() || '?'}
+                        </Text>
+                    </View>
+                )}
+            </View>
+
+            <View style={styles.chatCardBody}>
+                <View style={styles.chatCardHeader}>
+                    <Text style={styles.chatCardName} numberOfLines={1}>
+                        {item.otherUserName}
+                    </Text>
+                    <Text style={styles.chatCardTime}>
+                        {formatChatListTime(item.createdAt)}
+                    </Text>
+                </View>
+
+                <View style={styles.chatCardMessageRow}>
+                    <Text style={styles.chatCardMessage} numberOfLines={1}>
+                        {lastMessage}
+                    </Text>
+                    {item.unreadCount > 0 ? (
+                        <View style={styles.chatUnreadBadge}>
+                            <Text style={styles.chatUnreadText}>
+                                {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                            </Text>
+                        </View>
+                    ) : null}
+                </View>
+            </View>
+        </Pressable>
+    );
+}
+
+function formatChatListTime(dateString: string): string {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function StateChip({ label, tone }: { label: string; tone: 'primary' | 'accent' | 'muted' }) {
+    return (
+        <View
+            style={[
+                styles.stateChip,
+                tone === 'primary' ? styles.stateChipPrimary : tone === 'accent' ? styles.stateChipAccent : styles.stateChipMuted,
+            ]}
+        >
+            <Text
+                style={[
+                    styles.stateChipText,
+                    tone === 'primary'
+                        ? styles.stateChipTextPrimary
+                        : tone === 'accent'
+                            ? styles.stateChipTextAccent
+                            : styles.stateChipTextMuted,
+                ]}
+            >
+                {label}
+            </Text>
+        </View>
+    );
+}
+
+function ChemistryMeter({ chemistry }: { chemistry: ChatChemistry }) {
+    const score = Math.max(0, Math.min(100, chemistry.score));
+    const fillStyle =
+        score >= 67 ? styles.chemistryFillHigh : score >= 34 ? styles.chemistryFillMid : styles.chemistryFillLow;
+
+    return (
+        <View style={styles.chemistryCard}>
+            <View style={styles.chemistryHeaderRow}>
+                <Text style={styles.chemistryTitle}>Chemistry</Text>
+                <Text style={styles.chemistryScore}>
+                    {score}
+                    <Text style={styles.chemistryScoreUnit}> / 100</Text>
+                </Text>
+            </View>
+
+            <View style={styles.chemistryTrack}>
+                <View style={[styles.chemistryFill, fillStyle, { width: `${score}%` }]} />
+            </View>
+
+            <View style={styles.chemistryFooterRow}>
+                <Text style={styles.chemistryLabel}>{chemistry.label}</Text>
+                {chemistry.signals.map((signal) => (
+                    <StateChip key={signal} label={signal} tone="muted" />
+                ))}
+            </View>
+        </View>
+    );
+}
+
+function BrokerToolsToggle({ open, onToggle, summary }: { open: boolean; onToggle: () => void; summary?: string | null }) {
+    return (
+        <Pressable style={styles.brokerToggleRow} onPress={onToggle} accessibilityRole="button">
+            {summary ? (
+                <Text style={styles.brokerToggleSummary} numberOfLines={1}>
+                    {summary}
+                </Text>
+            ) : (
+                <View style={styles.brokerToggleSpacer} />
+            )}
+            <Text style={styles.brokerToggleAction}>{open ? 'Hide follow-up tools' : 'Follow-up tools'}</Text>
+            <Text style={styles.brokerToggleChevron}>{open ? '\u2303' : '\u2304'}</Text>
+        </Pressable>
+    );
+}
+
+function FollowupJobStatusBlock({ match }: { match: ChatMatch }) {
+    const latestJob = match.followupJobSummary?.latestJob;
+    if (!latestJob) {
+        return null;
+    }
+
+    return (
+        <View style={styles.followupJobBlock}>
+            <Text style={styles.brokerInfoText}>{getFollowupJobPreview(match)}</Text>
+        </View>
+    );
+}
+
+function RecoverySuggestionCard({
+    suggestion,
+    pending,
+    onPress,
+}: {
+    suggestion: RecoverySuggestion;
+    pending: boolean;
+    onPress?: () => void;
+}) {
+    return (
+        <View style={styles.recoverySuggestionCard}>
+            <Text style={styles.recoverySuggestionTitle}>{suggestion.title}</Text>
+            <Text style={styles.recoverySuggestionBody}>{suggestion.body}</Text>
+
+            {suggestion.action && suggestion.actionLabel && onPress ? (
+                <Pressable
+                    style={[styles.callbackActionButtonSecondary, pending ? styles.sendButtonDisabled : null]}
+                    onPress={onPress}
+                    disabled={pending}
+                >
+                    <Text style={styles.callbackActionButtonSecondaryText}>
+                        {pending ? 'Working...' : suggestion.actionLabel}
+                    </Text>
+                </Pressable>
             ) : null}
         </View>
     );
@@ -4512,5 +4616,110 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#4a5568',
         lineHeight: 20,
+    },
+    chatCard: {
+        flexDirection: 'row',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        backgroundColor: '#ffffff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f7',
+        alignItems: 'center',
+    },
+    chatCardPressed: {
+        backgroundColor: '#f8fafc',
+    },
+    chatCardAvatarContainer: {
+        marginRight: 14,
+    },
+    chatAvatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+    },
+    chatAvatarPlaceholder: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: '#e2e8f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    chatAvatarInitial: {
+        color: '#475569',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    chatCardBody: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    chatCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        marginBottom: 4,
+    },
+    chatCardName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#0f172a',
+        flex: 1,
+        marginRight: 8,
+    },
+    chatCardTime: {
+        fontSize: 12,
+        color: '#64748b',
+    },
+    chatCardMessageRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    chatCardMessage: {
+        fontSize: 14,
+        color: '#64748b',
+        flex: 1,
+        marginRight: 8,
+    },
+    chatUnreadBadge: {
+        backgroundColor: '#10b981',
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+    },
+    chatUnreadText: {
+        color: '#ffffff',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    headerProfileContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginRight: 8,
+    },
+    headerAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        marginRight: 8,
+    },
+    headerAvatarPlaceholder: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#e2e8f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    headerAvatarInitial: {
+        color: '#475569',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
 });
