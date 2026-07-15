@@ -248,36 +248,96 @@ const APP_PATTERN =
 const INTENT_PATTERN =
     /\b(my number|call me|text me|ping me|dm me|email me|reach me|contact me at|here'?s my|whats\s?app me|add me on)\b/i;
 
+function normalizeText(text: string): string {
+    // Convert fullwidth digits (０-９) to standard digits (0-9)
+    let normalized = text.replace(/[\uff10-\uff19]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0xfee0);
+    });
+
+    // Arabic-Indic digits (٠-٩) -> U+0660 to U+0669
+    normalized = normalized.replace(/[\u0660-\u0669]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0x0660 + 48);
+    });
+
+    // Eastern Arabic-Indic digits (۰-۹) -> U+06f0 to U+06f9
+    normalized = normalized.replace(/[\u06f0-\u06f9]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0x06f0 + 48);
+    });
+
+    // Devanagari digits (०-९) -> U+0966 to U+096f
+    normalized = normalized.replace(/[\u0966-\u096f]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0x0966 + 48);
+    });
+
+    return normalized;
+}
+
 function countDigitIndicators(text: string): number {
-    const digits = text.match(/\d/g)?.length ?? 0;
+    const normalized = normalizeText(text);
     
-    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
-    let wordCount = 0;
-    for (const w of words) {
-        const regex = new RegExp(`\\b${w}\\b`, 'gi');
-        wordCount += (text.match(regex)?.length ?? 0);
+    // First, count all actual digits (0-9) in the normalized text
+    const digitsCount = normalized.match(/\d/g)?.length ?? 0;
+    
+    // Tokenize the normalized text to check for spelled-out words and Roman numerals
+    const tokens = normalized.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+    
+    const numberWords = new Set(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']);
+    const multiRoman = new Set(['viii', 'vii', 'iii', 'ii', 'iv', 'vi', 'ix']);
+    
+    // Helper to check if a token at a given index is a candidate
+    const isCandidate = (idx: number): boolean => {
+        if (idx < 0 || idx >= tokens.length) return false;
+        const token = tokens[idx];
+        return /\d/.test(token) || numberWords.has(token) || multiRoman.has(token);
+    };
+    
+    let wordAndRomanCount = 0;
+    
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        
+        // If it's a digit token, we already counted its digits using the global regex
+        if (/\d/.test(token)) {
+            continue;
+        }
+        
+        if (multiRoman.has(token)) {
+            // Multi-character Roman numerals are rare enough in common English to always count
+            wordAndRomanCount++;
+            continue;
+        }
+        
+        if (numberWords.has(token)) {
+            // For spelled-out number words, only count them if they are near another candidate
+            // (within a distance of 2 tokens: i-2, i-1, i+1, i+2)
+            let hasNearbyCandidate = false;
+            for (const offset of [-2, -1, 1, 2]) {
+                if (isCandidate(i + offset)) {
+                    hasNearbyCandidate = true;
+                    break;
+                }
+            }
+            if (hasNearbyCandidate) {
+                wordAndRomanCount++;
+            }
+        }
     }
     
-    const romanNumerals = ['viii', 'vii', 'iii', 'ii', 'iv', 'vi', 'v', 'ix', 'x', 'i'];
-    let romanCount = 0;
-    for (const r of romanNumerals) {
-        const regex = new RegExp(`\\b${r}\\b`, 'gi');
-        romanCount += (text.match(regex)?.length ?? 0);
-    }
-    
-    return digits + wordCount + romanCount;
+    return digitsCount + wordAndRomanCount;
 }
 
 function detectContactSharingDeterministic(content: string): boolean {
-    if (EMAIL_PATTERN.test(content) || HANDLE_PATTERN.test(content) || APP_PATTERN.test(content) || INTENT_PATTERN.test(content)) {
+    const normalized = normalizeText(content);
+
+    if (EMAIL_PATTERN.test(normalized) || HANDLE_PATTERN.test(normalized) || APP_PATTERN.test(normalized) || INTENT_PATTERN.test(normalized)) {
         return true;
     }
 
-    if (countDigitIndicators(content) >= 7) {
+    if (countDigitIndicators(normalized) >= 7) {
         return true;
     }
 
-    return containsPhoneNumber(content);
+    return containsPhoneNumber(normalized);
 }
 
 /**

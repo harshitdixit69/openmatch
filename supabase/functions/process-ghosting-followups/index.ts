@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { callChatCompletion } from '../_shared/azureChat.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -159,6 +160,8 @@ Deno.serve(async (request) => {
             ? await recalculateReliabilityScores(serviceClient, [...touchedSenderIds], dryRun, nowIso)
             : 0;
 
+        const jobsProcessed = await processQueuedFollowupJobs(serviceClient, env, nowIso);
+
         return json({
             scanned: overdueRequests.length,
             brokerQueued,
@@ -167,6 +170,7 @@ Deno.serve(async (request) => {
             ghosted,
             scoresRecalculated,
             callbacksQueued,
+            jobsProcessed,
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown process-ghosting-followups error.';
@@ -715,6 +719,10 @@ function getEnv() {
         supabaseAnonKey,
         supabaseServiceRoleKey,
         workerSecret: Deno.env.get('INTENT_ESCROW_CRON_SECRET') ?? '',
+        azureApiKey: Deno.env.get('AZURE_OPENAI_API_KEY') ?? '',
+        azureEndpoint: Deno.env.get('AZURE_OPENAI_ENDPOINT') ?? '',
+        chatDeployment: Deno.env.get('AZURE_OPENAI_CHAT_DEPLOYMENT') ?? '',
+        azureApiVersion: Deno.env.get('AZURE_OPENAI_API_VERSION') ?? '2025-01-01-preview',
     };
 }
 
@@ -726,4 +734,138 @@ function json(body: unknown, status = 200) {
             'Content-Type': 'application/json',
         },
     });
+}
+
+async function processQueuedFollowupJobs(
+    serviceClient: ReturnType<typeof createClient>,
+    env: ReturnType<typeof getEnv>,
+    nowIso: string,
+) {
+    const { data: queuedJobs, error: fetchError } = await serviceClient
+        .from('ai_followup_jobs')
+        .select('id, request_id, provider, channel, payload')
+        .eq('status', 'queued')
+        .eq('channel', 'followup_nudge');
+
+    if (fetchError && isMissingDatabaseObject(fetchError.message)) {
+        return 0;
+    }
+    if (fetchError) {
+        throw fetchError;
+    }
+
+    if (!queuedJobs || queuedJobs.length === 0) {
+        return 0;
+    }
+
+    let processedCount = 0;
+
+    for (const job of queuedJobs) {
+        await serviceClient
+            .from('ai_followup_jobs')
+            .update({ status: 'in_progress' })
+            .eq('id', job.id);
+
+        try {
+            const { data: interestRequest, error: reqError } = await serviceClient
+                .from('interest_requests')
+                .select('id, match_id, sender_id, receiver_id, status, personalized_reason')
+                .eq('id', job.request_id)
+                .maybeSingle<{ id: string; match_id: string; sender_id: string; receiver_id: string; status: string; personalized_reason: string }>();
+
+            if (reqError || !interestRequest) {
+                throw reqError ?? new Error(`Interest request not found: ${job.request_id}`);
+            }
+
+            const [senderResult, receiverResult] = await Promise.all([
+                serviceClient
+                    .from('profiles')
+                    .select('id, full_name, bio, preferences')
+                    .eq('id', interestRequest.sender_id)
+                    .maybeSingle<{ id: string; full_name: string; bio: string | null; preferences: string | null }>(),
+                serviceClient
+                    .from('profiles')
+                    .select('id, full_name, bio, preferences')
+                    .eq('id', interestRequest.receiver_id)
+                    .maybeSingle<{ id: string; full_name: string; bio: string | null; preferences: string | null }>(),
+            ]);
+
+            if (senderResult.error || !senderResult.data) {
+                throw senderResult.error ?? new Error(`Sender profile not found: ${interestRequest.sender_id}`);
+            }
+            if (receiverResult.error || !receiverResult.data) {
+                throw receiverResult.error ?? new Error(`Receiver profile not found: ${interestRequest.receiver_id}`);
+            }
+
+            const sender = senderResult.data;
+            const receiver = receiverResult.data;
+
+            let nudgeText = '';
+            try {
+                if (env.azureApiKey && env.azureEndpoint && env.chatDeployment) {
+                    nudgeText = await callChatCompletion({
+                        apiKey: env.azureApiKey,
+                        apiVersion: env.azureApiVersion,
+                        endpoint: env.azureEndpoint,
+                        deployment: env.chatDeployment,
+                        maxTokens: 120,
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'You are a re-engagement coach for a matrimonial app. Craft a short, urgent, personalized push/SMS message under 120 characters to nudge the Sender (who initiated contact and recently got accepted, but hasn\'t replied yet) to respond to the Receiver. Reference compatibility points from their profiles. Do not wrap the message in quotes or include any extra conversational filler.',
+                            },
+                            {
+                                role: 'user',
+                                content: `Sender: ${sender.full_name}, Bio: ${sender.bio ?? ''}, Preferences: ${sender.preferences ?? ''}\nReceiver: ${receiver.full_name}, Bio: ${receiver.bio ?? ''}, Preferences: ${receiver.preferences ?? ''}\nPersonalized request reason: ${interestRequest.personalized_reason}`,
+                            },
+                        ],
+                    });
+                }
+            } catch (aiError) {
+                console.warn('AI SLA nudge generation failed, falling back to template.', aiError);
+            }
+
+            const cleanNudge = nudgeText ? nudgeText.trim().replace(/^["']|["']$/g, '') : `Don't lose your connection with ${receiver.full_name}! Reply to their acceptance within the deadline to keep this match active.`;
+
+            await serviceClient.from('notifications').insert({
+                user_id: interestRequest.sender_id,
+                type: 'sla_nudge',
+                title: `Reply to ${receiver.full_name}`,
+                body: cleanNudge,
+                metadata: {
+                    matchId: interestRequest.match_id,
+                    requestId: interestRequest.id,
+                },
+                is_read: false,
+            });
+
+            await serviceClient
+                .from('ai_followup_jobs')
+                .update({
+                    status: 'completed',
+                    executed_at: nowIso,
+                    payload: {
+                        ...job.payload,
+                        generatedNudge: cleanNudge,
+                    },
+                })
+                .eq('id', job.id);
+
+            processedCount += 1;
+        } catch (jobError: any) {
+            console.error(`Failed to process followup job ${job.id}:`, jobError);
+            await serviceClient
+                .from('ai_followup_jobs')
+                .update({
+                    status: 'failed',
+                    payload: {
+                        ...job.payload,
+                        error: jobError?.message || String(jobError),
+                    },
+                })
+                .eq('id', job.id);
+        }
+    }
+
+    return processedCount;
 }

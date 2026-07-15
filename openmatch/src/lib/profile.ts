@@ -80,6 +80,27 @@ export type OnboardingCopilotResult = {
     missingTopics: string[];
 };
 
+export type ProfileVariantTone = 'witty' | 'sincere' | 'balanced';
+
+export type ProfileVariantResult = {
+    bio: string;
+    preferences: string;
+    summary: string;
+    tone: ProfileVariantTone;
+};
+
+export type ProfileRevision = {
+    id: string;
+    profile_id: string;
+    tone: string;
+    bio: string;
+    preferences: string;
+    source: 'ai' | 'manual';
+    refinement: string | null;
+    revision_number: number;
+    created_at: string;
+};
+
 function normalizeGenderToken(value: string | null | undefined) {
     const normalized = value?.trim().toLowerCase();
     if (!normalized) {

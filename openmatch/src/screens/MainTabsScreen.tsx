@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { subscribeToNotifications } from '../lib/notificationsApi';
+import { supabase } from '../lib/supabase';
 
 import { ChatMatch } from '../lib/chat';
 import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel, updateUserPresence } from '../lib/chatApi';
 import { fetchPremiumAnalyticsSummary, PremiumAnalyticsSummary, trackPremiumEvent } from '../lib/premiumAnalytics';
-import { getDisplayFirstName } from '../lib/profile';
+import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { fetchCurrentProfile } from '../lib/profileApi';
+import { MatchCandidate } from '../lib/matchmaking';
+import { fetchCompatibilitySnapshot } from '../lib/matchmakingApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
 import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
@@ -21,6 +26,7 @@ import { SearchScreen } from './SearchScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { ShortlistScreen } from './ShortlistScreen';
 import { WhoViewedMeScreen } from './WhoViewedMeScreen';
+import { MatchProfileScreen } from './MatchProfileScreen';
 
 // Base height of the tab bar content (padding + tab button minHeight) before the
 // device's bottom safe-area inset is added. Used to reserve space so scrollable
@@ -62,6 +68,7 @@ export function MainTabsScreen() {
     const [showWhoViewedMe, setShowWhoViewedMe] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showDashboard, setShowDashboard] = useState(false);
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const insets = useSafeAreaInsets();
     // Debounce ref: track the last time loadShellData was triggered by a tab
     // switch so rapid tab changes don't fire multiple heavy fetchChatMatches calls.
@@ -139,6 +146,62 @@ export function MainTabsScreen() {
 
     useEffect(() => {
         void loadShellData();
+    }, []);
+
+    useEffect(() => {
+        let mounted = true;
+        let channel: RealtimeChannel | null = null;
+
+        async function setupSubscription() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || !mounted) return;
+
+            channel = subscribeToNotifications(user.id, async (n) => {
+                if (!mounted) return;
+
+                // Load notification settings from AsyncStorage
+                try {
+                    const saved = await AsyncStorage.getItem(`openmatch:notifPrefs:${user.id}`);
+                    const prefs = saved ? JSON.parse(saved) : null;
+                    
+                    // Map notification type to preference key
+                    let isEnabled = true;
+                    if (prefs) {
+                        if (n.type === 'message_received') {
+                            isEnabled = prefs.new_messages !== false;
+                        } else if (n.type === 'new_match') {
+                            isEnabled = prefs.new_matches !== false;
+                        } else if (n.type === 'request_accepted' || n.type === 'request_received') {
+                            isEnabled = prefs.request_accepted !== false;
+                        } else if (n.type === 'request_ghosted') {
+                            isEnabled = prefs.ghosting_reminders !== false;
+                        } else if (n.type === 'system') {
+                            isEnabled = prefs.broker_calls !== false;
+                        }
+                    }
+
+                    if (isEnabled) {
+                        // Alert foreground popup
+                        if (Platform.OS === 'web') {
+                            alert(`${n.title}\n\n${n.body}`);
+                        } else {
+                            Alert.alert(n.title, n.body);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Failed to parse notification preferences in subscription:', err);
+                }
+            });
+        }
+
+        void setupSubscription();
+
+        return () => {
+            mounted = false;
+            if (channel) {
+                channel.unsubscribe();
+            }
+        };
     }, []);
 
     useEffect(() => {
@@ -271,6 +334,7 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="received"
                     initialVisibilityFilter="all"
+                    onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                 />
             );
         }
@@ -282,6 +346,7 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="accepted"
                     initialVisibilityFilter={shellCounts.unread > 0 ? 'unread' : 'all'}
+                    onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                 />
             );
         }
@@ -402,6 +467,24 @@ export function MainTabsScreen() {
                         />
                     ))}
                 </View>
+
+                <Modal
+                    transparent={false}
+                    animationType="slide"
+                    visible={Boolean(selectedProfileId)}
+                    onRequestClose={() => setSelectedProfileId(null)}
+                >
+                    {selectedProfileId ? (
+                        <MatchProfileScreenModal
+                            profileId={selectedProfileId}
+                            onClose={() => setSelectedProfileId(null)}
+                            onOpenChat={(otherUserId) => {
+                                setSelectedProfileId(null);
+                                setActiveTab('chat');
+                            }}
+                        />
+                    ) : null}
+                </Modal>
             </View>
         </TabBarSpacingContext.Provider>
     );
@@ -1137,3 +1220,141 @@ const styles = StyleSheet.create({
         lineHeight: 21,
     },
 });
+
+function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+type MatchProfileScreenModalProps = {
+    profileId: string;
+    onClose: () => void;
+    onOpenChat?: (otherUserId: string) => void;
+};
+
+function MatchProfileScreenModal({
+    profileId,
+    onClose,
+    onOpenChat,
+}: MatchProfileScreenModalProps) {
+    const [candidate, setCandidate] = useState<MatchCandidate | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [viewerProfile, setViewerProfile] = useState<ProfileRecord | null>(null);
+    const [compatibilitySummary, setCompatibilitySummary] = useState<string | null>(null);
+    const [fitPoints, setFitPoints] = useState<string[]>([]);
+    const [frictionPoints, setFrictionPoints] = useState<string[]>([]);
+    const [summaryLoading, setSummaryLoading] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+
+        async function load() {
+            setLoading(true);
+            try {
+                const { data: pData, error: pErr } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', profileId)
+                    .single();
+                if (pErr) throw pErr;
+
+                const { data: locData } = await supabase
+                    .from('profile_locations')
+                    .select('latitude, longitude')
+                    .eq('profile_id', profileId)
+                    .maybeSingle();
+                
+                const vProfile = await fetchCurrentProfile();
+                
+                let distance_km: number | null = null;
+                if (locData && vProfile) {
+                    const { data: vLoc } = await supabase
+                        .from('profile_locations')
+                        .select('latitude, longitude')
+                        .eq('profile_id', vProfile.id)
+                        .maybeSingle();
+                    if (vLoc) {
+                        distance_km = calculateHaversineDistance(
+                            vLoc.latitude,
+                            vLoc.longitude,
+                            locData.latitude,
+                            locData.longitude
+                        );
+                    }
+                }
+
+                if (active) {
+                    setViewerProfile(vProfile);
+                    setCandidate({
+                        id: pData.id,
+                        full_name: pData.full_name,
+                        gender: pData.gender,
+                        dob: pData.dob,
+                        location: pData.location,
+                        bio: pData.bio,
+                        preferences: pData.preferences,
+                        photo_urls: pData.photo_urls || [],
+                        height_cm: pData.height_cm,
+                        profile_owner: pData.profile_owner,
+                        partner_gender_preference: pData.partner_gender_preference,
+                        similarity: 0.8,
+                        distance_km,
+                        verification_status: pData.verification_status,
+                    });
+                }
+
+                setSummaryLoading(true);
+                const summary = await fetchCompatibilitySnapshot(profileId);
+                if (active) {
+                    setCompatibilitySummary(summary?.summary || null);
+                    setFitPoints(summary?.fitPoints || []);
+                    setFrictionPoints(summary?.frictionPoints || []);
+                }
+            } catch (err) {
+                console.warn('Failed to load profile details for review:', err);
+                Alert.alert('Profile unavailable', 'This profile could not be loaded.');
+                onClose();
+            } finally {
+                if (active) {
+                    setLoading(false);
+                    setSummaryLoading(false);
+                }
+            }
+        }
+        void load();
+
+        return () => {
+            active = false;
+        };
+    }, [profileId]);
+
+    if (loading || !candidate) {
+        return (
+            <View style={{ flex: 1, backgroundColor: '#eff6f8', justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#11313c" />
+            </View>
+        );
+    }
+
+    return (
+        <MatchProfileScreen
+            candidate={candidate}
+            viewerProfile={viewerProfile}
+            compatibilitySummary={compatibilitySummary}
+            fitPoints={fitPoints}
+            frictionPoints={frictionPoints}
+            summaryLoading={summaryLoading}
+            onClose={onClose}
+            onPass={onClose}
+            onConnect={onClose}
+            onOpenChat={onOpenChat}
+        />
+    );
+}

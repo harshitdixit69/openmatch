@@ -14,6 +14,7 @@ export type MatchCandidate = {
     partner_gender_preference: string | null;
     similarity: number;
     verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
+    distance_km?: number | null;
 };
 
 export type ViewerEmbeddingStatus = 'ready' | 'pending' | 'delayed';

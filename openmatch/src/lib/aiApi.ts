@@ -1,6 +1,6 @@
 import { ChatCopilotResult, ChatPromptSuggestions } from './chat';
 import { MatchFitBreakdown } from './matchmaking';
-import { OnboardingCopilotResult, ProfileInput } from './profile';
+import { OnboardingCopilotResult, ProfileInput, ProfileRevision, ProfileVariantResult, ProfileVariantTone } from './profile';
 import { supabase } from './supabase';
 
 type MaybeRecord = Record<string, unknown>;
@@ -136,4 +136,80 @@ export async function fetchChatCopilot(matchId: string): Promise<ChatCopilotResu
         replySuggestions,
         chemistry: { score, label, signals },
     };
+}
+
+export async function generateProfileVariants(
+    input: Partial<ProfileInput>,
+    tone: ProfileVariantTone = 'balanced',
+    refinement?: string,
+    section?: 'bio' | 'preferences',
+): Promise<ProfileVariantResult> {
+    const { data, error } = await supabase.functions.invoke('generate-profile-variants', {
+        body: { ...input, tone, refinement, section },
+    });
+
+    if (error) {
+        throw error;
+    }
+
+    const payload = asRecord(data);
+    if (!payload) {
+        throw new Error('Profile variant response was invalid.');
+    }
+
+    const bio = typeof payload.bio === 'string' ? payload.bio.trim() : '';
+    const preferences = typeof payload.preferences === 'string' ? payload.preferences.trim() : '';
+    const summary = typeof payload.summary === 'string' ? payload.summary.trim() : '';
+    const resultTone = typeof payload.tone === 'string' ? payload.tone as ProfileVariantTone : tone;
+
+    return { bio, preferences, summary, tone: resultTone };
+}
+
+export async function fetchProfileRevisions(limit = 20): Promise<ProfileRevision[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+        .from('profile_revisions')
+        .select('id, profile_id, tone, bio, preferences, source, refinement, revision_number, created_at')
+        .eq('profile_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) throw error;
+    return (data ?? []) as ProfileRevision[];
+}
+
+export async function saveProfileRevision(
+    tone: string,
+    bio: string,
+    preferences: string,
+    source: 'ai' | 'manual',
+    refinement?: string,
+): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated.');
+
+    const { data: countData } = await supabase
+        .from('profile_revisions')
+        .select('revision_number')
+        .eq('profile_id', user.id)
+        .order('revision_number', { ascending: false })
+        .limit(1);
+
+    const nextRevision = (countData && countData.length > 0 ? (countData[0] as any).revision_number : 0) + 1;
+
+    const { error } = await supabase
+        .from('profile_revisions')
+        .insert({
+            profile_id: user.id,
+            tone,
+            bio,
+            preferences,
+            source,
+            refinement: refinement ?? null,
+            revision_number: nextRevision,
+        });
+
+    if (error) throw error;
 }

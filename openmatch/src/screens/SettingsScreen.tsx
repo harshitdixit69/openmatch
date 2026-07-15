@@ -1,5 +1,6 @@
 // src/screens/SettingsScreen.tsx
 import React, { useCallback, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     ActivityIndicator,
     Alert,
@@ -203,14 +204,29 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
     const [showVerifyScreen, setShowVerifyScreen] = useState(false);
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
+        let mounted = true;
+
+        async function init() {
+            const { data } = await supabase.auth.getUser();
+            if (!mounted) return;
             if (data.user?.email) setUserEmail(data.user.email);
-        });
+            if (data.user?.id) {
+                try {
+                    const saved = await AsyncStorage.getItem(`openmatch:notifPrefs:${data.user.id}`);
+                    if (saved && mounted) {
+                        setNotifPrefs(JSON.parse(saved));
+                    }
+                } catch (e) {
+                    console.warn('Failed to load notification preferences:', e);
+                }
+            }
+        }
+        void init();
 
         async function fetchStatus() {
             try {
                 const profile = await fetchCurrentProfile();
-                if (profile?.verification_status) {
+                if (profile?.verification_status && mounted) {
                     setVerificationStatus(profile.verification_status);
                 }
             } catch (err) {
@@ -218,15 +234,28 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
             }
         }
         void fetchStatus();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
+
+    const toggleNotif = useCallback(async (key: keyof NotificationPrefs) => {
+        const next = { ...notifPrefs, [key]: !notifPrefs[key] };
+        setNotifPrefs(next);
+        try {
+            const { data } = await supabase.auth.getUser();
+            if (data.user?.id) {
+                await AsyncStorage.setItem(`openmatch:notifPrefs:${data.user.id}`, JSON.stringify(next));
+            }
+        } catch (e) {
+            console.warn('Failed to save notification preferences:', e);
+        }
+    }, [notifPrefs]);
 
     function handleVerifyIdentity() {
         setShowVerifyScreen(true);
     }
-
-    const toggleNotif = useCallback((key: keyof NotificationPrefs) => {
-        setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
-    }, []);
 
     const handleSignOut = useCallback(() => {
         if (Platform.OS === 'web') {

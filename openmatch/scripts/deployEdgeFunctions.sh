@@ -57,6 +57,8 @@ FUNCTIONS=(
   generate-request-reasons
   onboarding-copilot
   send-escrow-message
+  generate-profile-variants
+  typing-status
 )
 
 for fn in "${FUNCTIONS[@]}"; do

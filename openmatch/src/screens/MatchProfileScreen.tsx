@@ -22,6 +22,7 @@ import { getDisplayFirstName, matchesPartnerGenderPreference, ProfileRecord, Pro
 import { recordProfileView } from '../lib/profileViewsApi';
 import { MAX_CONTENT_WIDTH, useResponsiveLayout } from '../lib/responsiveLayout';
 import { blockUser, reportUser } from '../lib/chatApi';
+import { supabase } from '../lib/supabase';
 import { PartnerPreferences, cmToFeetInches, PREF_MARITAL_STATUS_LABELS } from '../lib/partnerPreferences';
 import { fetchPartnerPreferences } from '../lib/partnerPreferencesApi';
 import { fetchCurrentProfile, fetchCurrentProfileContactDetails } from '../lib/profileApi';
@@ -37,6 +38,7 @@ type MatchProfileScreenProps = {
     onPass: () => void;
     onConnect: () => void;
     onUnlockWithPremium?: () => void;
+    onOpenChat?: (otherUserId: string) => void;
 };
 
 export function MatchProfileScreen({
@@ -50,6 +52,7 @@ export function MatchProfileScreen({
     onPass,
     onConnect,
     onUnlockWithPremium,
+    onOpenChat,
 }: MatchProfileScreenProps) {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
     const [trustSummary, setTrustSummary] = useState<ProfileReliabilitySummary | null>(null);
@@ -57,8 +60,113 @@ export function MatchProfileScreen({
     const [trustDrawerVisible, setTrustDrawerVisible] = useState(false);
     const [viewerPrefs, setViewerPrefs] = useState<PartnerPreferences | null>(null);
     const [candidateProfile, setCandidateProfile] = useState<ProfileRecord | null>(null);
+    const [profileLoading, setProfileLoading] = useState(true);
     const [contactDetails, setContactDetails] = useState<ProfileContactDetails | null>(null);
+    const [contactDetailsLoading, setContactDetailsLoading] = useState(true);
+    const [relationshipStatus, setRelationshipStatus] = useState<'none' | 'sent' | 'received' | 'accepted' | 'loading'>('loading');
+    const [interestRequest, setInterestRequest] = useState<any | null>(null);
+    const [actionLoading, setActionLoading] = useState(false);
     const { height } = useResponsiveLayout();
+
+    useEffect(() => {
+        if (!viewerProfile || !candidate) {
+            setRelationshipStatus('none');
+            return;
+        }
+
+        const viewerProfileId = viewerProfile.id;
+        const candidateId = candidate.id;
+        let active = true;
+
+        async function fetchRelationship() {
+            try {
+                const { data: reqs, error: reqsErr } = await supabase
+                    .from('interest_requests')
+                    .select('*')
+                    .or(`and(sender_id.eq.${viewerProfileId},receiver_id.eq.${candidateId}),and(sender_id.eq.${candidateId},receiver_id.eq.${viewerProfileId})`)
+                    .order('created_at', { ascending: false });
+
+                if (reqsErr) throw reqsErr;
+
+                if (active) {
+                    if (reqs && reqs.length > 0) {
+                        const activeReq = reqs[0];
+                        setInterestRequest(activeReq);
+                        if (activeReq.status === 'accepted') {
+                            setRelationshipStatus('accepted');
+                        } else if (activeReq.status === 'sent') {
+                            if (activeReq.sender_id === viewerProfileId) {
+                                setRelationshipStatus('sent');
+                            } else {
+                                setRelationshipStatus('received');
+                            }
+                        } else {
+                            setRelationshipStatus('none');
+                        }
+                        return;
+                    }
+
+                    const { data: matches, error: matchesErr } = await supabase
+                        .from('matches')
+                        .select('*')
+                        .or(`and(user_1_id.eq.${viewerProfileId},user_2_id.eq.${candidateId}),and(user_1_id.eq.${candidateId},user_2_id.eq.${viewerProfileId})`);
+
+                    if (matchesErr) throw matchesErr;
+
+                    if (matches && matches.length > 0) {
+                        setRelationshipStatus('accepted');
+                    } else {
+                        setRelationshipStatus('none');
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to load relationship status:', err);
+                if (active) {
+                    setRelationshipStatus('none');
+                }
+            }
+        }
+
+        void fetchRelationship();
+
+        return () => {
+            active = false;
+        };
+    }, [viewerProfile?.id, candidate?.id]);
+
+    async function handleAcceptRequest() {
+        if (!interestRequest) return;
+        setActionLoading(true);
+        try {
+            const { error } = await supabase.functions.invoke('respond-interest-request', {
+                body: { requestId: interestRequest.id, action: 'accept' }
+            });
+            if (error) throw error;
+            setRelationshipStatus('accepted');
+            Alert.alert('Request Accepted', 'You are now connected! Open chat to start talking.');
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to accept request.');
+        } finally {
+            setActionLoading(false);
+        }
+    }
+
+    async function handleDeclineRequest() {
+        if (!interestRequest) return;
+        setActionLoading(true);
+        try {
+            const { error } = await supabase.functions.invoke('respond-interest-request', {
+                body: { requestId: interestRequest.id, action: 'decline' }
+            });
+            if (error) throw error;
+            setRelationshipStatus('none');
+            Alert.alert('Request Declined', 'Request declined successfully.');
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to decline request.');
+        } finally {
+            setActionLoading(false);
+        }
+    }
 
     // Cap the hero image so it never dominates short viewports while still
     // scaling with the content column width via `aspectRatio`.
@@ -85,6 +193,8 @@ export function MatchProfileScreen({
 
     // Load full candidate profile record
     useEffect(() => {
+        setCandidateProfile(null);
+        setProfileLoading(true);
         let active = true;
         async function loadCandidateProfile() {
             try {
@@ -94,6 +204,10 @@ export function MatchProfileScreen({
                 }
             } catch (err) {
                 console.warn('Failed to load full candidate profile:', err);
+            } finally {
+                if (active) {
+                    setProfileLoading(false);
+                }
             }
         }
         void loadCandidateProfile();
@@ -104,6 +218,8 @@ export function MatchProfileScreen({
 
     // Load candidate contact details
     useEffect(() => {
+        setContactDetails(null);
+        setContactDetailsLoading(true);
         let active = true;
         async function loadContactDetails() {
             try {
@@ -113,6 +229,10 @@ export function MatchProfileScreen({
                 }
             } catch (err) {
                 console.warn('Failed to load candidate contact details:', err);
+            } finally {
+                if (active) {
+                    setContactDetailsLoading(false);
+                }
             }
         }
         void loadContactDetails();
@@ -281,14 +401,6 @@ export function MatchProfileScreen({
         }
     }
 
-    function calculateAge(dobString: string): number {
-        const dob = new Date(dobString);
-        if (Number.isNaN(dob.getTime())) return 0;
-        const ageDifMs = Date.now() - dob.getTime();
-        const ageDate = new Date(ageDifMs);
-        return Math.abs(ageDate.getUTCFullYear() - 1970);
-    }
-
     interface ChecklistItem {
         label: string;
         value: string;
@@ -300,17 +412,19 @@ export function MatchProfileScreen({
         if (!viewerPrefs || !candidateProfile) return [];
         
         const items: ChecklistItem[] = [];
-        const age = calculateAge(candidateProfile.dob);
         
         // 1. Age
-        const ageMin = viewerPrefs.pref_age_min ?? 18;
-        const ageMax = viewerPrefs.pref_age_max ?? 99;
-        items.push({
-            label: 'Age',
-            value: `${age} years`,
-            preferenceLabel: `${ageMin}-${ageMax} years`,
-            isMatched: age >= ageMin && age <= ageMax,
-        });
+        const age = formatAge(candidateProfile.dob);
+        if (age !== null) {
+            const ageMin = viewerPrefs.pref_age_min ?? 18;
+            const ageMax = viewerPrefs.pref_age_max ?? 99;
+            items.push({
+                label: 'Age',
+                value: `${age} years`,
+                preferenceLabel: `${ageMin}-${ageMax} years`,
+                isMatched: age >= ageMin && age <= ageMax,
+            });
+        }
         
         // 2. Height
         if (candidateProfile.height_cm) {
@@ -334,12 +448,13 @@ export function MatchProfileScreen({
             label: 'Religion',
             value: candidateProfile.religion ?? 'Not specified',
             preferenceLabel: prefReligion,
-            isMatched: prefReligion === 'Any' || (candidateProfile.religion ? candidateProfile.religion.toLowerCase() === prefReligion.toLowerCase() : false),
+            isMatched: candidateProfile.religion ? matchesReligion(candidateProfile.religion, prefReligion) : prefReligion === 'Any',
         });
         
         // 4. Marital Status
         const prefMarital = viewerPrefs.pref_marital_status ?? [];
-        const maritalMatch = prefMarital.length === 0 || (candidateProfile.marital_status ? prefMarital.includes(candidateProfile.marital_status as any) : false);
+        const normalizedCandidateStatus = candidateProfile.marital_status ? normalizeMaritalStatus(candidateProfile.marital_status) : null;
+        const maritalMatch = prefMarital.length === 0 || (normalizedCandidateStatus ? prefMarital.map(normalizeMaritalStatus).includes(normalizedCandidateStatus) : false);
         const prefMaritalLabel = prefMarital.length === 0 ? 'Any' : prefMarital.map(s => (PREF_MARITAL_STATUS_LABELS as any)[s] || s).join(', ');
         const candidateMaritalLabel = candidateProfile.marital_status ? ((PREF_MARITAL_STATUS_LABELS as any)[candidateProfile.marital_status] || candidateProfile.marital_status) : 'Not specified';
         items.push({
@@ -355,7 +470,7 @@ export function MatchProfileScreen({
             label: 'Diet',
             value: candidateProfile.diet ?? 'Not specified',
             preferenceLabel: prefDiet,
-            isMatched: prefDiet === 'Any' || (candidateProfile.diet ? candidateProfile.diet.toLowerCase() === prefDiet.toLowerCase() : false),
+            isMatched: candidateProfile.diet ? matchesDiet(candidateProfile.diet, prefDiet) : prefDiet === 'Any',
         });
         
         // 6. Mother Tongue
@@ -376,12 +491,12 @@ export function MatchProfileScreen({
         const intersections: string[] = [];
         
         // Diet
-        if (candidateProfile.diet && viewerProfile.diet && candidateProfile.diet.toLowerCase() === viewerProfile.diet.toLowerCase()) {
+        if (candidateProfile.diet && viewerProfile.diet && getDietCategory(candidateProfile.diet) === getDietCategory(viewerProfile.diet)) {
             intersections.push(`🥗 Shared Diet: Both prefer ${candidateProfile.diet}`);
         }
         
         // Religion
-        if (candidateProfile.religion && viewerProfile.religion && candidateProfile.religion.toLowerCase() === viewerProfile.religion.toLowerCase()) {
+        if (candidateProfile.religion && viewerProfile.religion && isSameReligion(candidateProfile.religion, viewerProfile.religion)) {
             intersections.push(`🤝 Shared Religion: Both practice ${candidateProfile.religion}`);
         }
         
@@ -396,7 +511,7 @@ export function MatchProfileScreen({
         }
         
         // Location
-        if (candidateProfile.location && viewerProfile.location && candidateProfile.location.toLowerCase() === viewerProfile.location.toLowerCase()) {
+        if (candidateProfile.location && viewerProfile.location && isSameLocation(candidateProfile.location, viewerProfile.location)) {
             intersections.push(`📍 Location: Both reside in ${candidateProfile.location}`);
         }
 
@@ -407,6 +522,34 @@ export function MatchProfileScreen({
     const matchedCount = checklistItems.filter(item => item.isMatched).length;
     const totalCount = checklistItems.length;
     const commonGround = getCommonIntersections();
+
+    if (profileLoading) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <View style={styles.notFoundContainer}>
+                    <ActivityIndicator size="large" color="#11313c" />
+                    <Text style={[styles.notFoundSubtitle, { marginTop: 12 }]}>Loading profile...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!candidateProfile) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <View style={styles.notFoundContainer}>
+                    <Text style={styles.notFoundEmoji}>🚫</Text>
+                    <Text style={styles.notFoundTitle}>Profile Unavailable</Text>
+                    <Text style={styles.notFoundSubtitle}>
+                        This profile is no longer available or does not exist.
+                    </Text>
+                    <Pressable style={styles.notFoundButton} onPress={onClose}>
+                        <Text style={styles.notFoundButtonText}>Go Back</Text>
+                    </Pressable>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -568,7 +711,11 @@ export function MatchProfileScreen({
                         </SectionCard>
                     ) : null}
 
-                    {contactDetails ? (
+                    {contactDetailsLoading ? (
+                        <View style={[styles.contactCard, { justifyContent: 'center', alignItems: 'center', minHeight: 120 }]}>
+                            <ActivityIndicator size="small" color="#14313a" />
+                        </View>
+                    ) : contactDetails ? (
                         <UnlockedContactCard firstName={firstName} contactDetails={contactDetails} />
                     ) : (
                         <MaskedContactCard firstName={firstName} onUnlock={onConnect} onUnlockWithPremium={handleUnlockWithPremium} />
@@ -616,13 +763,65 @@ export function MatchProfileScreen({
                 </ScrollView>
 
                 <View style={styles.footerRow}>
-                    <Pressable style={styles.passButton} onPress={onPass}>
-                        <Text style={styles.passButtonText}>Pass</Text>
-                    </Pressable>
-
-                    <Pressable style={styles.connectButton} onPress={onConnect}>
-                        <Text style={styles.connectButtonText}>Connect now</Text>
-                    </Pressable>
+                    {relationshipStatus === 'loading' ? (
+                        <ActivityIndicator size="small" color="#123340" style={{ flex: 1 }} />
+                    ) : relationshipStatus === 'none' ? (
+                        <>
+                            <Pressable style={styles.passButton} onPress={onPass}>
+                                <Text style={styles.passButtonText}>Pass</Text>
+                            </Pressable>
+                            <Pressable style={styles.connectButton} onPress={onConnect}>
+                                <Text style={styles.connectButtonText}>Connect now</Text>
+                            </Pressable>
+                        </>
+                    ) : relationshipStatus === 'sent' ? (
+                        <>
+                            <Pressable style={styles.passButton} onPress={onPass}>
+                                <Text style={styles.passButtonText}>Close</Text>
+                            </Pressable>
+                            <Pressable style={[styles.connectButton, { backgroundColor: '#d1dbde' }]} disabled={true}>
+                                <Text style={[styles.connectButtonText, { color: '#68848c' }]}>Request Pending</Text>
+                            </Pressable>
+                        </>
+                    ) : relationshipStatus === 'received' ? (
+                        <>
+                            <Pressable 
+                                style={[styles.passButton, actionLoading && { opacity: 0.5 }]} 
+                                onPress={handleDeclineRequest}
+                                disabled={actionLoading}
+                            >
+                                <Text style={[styles.passButtonText, { color: '#ba3c1c' }]}>Decline</Text>
+                            </Pressable>
+                            <Pressable 
+                                style={[styles.connectButton, { backgroundColor: '#1a7a5e' }, actionLoading && { opacity: 0.5 }]} 
+                                onPress={handleAcceptRequest}
+                                disabled={actionLoading}
+                            >
+                                <Text style={styles.connectButtonText}>Accept</Text>
+                            </Pressable>
+                        </>
+                    ) : (
+                        <>
+                            <Pressable 
+                                style={styles.passButton} 
+                                onPress={() => {
+                                    onClose();
+                                    onOpenChat?.(candidate.id);
+                                }}
+                            >
+                                <Text style={styles.passButtonText}>Open Chat</Text>
+                            </Pressable>
+                            {contactDetails ? (
+                                <Pressable style={[styles.connectButton, { backgroundColor: '#d1dbde' }]} disabled={true}>
+                                    <Text style={[styles.connectButtonText, { color: '#68848c' }]}>Unlocked</Text>
+                                </Pressable>
+                            ) : (
+                                <Pressable style={styles.connectButton} onPress={onConnect}>
+                                    <Text style={styles.connectButtonText}>Unlock Contact</Text>
+                                </Pressable>
+                            )}
+                        </>
+                    )}
                 </View>
 
                 <RequestTrustDrawer
@@ -829,6 +1028,68 @@ function formatAge(dob: string) {
 function formatSimilarity(similarity: number) {
     const clamped = Math.max(0, Math.min(similarity, 1));
     return `${Math.round(clamped * 100)}%`;
+}
+
+function normalizeMaritalStatus(status: string): string {
+    return status.toLowerCase().trim().replace(/[\s_-]+/g, '_');
+}
+
+function isSameReligion(rel1: string, rel2: string): boolean {
+    const r1 = rel1.toLowerCase().trim();
+    const r2 = rel2.toLowerCase().trim();
+    if (r1 === r2) return true;
+    
+    const getRoot = (r: string) => {
+        if (r.includes('hindu') || r === 'sanatan') return 'hindu';
+        if (r.includes('muslim') || r === 'islam' || r === 'shia' || r === 'sunni') return 'muslim';
+        if (r.includes('christian') || r === 'catholic' || r === 'protestant' || r === 'orthodox') return 'christian';
+        if (r.includes('sikh') || r === 'khalsa') return 'sikh';
+        if (r.includes('jain') || r === 'shwetambar' || r === 'digambar') return 'jain';
+        if (r.includes('buddhist') || r === 'buddhism') return 'buddhist';
+        if (r.includes('parsi') || r === 'zoroastrian') return 'parsi';
+        if (r.includes('jew') || r === 'hebrew') return 'jewish';
+        return r;
+    };
+    
+    return getRoot(r1) === getRoot(r2);
+}
+
+function matchesReligion(candidateRel: string, prefRel: string): boolean {
+    if (prefRel === 'Any') return true;
+    return isSameReligion(candidateRel, prefRel);
+}
+
+function getDietCategory(diet: string): string {
+    const d = diet.toLowerCase().trim();
+    if (d === 'veg' || d.includes('vegetarian') || d === 'eggetarian') return 'vegetarian';
+    if (d === 'non-veg' || d.includes('non-vegetarian') || d.includes('non veg') || d.includes('meat')) return 'non-vegetarian';
+    if (d === 'vegan') return 'vegan';
+    if (d === 'jain') return 'jain';
+    return d;
+}
+
+function matchesDiet(candidateDiet: string, prefDiet: string): boolean {
+    if (prefDiet === 'Any') return true;
+    return getDietCategory(candidateDiet) === getDietCategory(prefDiet);
+}
+
+function isSameLocation(loc1: string, loc2: string): boolean {
+    const l1 = loc1.toLowerCase().trim();
+    const l2 = loc2.toLowerCase().trim();
+    if (l1 === l2) return true;
+
+    const getCityName = (l: string) => {
+        if (l.includes('bangalore') || l.includes('bengaluru')) return 'bangalore';
+        if (l.includes('mumbai') || l.includes('bombay')) return 'mumbai';
+        if (l.includes('delhi') || l.includes('ncr')) return 'delhi';
+        if (l.includes('calcutta') || l.includes('kolkata')) return 'kolkata';
+        if (l.includes('madras') || l.includes('chennai')) return 'chennai';
+        return l.split(',')[0].trim();
+    };
+
+    const city1 = getCityName(l1);
+    const city2 = getCityName(l2);
+    return city1 === city2 || l1.includes(city2) || l2.includes(city1);
 }
 
 function buildFamilySectionCopy(candidate: MatchCandidate) {
@@ -1438,5 +1699,40 @@ const styles = StyleSheet.create({
         width: 1,
         height: 16,
         backgroundColor: '#cbd5e0',
+    },
+    notFoundContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        backgroundColor: '#eff6f8',
+    },
+    notFoundEmoji: {
+        fontSize: 64,
+        marginBottom: 16,
+    },
+    notFoundTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#11313c',
+        marginBottom: 8,
+    },
+    notFoundSubtitle: {
+        fontSize: 15,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+    notFoundButton: {
+        backgroundColor: '#123340',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 8,
+    },
+    notFoundButtonText: {
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: '600',
     },
 });

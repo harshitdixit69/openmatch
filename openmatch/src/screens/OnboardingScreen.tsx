@@ -67,6 +67,17 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             return;
         }
 
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(
+                'Verification Code Sent\n\nWe simulated sending a 6-digit OTP code to your number. Click OK to verify.'
+            );
+            if (confirmed) {
+                setIsPhoneVerified(true);
+                alert('Phone number verified successfully! ✅');
+            }
+            return;
+        }
+
         Alert.alert(
             'Verification Code Sent',
             'We simulated sending a 6-digit OTP code to your number. Enter "123456" to verify.',
@@ -97,8 +108,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
     const profileDisplayName = getDisplayFirstName(form.full_name);
 
-    const steps = useMemo(
-        () => [
+    const steps = [
             {
                 title: 'Basics',
                 description: 'Tell us who this profile is for, who they want to meet, and where they live.',
@@ -248,7 +258,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         <Field label="Phone number (Required & Verified)">
                             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                                 <TextInput
-                                    keyboardType="phone-pad"
+                                    keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                                     placeholder="+91 98765 43210"
                                     placeholderTextColor="#7b8d96"
                                     style={[styles.input, { flex: 1 }]}
@@ -274,7 +284,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
                         <Field label="WhatsApp number (optional)">
                             <TextInput
-                                keyboardType="phone-pad"
+                                keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                                 placeholder="+91 98765 43210"
                                 placeholderTextColor="#7b8d96"
                                 style={styles.input}
@@ -310,9 +320,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     </>
                 ),
             },
-        ],
-        [form],
-    );
+        ];
 
     function updateField<K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) {
         setForm((current) => ({ ...current, [key]: value }));

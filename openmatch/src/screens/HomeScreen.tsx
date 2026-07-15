@@ -945,7 +945,12 @@ function CandidateCard({
                 <View style={styles.scorePill}>
                     <Text style={styles.scoreText}>{formatSimilarity(candidate.similarity)} aligned</Text>
                 </View>
-                <Text style={styles.locationText}>{candidate.location}</Text>
+                <Text style={styles.locationText}>
+                    📍 {candidate.location}
+                    {typeof candidate.distance_km === 'number'
+                        ? ` (${Math.round(candidate.distance_km)} km)`
+                        : ''}
+                </Text>
             </View>
 
             {premiumHighlight ? (
@@ -1080,6 +1085,9 @@ function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewer
     }
 
     if (filter === 'nearby') {
+        if (typeof candidate.distance_km === 'number') {
+            return candidate.distance_km <= 100; // 100km radius limit
+        }
         if (!viewerLocation) {
             return true;
         }

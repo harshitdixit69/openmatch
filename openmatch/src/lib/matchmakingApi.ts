@@ -60,6 +60,7 @@ function normalizeCandidates(data: unknown, currentUserId: string): MatchCandida
         const nextCandidate = candidate as MatchCandidate & {
             partner_gender_preference?: unknown;
             photo_urls?: unknown;
+            distance_km?: unknown;
         };
         return [
             {
@@ -70,6 +71,10 @@ function normalizeCandidates(data: unknown, currentUserId: string): MatchCandida
                 partner_gender_preference:
                     typeof nextCandidate.partner_gender_preference === 'string'
                         ? nextCandidate.partner_gender_preference
+                        : null,
+                distance_km:
+                    typeof nextCandidate.distance_km === 'number'
+                        ? nextCandidate.distance_km
                         : null,
             },
         ];
