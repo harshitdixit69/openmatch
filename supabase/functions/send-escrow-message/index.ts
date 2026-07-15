@@ -97,6 +97,20 @@ Deno.serve(async (request) => {
             return json({ error: 'You are not allowed to message in this match.' }, 403);
         }
 
+        const { data: block, error: blockError } = await admin
+            .from('user_blocks')
+            .select('id')
+            .or(`and(blocker_id.eq.${match.user_1_id},blocked_id.eq.${match.user_2_id}),and(blocker_id.eq.${match.user_2_id},blocked_id.eq.${match.user_1_id})`)
+            .maybeSingle();
+
+        if (blockError) {
+            return json({ error: blockError.message }, 500);
+        }
+
+        if (block) {
+            return json({ error: 'Match not found.' }, 404);
+        }
+
         const unlocked = Boolean(match.is_unlocked);
 
         // Contact details are held in escrow until both participants unlock the
@@ -105,13 +119,38 @@ Deno.serve(async (request) => {
         // recipient's client can keep it hidden until unlock.
         let blocked = false;
         if (!unlocked) {
-            blocked = await detectContactSharing(content, env);
+            // Fetch recent messages in this match to analyze multi-message circumvention
+            const { data: recentMessages, error: recentError } = await admin
+                .from('messages')
+                .select('content, sender_id')
+                .eq('match_id', match.id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (recentError) {
+                console.warn('Failed to load recent messages for history check:', recentError);
+            }
+
+            // Extract consecutive messages from the same sender (ending if other participant replied)
+            const consecutiveContents: string[] = [content];
+            if (recentMessages) {
+                for (const msg of recentMessages) {
+                    if (msg.sender_id === user.id) {
+                        consecutiveContents.push(msg.content);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            const combinedContent = consecutiveContents.reverse().join(' ');
+            blocked = await detectContactSharing(combinedContent, env);
         }
 
         // When blocked, store a redacted placeholder instead of the raw
         // contact info so even a direct DB read cannot leak the details.
         const storedContent = blocked
-            ? '[Contact details blocked until mutual unlock]'
+            ? '<Upgrade to share contact info>'
             : content;
 
         const { data: inserted, error: insertError } = await admin
@@ -144,6 +183,7 @@ Deno.serve(async (request) => {
         return json({
             message: inserted,
             blocked,
+            piiDetected: blocked,
             notice,
             unlocked,
         });
@@ -185,7 +225,7 @@ async function detectContactSharing(content: string, env: ReturnType<typeof getE
                 {
                     role: 'system',
                     content:
-                        'You are a moderation classifier for a matrimonial app\'s pre-unlock escrow chat. Participants may only exchange direct contact information after both unlock the match. Decide whether the user\'s message shares or requests direct personal contact details (phone number, email, social handle, or a named external messaging app such as WhatsApp/Telegram/Instagram), or otherwise tries to move the conversation off-platform. Return only JSON of the form {"sharesContact": true|false}.',
+                        'You are a moderation classifier for a matrimonial app\'s pre-unlock escrow chat. Participants may only exchange direct contact details after both unlock the match. Check if the text (which may be a combination of consecutive messages) shares or requests direct contact details (phone, email, social handles, or external chat apps like WhatsApp/Instagram/Telegram). Specifically flag circumvention attempts, such as: 1) writing numbers in words (e.g., "nine eight seven...", "eight two one"), 2) writing numbers in Roman numerals (e.g., "Viii ii i", "IX VIII VII"), or 3) splitting a number across lines/messages. Return only JSON of the form {"sharesContact": true|false}.',
                 },
                 {
                     role: 'user',
@@ -208,12 +248,96 @@ const APP_PATTERN =
 const INTENT_PATTERN =
     /\b(my number|call me|text me|ping me|dm me|email me|reach me|contact me at|here'?s my|whats\s?app me|add me on)\b/i;
 
+function normalizeText(text: string): string {
+    // Convert fullwidth digits (０-９) to standard digits (0-9)
+    let normalized = text.replace(/[\uff10-\uff19]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0xfee0);
+    });
+
+    // Arabic-Indic digits (٠-٩) -> U+0660 to U+0669
+    normalized = normalized.replace(/[\u0660-\u0669]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0x0660 + 48);
+    });
+
+    // Eastern Arabic-Indic digits (۰-۹) -> U+06f0 to U+06f9
+    normalized = normalized.replace(/[\u06f0-\u06f9]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0x06f0 + 48);
+    });
+
+    // Devanagari digits (०-९) -> U+0966 to U+096f
+    normalized = normalized.replace(/[\u0966-\u096f]/g, (ch) => {
+        return String.fromCharCode(ch.charCodeAt(0) - 0x0966 + 48);
+    });
+
+    return normalized;
+}
+
+function countDigitIndicators(text: string): number {
+    const normalized = normalizeText(text);
+    
+    // First, count all actual digits (0-9) in the normalized text
+    const digitsCount = normalized.match(/\d/g)?.length ?? 0;
+    
+    // Tokenize the normalized text to check for spelled-out words and Roman numerals
+    const tokens = normalized.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+    
+    const numberWords = new Set(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']);
+    const multiRoman = new Set(['viii', 'vii', 'iii', 'ii', 'iv', 'vi', 'ix']);
+    
+    // Helper to check if a token at a given index is a candidate
+    const isCandidate = (idx: number): boolean => {
+        if (idx < 0 || idx >= tokens.length) return false;
+        const token = tokens[idx];
+        return /\d/.test(token) || numberWords.has(token) || multiRoman.has(token);
+    };
+    
+    let wordAndRomanCount = 0;
+    
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        
+        // If it's a digit token, we already counted its digits using the global regex
+        if (/\d/.test(token)) {
+            continue;
+        }
+        
+        if (multiRoman.has(token)) {
+            // Multi-character Roman numerals are rare enough in common English to always count
+            wordAndRomanCount++;
+            continue;
+        }
+        
+        if (numberWords.has(token)) {
+            // For spelled-out number words, only count them if they are near another candidate
+            // (within a distance of 2 tokens: i-2, i-1, i+1, i+2)
+            let hasNearbyCandidate = false;
+            for (const offset of [-2, -1, 1, 2]) {
+                if (isCandidate(i + offset)) {
+                    hasNearbyCandidate = true;
+                    break;
+                }
+            }
+            if (hasNearbyCandidate) {
+                wordAndRomanCount++;
+            }
+        }
+    }
+    
+    return digitsCount + wordAndRomanCount;
+}
+
 function detectContactSharingDeterministic(content: string): boolean {
-    if (EMAIL_PATTERN.test(content) || HANDLE_PATTERN.test(content) || APP_PATTERN.test(content) || INTENT_PATTERN.test(content)) {
+    const normalized = normalizeText(content);
+
+    if (EMAIL_PATTERN.test(normalized) || HANDLE_PATTERN.test(normalized) || APP_PATTERN.test(normalized) || INTENT_PATTERN.test(normalized)) {
         return true;
     }
 
-    return containsPhoneNumber(content);
+    if (countDigitIndicators(normalized) >= 7) {
+        return true;
+    }
+
+    return containsPhoneNumber(normalized);
 }
 
 /**

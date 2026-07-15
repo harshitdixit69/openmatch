@@ -29,9 +29,7 @@ begin
   do update set viewed_at = excluded.viewed_at;
 end;
 $$;
-
 grant execute on function public.upsert_profile_view(uuid) to authenticated;
-
 -- Helper: who viewed my profile — keeps p_viewed_id param (no spoofing risk:
 -- this only exposes data ABOUT the caller's profile, restricted by RLS SELECT).
--- Re-declared here for completeness; no signature change needed.
+-- Re-declared here for completeness; no signature change needed.;

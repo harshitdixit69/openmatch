@@ -60,6 +60,7 @@ type ProfileRow = {
     bio: string | null;
     preferences: string | null;
     profile_owner: ChatMatch['otherUserProfileOwner'];
+    verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
 };
 
 type ProfileContactRow = {
@@ -449,13 +450,38 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
         throw matchesError;
     }
 
+    const { data: blockRows, error: blocksError } = await supabase
+        .from('user_blocks')
+        .select('blocker_id, blocked_id')
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+
+    if (blocksError) {
+        throw blocksError;
+    }
+
+    const blockedUserIds = new Set<string>();
+    if (blockRows) {
+        for (const block of blockRows) {
+            blockedUserIds.add(block.blocker_id === user.id ? block.blocked_id : block.blocker_id);
+        }
+    }
+
     if (!matchRows || matchRows.length === 0) {
         return [] as ChatMatch[];
     }
 
-    const matchIds = matchRows.map((match) => match.id);
+    const activeMatchRows = matchRows.filter((match) => {
+        const otherId = match.user_1_id === user.id ? match.user_2_id : match.user_1_id;
+        return !blockedUserIds.has(otherId);
+    });
 
-    const otherUserIds = [...new Set(matchRows.map((match) => (match.user_1_id === user.id ? match.user_2_id : match.user_1_id)))];
+    if (activeMatchRows.length === 0) {
+        return [] as ChatMatch[];
+    }
+
+    const matchIds = activeMatchRows.map((match) => match.id);
+
+    const otherUserIds = [...new Set(activeMatchRows.map((match) => (match.user_1_id === user.id ? match.user_2_id : match.user_1_id)))];
 
     // These five queries are independent (they only depend on matchIds /
     // otherUserIds), so run them concurrently instead of as a sequential
@@ -470,7 +496,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
     ] = await Promise.all([
         supabase
             .from('profiles')
-            .select('id, full_name, photo_urls, location, bio, preferences, profile_owner')
+            .select('id, full_name, photo_urls, location, bio, preferences, profile_owner, verification_status')
             .in('id', otherUserIds)
             .returns<ProfileRow[]>(),
         supabase
@@ -652,6 +678,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
                 unreadCount: unreadCountByMatchId.get(match.id) ?? 0,
                 unlockState: buildUnlockState(match, unlocksByMatchId.get(match.id) ?? null, user.id),
                 createdAt: match.created_at,
+                otherUserVerificationStatus: profile.verification_status || 'unverified',
             } satisfies ChatMatch;
         })
         .filter((match): match is ChatMatch => Boolean(match));
@@ -1097,9 +1124,141 @@ export async function unsubscribeFromChannel(channel: RealtimeChannel) {
     await supabase.removeChannel(channel);
 }
 
+export async function setTypingIndicator(matchId: string): Promise<void> {
+    const { error } = await supabase.rpc('set_typing_indicator', { p_match_id: matchId });
+    if (error) throw error;
+}
+
+export async function clearTypingIndicator(matchId: string): Promise<void> {
+    const { error } = await supabase.rpc('clear_typing_indicator', { p_match_id: matchId });
+    if (error) throw error;
+}
+
+export async function updateUserPresence(status: 'online' | 'away' | 'offline'): Promise<void> {
+    const { error } = await supabase.rpc('update_user_presence', { p_status: status });
+    if (error) throw error;
+}
+
+export async function getMatchPresence(matchId: string): Promise<{ user_id: string; status: string; last_seen_at: string; is_online: boolean } | null> {
+    const { data, error } = await supabase.rpc('get_match_presence', { p_match_id: matchId });
+    if (error) throw error;
+    if (Array.isArray(data) && data.length > 0) {
+        const row = data[0];
+        return {
+            user_id: row.user_id,
+            status: row.status,
+            last_seen_at: row.last_seen_at,
+            is_online: row.is_online,
+        };
+    }
+    return null;
+}
+
+export function subscribeToTypingIndicators(matchId: string, onUpdate: (payload: { event: string; row: any }) => void) {
+    return supabase
+        .channel(createRealtimeChannelName(`match-typing:${matchId}`))
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'typing_indicators',
+                filter: `match_id=eq.${matchId}`,
+            },
+            (payload) => {
+                onUpdate({
+                    event: payload.eventType,
+                    row: payload.eventType === 'DELETE' ? payload.old : payload.new,
+                });
+            }
+        )
+        .subscribe();
+}
+
+export function subscribeToUserPresence(userId: string, onUpdate: (presence: { user_id: string; status: string; last_seen_at: string }) => void) {
+    return supabase
+        .channel(createRealtimeChannelName(`user-presence:${userId}`))
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'user_presence',
+                filter: `user_id=eq.${userId}`,
+            },
+            (payload) => {
+                onUpdate(payload.new as any);
+            }
+        )
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'user_presence',
+                filter: `user_id=eq.${userId}`,
+            },
+            (payload) => {
+                onUpdate(payload.new as any);
+            }
+        )
+        .subscribe();
+}
+
 let realtimeChannelSequence = 0;
 
 function createRealtimeChannelName(prefix: string) {
     realtimeChannelSequence += 1;
     return `${prefix}:${Date.now()}:${realtimeChannelSequence}`;
+}
+
+export async function blockUser(blockedId: string): Promise<void> {
+    const user = await requireCurrentUser();
+    const { error } = await supabase
+        .from('user_blocks')
+        .insert({ blocker_id: user.id, blocked_id: blockedId });
+    if (error) throw error;
+}
+
+export async function unblockUser(blockedId: string): Promise<void> {
+    const user = await requireCurrentUser();
+    const { error } = await supabase
+        .from('user_blocks')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', blockedId);
+    if (error) throw error;
+}
+
+export async function reportUser(reportedId: string, reason: string, details: string): Promise<void> {
+    const user = await requireCurrentUser();
+    const { error } = await supabase
+        .from('user_reports')
+        .insert({ reporter_id: user.id, reported_id: reportedId, reason, details });
+    if (error) throw error;
+}
+
+export async function fetchReports(): Promise<any[]> {
+    const { data, error } = await supabase
+        .from('user_reports')
+        .select(`
+            id,
+            reason,
+            details,
+            status,
+            created_at,
+            reporter_id,
+            reported_id
+        `)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function updateReportStatus(reportId: string, status: 'reviewed' | 'dismissed'): Promise<void> {
+    const { error } = await supabase
+        .from('user_reports')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', reportId);
+    if (error) throw error;
 }

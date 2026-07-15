@@ -28,6 +28,9 @@ export type ShortlistedProfile = {
 // ---------------------------------------------------------------------------
 
 export async function fetchShortlist(): Promise<ShortlistedProfile[]> {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) throw authErr ?? new Error('Not authenticated');
+
     const { data, error } = await supabase
         .from('profile_shortlists')
         .select(
@@ -43,19 +46,55 @@ export async function fetchShortlist(): Promise<ShortlistedProfile[]> {
 
     if (error) throw error;
 
-    return ((data ?? []) as any[]).map((row) => ({
-        shortlist_id: row.id,
-        saved_profile_id: row.saved_profile_id,
-        created_at: row.created_at,
-        ...row.saved_profile,
-    })) as ShortlistedProfile[];
+    const { data: blockRows } = await supabase
+        .from('user_blocks')
+        .select('blocker_id, blocked_id')
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+
+    const blockedUserIds = new Set<string>();
+    if (blockRows) {
+        for (const block of blockRows) {
+            blockedUserIds.add(block.blocker_id === user.id ? block.blocked_id : block.blocker_id);
+        }
+    }
+
+    return ((data ?? []) as any[])
+        .filter((row) => row.saved_profile && !blockedUserIds.has(row.saved_profile_id))
+        .map((row) => ({
+            shortlist_id: row.id,
+            saved_profile_id: row.saved_profile_id,
+            created_at: row.created_at,
+            ...row.saved_profile,
+        })) as ShortlistedProfile[];
 }
 
 /** Returns the Set of saved profile IDs — cheap call to hydrate bookmark icons. */
 export async function fetchShortlistedIds(): Promise<Set<string>> {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) throw authErr ?? new Error('Not authenticated');
+
     const { data, error } = await supabase.rpc('get_shortlisted_profile_ids');
     if (error) throw error;
-    return new Set<string>((data ?? []) as string[]);
+
+    const { data: blockRows } = await supabase
+        .from('user_blocks')
+        .select('blocker_id, blocked_id')
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+
+    const blockedUserIds = new Set<string>();
+    if (blockRows) {
+        for (const block of blockRows) {
+            blockedUserIds.add(block.blocker_id === user.id ? block.blocked_id : block.blocker_id);
+        }
+    }
+
+    const ids = new Set<string>();
+    for (const savedId of (data ?? [])) {
+        if (!blockedUserIds.has(savedId)) {
+            ids.add(savedId);
+        }
+    }
+    return ids;
 }
 
 // ---------------------------------------------------------------------------

@@ -18,7 +18,6 @@ alter table public.profiles
   add column if not exists pref_mother_tongue         text,
   add column if not exists pref_location_flexibility  text,
   add column if not exists pref_profile_owner         text[];
-
 -- Cross-column sanity constraints
 alter table public.profiles
   drop constraint if exists pref_age_range_order,
@@ -27,7 +26,6 @@ alter table public.profiles
   drop constraint if exists pref_age_max_bounds,
   drop constraint if exists pref_height_min_bounds,
   drop constraint if exists pref_height_max_bounds;
-
 alter table public.profiles
   add constraint pref_age_min_bounds     check (pref_age_min    is null or (pref_age_min    between 18 and 99)),
   add constraint pref_age_max_bounds     check (pref_age_max    is null or (pref_age_max    between 18 and 99)),
@@ -35,7 +33,6 @@ alter table public.profiles
   add constraint pref_height_min_bounds  check (pref_height_min is null or (pref_height_min between 100 and 250)),
   add constraint pref_height_max_bounds  check (pref_height_max is null or (pref_height_max between 100 and 250)),
   add constraint pref_height_range_order check (pref_height_min is null or pref_height_max is null or pref_height_min <= pref_height_max);
-
 -- Replace match_profiles() to accept per-call filter overrides.
 -- When an override param is null the viewer's stored pref is used
 -- as the default; when that is also null the filter is skipped entirely.
@@ -43,7 +40,6 @@ alter table public.profiles
 -- (explicit overrides) share one function.
 
 drop function if exists public.match_profiles(integer);
-
 create or replace function public.match_profiles(
   result_limit              integer  default 20,
   p_age_min                 integer  default null,
@@ -152,7 +148,6 @@ as $$
   order by similarity desc, c.created_at desc
   limit result_limit;
 $$;
-
 grant execute on function public.match_profiles(
   integer, integer, integer, integer, integer,
   text, text[], text, text, text, text, text

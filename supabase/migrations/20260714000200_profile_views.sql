@@ -11,32 +11,25 @@ create table if not exists public.profile_views (
   -- Prevent self-views
   constraint profile_views_no_self_view check (viewer_id <> viewed_id)
 );
-
 -- One row per (viewer, viewed) per calendar day (UTC). On conflict we just
 -- update viewed_at so the latest visit is surfaced.
 create unique index if not exists profile_views_viewer_viewed_day_idx
   on public.profile_views (viewer_id, viewed_id, view_date);
-
 -- Fast lookup: "who viewed me?" ordered by recency
 create index if not exists profile_views_viewed_id_at_idx
   on public.profile_views (viewed_id, viewed_at desc);
-
 -- Fast lookup: "whose profiles did I view?"
 create index if not exists profile_views_viewer_id_at_idx
   on public.profile_views (viewer_id, viewed_at desc);
-
 alter table public.profile_views enable row level security;
-
 -- Viewed user can see who viewed them
 drop policy if exists "Viewed user sees their own view events" on public.profile_views;
 create policy "Viewed user sees their own view events" on public.profile_views
   for select using (auth.uid() = viewed_id);
-
 -- Any authenticated user can record a view (write goes through RLS insert policy)
 drop policy if exists "Authenticated users can record views" on public.profile_views;
 create policy "Authenticated users can record views" on public.profile_views
   for insert with check (auth.uid() = viewer_id);
-
 -- Helper: upsert a profile view, deduped per day
 create or replace function public.upsert_profile_view(
   p_viewer_id uuid,
@@ -58,9 +51,7 @@ begin
   do update set viewed_at = excluded.viewed_at;
 end;
 $$;
-
 grant execute on function public.upsert_profile_view(uuid, uuid) to authenticated;
-
 -- Helper: fetch recent viewers of a given profile (limit 50)
 create or replace function public.get_profile_viewers(
   p_viewed_id uuid,
@@ -82,5 +73,4 @@ as $$
   order by pv.viewer_id, pv.viewed_at desc
   limit p_limit;
 $$;
-
 grant execute on function public.get_profile_viewers(uuid, integer) to authenticated;

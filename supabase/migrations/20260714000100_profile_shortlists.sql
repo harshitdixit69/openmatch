@@ -12,30 +12,23 @@ create table if not exists public.profile_shortlists (
   constraint profile_shortlists_unique unique (viewer_id, saved_profile_id),
   constraint profile_shortlists_no_self_save check (viewer_id <> saved_profile_id)
 );
-
 create index if not exists profile_shortlists_viewer_created_idx
   on public.profile_shortlists (viewer_id, created_at desc);
-
 create index if not exists profile_shortlists_saved_profile_idx
   on public.profile_shortlists (saved_profile_id);
-
 alter table public.profile_shortlists enable row level security;
-
 -- Only the viewer can see their own shortlist
 drop policy if exists "Viewer reads own shortlist" on public.profile_shortlists;
 create policy "Viewer reads own shortlist" on public.profile_shortlists
   for select using (auth.uid() = viewer_id);
-
 -- Viewer inserts their own bookmarks
 drop policy if exists "Viewer inserts own shortlist" on public.profile_shortlists;
 create policy "Viewer inserts own shortlist" on public.profile_shortlists
   for insert with check (auth.uid() = viewer_id);
-
 -- Viewer removes their own bookmarks
 drop policy if exists "Viewer deletes own shortlist" on public.profile_shortlists;
 create policy "Viewer deletes own shortlist" on public.profile_shortlists
   for delete using (auth.uid() = viewer_id);
-
 -- Convenience RPC: returns all shortlisted profile IDs for the current user.
 -- Used by the client to hydrate saved-state indicators across screens.
 create or replace function public.get_shortlisted_profile_ids()
@@ -49,5 +42,4 @@ as $$
   where viewer_id = auth.uid()
   order by created_at desc;
 $$;
-
 grant execute on function public.get_shortlisted_profile_ids() to authenticated;

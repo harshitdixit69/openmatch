@@ -3,7 +3,6 @@
 -- This was silently blocking all candidates when pref_marital_status = '{}'.
 
 drop function if exists public.match_profiles(integer, uuid, integer, integer, integer, integer, text, text[], text, text, text, text, text);
-
 create or replace function public.match_profiles(
   result_limit              integer  default 20,
   p_viewer_id               uuid     default null,
@@ -114,7 +113,6 @@ as $$
   order by similarity desc, c.created_at desc
   limit result_limit;
 $$;
-
 grant execute on function public.match_profiles(
   integer, uuid, integer, integer, integer, integer,
   text, text[], text, text, text, text, text

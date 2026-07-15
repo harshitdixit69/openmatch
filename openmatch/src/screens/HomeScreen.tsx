@@ -43,6 +43,7 @@ import { MatchProfileScreen } from './MatchProfileScreen';
 import { supabase } from '../lib/supabase';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { trackPremiumEvent } from '../lib/premiumAnalytics';
+import { updateUserPresence } from '../lib/chatApi';
 import { PremiumPromoVariant, resolvePremiumPromoVariant } from '../lib/premiumTargeting';
 import {
     recordPremiumPopupCtaTapped,
@@ -139,6 +140,11 @@ export function HomeScreen() {
     );
 
     async function onSignOut() {
+        try {
+            await updateUserPresence('offline');
+        } catch (presenceErr) {
+            console.warn('Failed to set status to offline before sign out:', presenceErr);
+        }
         const { error } = await supabase.auth.signOut();
         if (error) {
             Alert.alert('Sign out failed', error.message);
@@ -939,7 +945,12 @@ function CandidateCard({
                 <View style={styles.scorePill}>
                     <Text style={styles.scoreText}>{formatSimilarity(candidate.similarity)} aligned</Text>
                 </View>
-                <Text style={styles.locationText}>{candidate.location}</Text>
+                <Text style={styles.locationText}>
+                    📍 {candidate.location}
+                    {typeof candidate.distance_km === 'number'
+                        ? ` (${Math.round(candidate.distance_km)} km)`
+                        : ''}
+                </Text>
             </View>
 
             {premiumHighlight ? (
@@ -1074,6 +1085,9 @@ function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewer
     }
 
     if (filter === 'nearby') {
+        if (typeof candidate.distance_km === 'number') {
+            return candidate.distance_km <= 100; // 100km radius limit
+        }
         if (!viewerLocation) {
             return true;
         }

@@ -139,14 +139,14 @@ create policy "Allow participants to view match messages" on public.messages
 # 5. Step-by-Step Implementation Guide
 
 ## Phase 1: Project Setup & Authentication
-1.  **Initialize Project:** Run `npx create-expo-app openmatch` and `npx create-next-app web-backend`.
-2.  **Supabase Setup:** Create a Supabase project. Execute the SQL schema (Profiles, Matches, Messages) and enable `pgvector`.
-3.  **Authentication:** Implement Supabase Auth (Email/Password & OTP) along with Sign-In with Apple (`expo-apple-authentication`). Build the na  tive iOS login/signup layout wrappers.
+1.  **Initialize Project:** Run `npx create-expo-app openmatch` and `npx create-next-app web-backend`. [**Implemented**]
+2.  **Supabase Setup:** Create a Supabase project. Execute the SQL schema (Profiles, Matches, Messages) and enable `pgvector`. [**Implemented**]
+3.  **Authentication:** Implement Supabase Auth (Email/Password & OTP) along with Sign-In with Apple (`expo-apple-authentication`). Build the native iOS login/signup layout wrappers. [**Implemented**]
 
 ## Phase 2: Onboarding & Vector Embeddings
-1.  **Profile Creation Form:** Build a multi-step iOS form using a flat lists/scroll view with native KeyboardAvoidingView handles (Name, DOB, Height, Bio, Preferences).
-2.  **Edge Function (Embedding):** When a `profile` is inserted/updated, trigger a Supabase Database Webhook to an Edge Function.
-3.  **OpenAI Integration:** The Edge Function calls `openai.embeddings.create` using the user's bio + preferences, and saves the vector back to the `profiles.embedding` column.
+1.  **Profile Creation Form:** Build a multi-step iOS form using a flat lists/scroll view with native KeyboardAvoidingView handles (Name, DOB, Height, Bio, Preferences). [**Implemented**]
+2.  **Edge Function (Embedding):** When a `profile` is inserted/updated, trigger a Supabase Database Webhook to an Edge Function. [**Implemented**]
+3.  **OpenAI Integration:** The Edge Function calls `openai.embeddings.create` using the user's bio + preferences, and saves the vector back to the `profiles.embedding` column. [**Implemented**]
 
 ## Phase 3: Semantic Matchmaking Feed
 1.  **Postgres Function:** Create a Postgres function `match_profiles` that takes a user's embedding and uses cosine distance (`<=>`) to find top 20 similar profiles.

@@ -1,16 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { subscribeToNotifications } from '../lib/notificationsApi';
+import { supabase } from '../lib/supabase';
 
 import { ChatMatch } from '../lib/chat';
-import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel } from '../lib/chatApi';
+import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel, updateUserPresence } from '../lib/chatApi';
 import { fetchPremiumAnalyticsSummary, PremiumAnalyticsSummary, trackPremiumEvent } from '../lib/premiumAnalytics';
-import { getDisplayFirstName } from '../lib/profile';
+import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { fetchCurrentProfile } from '../lib/profileApi';
+import { MatchCandidate } from '../lib/matchmaking';
+import { fetchCompatibilitySnapshot } from '../lib/matchmakingApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
 import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
+import { ModerationQueueScreen } from './ModerationQueueScreen';
 import { DashboardScreen } from './DashboardScreen';
 import { MyMatchesScreen } from './MyMatchesScreen';
 import { NotificationsScreen } from './NotificationsScreen';
@@ -20,13 +26,15 @@ import { SearchScreen } from './SearchScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { ShortlistScreen } from './ShortlistScreen';
 import { WhoViewedMeScreen } from './WhoViewedMeScreen';
+import { MatchProfileScreen } from './MatchProfileScreen';
+
 
 // Base height of the tab bar content (padding + tab button minHeight) before the
 // device's bottom safe-area inset is added. Used to reserve space so scrollable
 // screens never hide content behind the pinned tab bar.
 const TAB_BAR_BASE_HEIGHT = 64;
 
-type AppTab = 'home' | 'matches' | 'inbox' | 'chat' | 'premium';
+type AppTab = 'home' | 'matches' | 'inbox' | 'chat' | 'premium' | 'moderation';
 
 type ShellCounts = {
     total: number;
@@ -51,6 +59,7 @@ export function MainTabsScreen() {
     const [shellLoading, setShellLoading] = useState(true);
     const [viewerFirstName, setViewerFirstName] = useState('');
     const [shellCounts, setShellCounts] = useState<ShellCounts>(emptyShellCounts);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [showPartnerPrefs, setShowPartnerPrefs] = useState(false);
     const [showProfileEdit, setShowProfileEdit] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -60,6 +69,7 @@ export function MainTabsScreen() {
     const [showWhoViewedMe, setShowWhoViewedMe] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showDashboard, setShowDashboard] = useState(false);
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const insets = useSafeAreaInsets();
     // Debounce ref: track the last time loadShellData was triggered by a tab
     // switch so rapid tab changes don't fire multiple heavy fetchChatMatches calls.
@@ -68,6 +78,7 @@ export function MainTabsScreen() {
     // Android back button: dismiss the topmost open modal instead of exiting the app.
     useEffect(() => {
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (selectedProfileId) { setSelectedProfileId(null); return true; }
             if (showDashboard) { setShowDashboard(false); return true; }
             if (showNotifications) { setShowNotifications(false); return true; }
             if (showWhoViewedMe) { setShowWhoViewedMe(false); return true; }
@@ -80,16 +91,119 @@ export function MainTabsScreen() {
             return false;
         });
         return () => handler.remove();
-    }, [showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
+    }, [selectedProfileId, showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
 
     // Keep the home-indicator clear on notched devices while still leaving a
     // comfortable tap area on phones without a bottom inset.
     const tabBarBottomPadding = insets.bottom > 0 ? insets.bottom + 6 : 16;
     // Total space the tab bar reserves, shared with child screens via context.
     const tabBarSpacing = TAB_BAR_BASE_HEIGHT + insets.bottom;
+    useEffect(() => {
+        let isMounted = true;
+        let heartbeatInterval: any = null;
+
+        async function triggerPresence(status: 'online' | 'offline') {
+            try {
+                await updateUserPresence(status);
+            } catch (err) {
+                console.warn('Failed to update presence state:', err);
+            }
+        }
+
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            void triggerPresence('online');
+            heartbeatInterval = setInterval(() => {
+                if (isMounted) {
+                    void triggerPresence('online');
+                }
+            }, 30000);
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            void triggerPresence('offline');
+        }
+
+        startHeartbeat();
+
+        const appStateSub = AppState.addEventListener('change', (nextState) => {
+            if (!isMounted) return;
+            if (nextState === 'active') {
+                startHeartbeat();
+            } else if (nextState === 'background' || nextState === 'inactive') {
+                stopHeartbeat();
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            stopHeartbeat();
+            appStateSub.remove();
+        };
+    }, []);
 
     useEffect(() => {
         void loadShellData();
+    }, []);
+
+    useEffect(() => {
+        let mounted = true;
+        let channel: RealtimeChannel | null = null;
+
+        async function setupSubscription() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || !mounted) return;
+
+            channel = subscribeToNotifications(user.id, async (n) => {
+                if (!mounted) return;
+
+                // Load notification settings from AsyncStorage
+                try {
+                    const saved = await AsyncStorage.getItem(`openmatch:notifPrefs:${user.id}`);
+                    const prefs = saved ? JSON.parse(saved) : null;
+                    
+                    // Map notification type to preference key
+                    let isEnabled = true;
+                    if (prefs) {
+                        if (n.type === 'message_received') {
+                            isEnabled = prefs.new_messages !== false;
+                        } else if (n.type === 'new_match') {
+                            isEnabled = prefs.new_matches !== false;
+                        } else if (n.type === 'request_accepted' || n.type === 'request_received') {
+                            isEnabled = prefs.request_accepted !== false;
+                        } else if (n.type === 'request_ghosted') {
+                            isEnabled = prefs.ghosting_reminders !== false;
+                        } else if (n.type === 'system') {
+                            isEnabled = prefs.broker_calls !== false;
+                        }
+                    }
+
+                    if (isEnabled) {
+                        // Alert foreground popup
+                        if (Platform.OS === 'web') {
+                            alert(`${n.title}\n\n${n.body}`);
+                        } else {
+                            Alert.alert(n.title, n.body);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Failed to parse notification preferences in subscription:', err);
+                }
+            });
+        }
+
+        void setupSubscription();
+
+        return () => {
+            mounted = false;
+            if (channel) {
+                channel.unsubscribe();
+            }
+        };
     }, []);
 
     useEffect(() => {
@@ -138,6 +252,7 @@ export function MainTabsScreen() {
 
             setViewerFirstName(getDisplayFirstName(profile?.full_name));
             setShellCounts(buildShellCounts(matches));
+            setIsAdmin(profile?.is_admin === true);
         } catch (error) {
             console.warn('Failed to refresh main tab summary.', error);
         } finally {
@@ -146,26 +261,40 @@ export function MainTabsScreen() {
     }
 
     const tabItems = useMemo(
-        () => [
-            { label: 'Home', subtitle: 'Dashboard', value: 'home' as const, badge: undefined, disabled: false },
-            { label: 'Matches', subtitle: 'Feed', value: 'matches' as const, badge: undefined, disabled: false },
-            {
-                label: 'Inbox',
-                subtitle: 'Requests',
-                value: 'inbox' as const,
-                badge: shellCounts.received > 0 ? shellCounts.received : undefined,
-                disabled: false,
-            },
-            {
-                label: 'Chat',
-                subtitle: 'Active',
-                value: 'chat' as const,
-                badge: shellCounts.unread > 0 ? shellCounts.unread : undefined,
-                disabled: false,
-            },
-            { label: 'Premium', subtitle: 'Insights', value: 'premium' as const, badge: undefined, disabled: false },
-        ],
-        [shellCounts.contacts, shellCounts.received, shellCounts.unread],
+        () => {
+            const items: { label: string; subtitle: string; value: AppTab; badge: number | undefined; disabled: boolean }[] = [
+                { label: 'Home', subtitle: 'Dashboard', value: 'home' as const, badge: undefined, disabled: false },
+                { label: 'Matches', subtitle: 'Feed', value: 'matches' as const, badge: undefined, disabled: false },
+                {
+                    label: 'Inbox',
+                    subtitle: 'Requests',
+                    value: 'inbox' as const,
+                    badge: shellCounts.received > 0 ? shellCounts.received : undefined,
+                    disabled: false,
+                },
+                {
+                    label: 'Chat',
+                    subtitle: 'Active',
+                    value: 'chat' as const,
+                    badge: shellCounts.unread > 0 ? shellCounts.unread : undefined,
+                    disabled: false,
+                },
+                { label: 'Premium', subtitle: 'Insights', value: 'premium' as const, badge: undefined, disabled: false },
+            ];
+
+            if (isAdmin) {
+                items.push({
+                    label: 'Moderate',
+                    subtitle: 'Queue',
+                    value: 'moderation' as const,
+                    badge: undefined,
+                    disabled: false,
+                });
+            }
+
+            return items;
+        },
+        [shellCounts.contacts, shellCounts.received, shellCounts.unread, isAdmin],
     );
 
     function openTab(tab: AppTab) {
@@ -207,6 +336,8 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="received"
                     initialVisibilityFilter="all"
+                    isChatScreen={false}
+                    onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                 />
             );
         }
@@ -218,6 +349,16 @@ export function MainTabsScreen() {
                     onClose={() => openTab('matches')}
                     initialMatchListFilter="accepted"
                     initialVisibilityFilter={shellCounts.unread > 0 ? 'unread' : 'all'}
+                    isChatScreen={true}
+                    onViewProfile={(profileId) => setSelectedProfileId(profileId)}
+                />
+            );
+        }
+
+        if (activeTab === 'moderation') {
+            return (
+                <ModerationQueueScreen
+                    onClose={() => openTab('home')}
                 />
             );
         }
@@ -330,6 +471,24 @@ export function MainTabsScreen() {
                         />
                     ))}
                 </View>
+
+                <Modal
+                    transparent={false}
+                    animationType="slide"
+                    visible={Boolean(selectedProfileId)}
+                    onRequestClose={() => setSelectedProfileId(null)}
+                >
+                    {selectedProfileId ? (
+                        <MatchProfileScreenModal
+                            profileId={selectedProfileId}
+                            onClose={() => setSelectedProfileId(null)}
+                            onOpenChat={(otherUserId) => {
+                                setSelectedProfileId(null);
+                                setActiveTab('chat');
+                            }}
+                        />
+                    ) : null}
+                </Modal>
             </View>
         </TabBarSpacingContext.Provider>
     );
@@ -1065,3 +1224,142 @@ const styles = StyleSheet.create({
         lineHeight: 21,
     },
 });
+
+function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+type MatchProfileScreenModalProps = {
+    profileId: string;
+    onClose: () => void;
+    onOpenChat?: (otherUserId: string) => void;
+};
+
+function MatchProfileScreenModal({
+    profileId,
+    onClose,
+    onOpenChat,
+}: MatchProfileScreenModalProps) {
+    const [candidate, setCandidate] = useState<MatchCandidate | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [viewerProfile, setViewerProfile] = useState<ProfileRecord | null>(null);
+    const [compatibilitySummary, setCompatibilitySummary] = useState<string | null>(null);
+    const [fitPoints, setFitPoints] = useState<string[]>([]);
+    const [frictionPoints, setFrictionPoints] = useState<string[]>([]);
+    const [summaryLoading, setSummaryLoading] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+
+        async function load() {
+            setLoading(true);
+            try {
+                const { data: pData, error: pErr } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', profileId)
+                    .single();
+                if (pErr) throw pErr;
+
+                const { data: locData } = await supabase
+                    .from('profile_locations')
+                    .select('latitude, longitude')
+                    .eq('profile_id', profileId)
+                    .maybeSingle();
+                
+                const vProfile = await fetchCurrentProfile();
+                
+                let distance_km: number | null = null;
+                if (locData && vProfile) {
+                    const { data: vLoc } = await supabase
+                        .from('profile_locations')
+                        .select('latitude, longitude')
+                        .eq('profile_id', vProfile.id)
+                        .maybeSingle();
+                    if (vLoc) {
+                        distance_km = calculateHaversineDistance(
+                            vLoc.latitude,
+                            vLoc.longitude,
+                            locData.latitude,
+                            locData.longitude
+                        );
+                    }
+                }
+
+                if (active) {
+                    setViewerProfile(vProfile);
+                    setCandidate({
+                        id: pData.id,
+                        full_name: pData.full_name,
+                        gender: pData.gender,
+                        dob: pData.dob,
+                        location: pData.location,
+                        bio: pData.bio,
+                        preferences: pData.preferences,
+                        photo_urls: pData.photo_urls || [],
+                        height_cm: pData.height_cm,
+                        profile_owner: pData.profile_owner,
+                        partner_gender_preference: pData.partner_gender_preference,
+                        similarity: 0.8,
+                        distance_km,
+                        verification_status: pData.verification_status,
+                    });
+                }
+
+                setSummaryLoading(true);
+                const summary = await fetchCompatibilitySnapshot(profileId);
+                if (active) {
+                    setCompatibilitySummary(summary?.summary || null);
+                    setFitPoints(summary?.fitPoints || []);
+                    setFrictionPoints(summary?.frictionPoints || []);
+                }
+            } catch (err) {
+                console.warn('Failed to load profile details for review:', err);
+                Alert.alert('Profile unavailable', 'This profile could not be loaded.');
+                onClose();
+            } finally {
+                if (active) {
+                    setLoading(false);
+                    setSummaryLoading(false);
+                }
+            }
+        }
+        void load();
+
+        return () => {
+            active = false;
+        };
+    }, [profileId]);
+
+    if (loading || !candidate) {
+        return (
+            <View style={{ flex: 1, backgroundColor: '#eff6f8', justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#11313c" />
+            </View>
+        );
+    }
+
+    return (
+        <MatchProfileScreen
+            candidate={candidate}
+            viewerProfile={viewerProfile}
+            compatibilitySummary={compatibilitySummary}
+            fitPoints={fitPoints}
+            frictionPoints={frictionPoints}
+            summaryLoading={summaryLoading}
+            onClose={onClose}
+            onPass={onClose}
+            onConnect={onClose}
+            onOpenChat={onOpenChat}
+        />
+    );
+}
+

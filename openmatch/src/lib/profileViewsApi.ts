@@ -44,11 +44,27 @@ export async function fetchProfileViewers(): Promise<ProfileViewer[]> {
 
     const viewerIds = rows.map((r) => r.viewer_id);
 
+    // Filter out blocked users
+    const { data: blockRows } = await supabase
+        .from('user_blocks')
+        .select('blocker_id, blocked_id')
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+
+    const blockedUserIds = new Set<string>();
+    if (blockRows) {
+        for (const block of blockRows) {
+            blockedUserIds.add(block.blocker_id === user.id ? block.blocked_id : block.blocker_id);
+        }
+    }
+
+    const filteredViewerIds = viewerIds.filter((id) => !blockedUserIds.has(id));
+    if (filteredViewerIds.length === 0) return [];
+
     // Join profile data
     const { data: profiles, error: profilesErr } = await supabase
         .from('profiles')
         .select('id, full_name, photo_urls, location, bio, dob')
-        .in('id', viewerIds);
+        .in('id', filteredViewerIds);
 
     if (profilesErr) throw profilesErr;
 

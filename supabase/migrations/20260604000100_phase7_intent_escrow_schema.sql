@@ -9,7 +9,6 @@ begin
   end if;
 end
 $$;
-
 create table if not exists public.interest_requests (
   id uuid default gen_random_uuid() primary key,
   match_id uuid references public.matches(id) on delete cascade not null,
@@ -31,21 +30,16 @@ create table if not exists public.interest_requests (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   constraint interest_requests_sender_receiver_check check (sender_id <> receiver_id)
 );
-
 create unique index if not exists interest_requests_match_sender_receiver_active_idx
   on public.interest_requests (match_id, sender_id, receiver_id)
   where status in ('sent', 'accepted');
-
 create index if not exists interest_requests_receiver_status_created_idx
   on public.interest_requests (receiver_id, status, created_at desc);
-
 create index if not exists interest_requests_sender_status_created_idx
   on public.interest_requests (sender_id, status, created_at desc);
-
 create index if not exists interest_requests_due_at_idx
   on public.interest_requests (first_reply_due_at)
   where status = 'accepted' and first_reply_at is null;
-
 create table if not exists public.interest_request_events (
   id uuid default gen_random_uuid() primary key,
   request_id uuid references public.interest_requests(id) on delete cascade not null,
@@ -54,10 +48,8 @@ create table if not exists public.interest_request_events (
   payload jsonb default '{}'::jsonb not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
-
 create index if not exists interest_request_events_request_created_idx
   on public.interest_request_events (request_id, created_at desc);
-
 create table if not exists public.profile_reliability_scores (
   profile_id uuid primary key references public.profiles(id) on delete cascade,
   response_reliability_score integer default 100 not null,
@@ -69,7 +61,6 @@ create table if not exists public.profile_reliability_scores (
   median_first_reply_minutes integer,
   recalculated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
-
 create table if not exists public.ai_followup_jobs (
   id uuid default gen_random_uuid() primary key,
   request_id uuid references public.interest_requests(id) on delete cascade not null,
@@ -80,10 +71,8 @@ create table if not exists public.ai_followup_jobs (
   executed_at timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
-
 create index if not exists ai_followup_jobs_request_status_idx
   on public.ai_followup_jobs (request_id, status, created_at desc);
-
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
@@ -93,12 +82,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists set_interest_requests_updated_at on public.interest_requests;
 create trigger set_interest_requests_updated_at
 before update on public.interest_requests
 for each row execute function public.touch_updated_at();
-
 alter table public.interest_requests enable row level security;
 alter table public.interest_request_events enable row level security;
 alter table public.profile_reliability_scores enable row level security;

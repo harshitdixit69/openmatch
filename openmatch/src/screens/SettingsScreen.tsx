@@ -1,9 +1,11 @@
 // src/screens/SettingsScreen.tsx
 import React, { useCallback, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     ActivityIndicator,
     Alert,
     Linking,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -16,6 +18,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BackButton } from '../components/BackButton';
 import { supabase } from '../lib/supabase';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { updateUserPresence } from '../lib/chatApi';
+import { pickProfilePhotoFromLibrary } from '../lib/profilePhotoApi';
+import { fetchCurrentProfile, submitVerification } from '../lib/profileApi';
+import { IdentityVerificationScreen } from './IdentityVerificationScreen';
 
 interface Props {
     onBack: () => void;
@@ -194,18 +200,86 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
     const [userEmail, setUserEmail] = useState('');
     const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIF_PREFS);
     const [signingOut, setSigningOut] = useState(false);
+    const [verificationStatus, setVerificationStatus] = useState<'unverified' | 'pending' | 'verified' | 'rejected'>('unverified');
+    const [showVerifyScreen, setShowVerifyScreen] = useState(false);
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
+        let mounted = true;
+
+        async function init() {
+            const { data } = await supabase.auth.getUser();
+            if (!mounted) return;
             if (data.user?.email) setUserEmail(data.user.email);
-        });
+            if (data.user?.id) {
+                try {
+                    const saved = await AsyncStorage.getItem(`openmatch:notifPrefs:${data.user.id}`);
+                    if (saved && mounted) {
+                        setNotifPrefs(JSON.parse(saved));
+                    }
+                } catch (e) {
+                    console.warn('Failed to load notification preferences:', e);
+                }
+            }
+        }
+        void init();
+
+        async function fetchStatus() {
+            try {
+                const profile = await fetchCurrentProfile();
+                if (profile?.verification_status && mounted) {
+                    setVerificationStatus(profile.verification_status);
+                }
+            } catch (err) {
+                console.warn('Failed to load verification status:', err);
+            }
+        }
+        void fetchStatus();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
-    const toggleNotif = useCallback((key: keyof NotificationPrefs) => {
-        setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
-    }, []);
+    const toggleNotif = useCallback(async (key: keyof NotificationPrefs) => {
+        const next = { ...notifPrefs, [key]: !notifPrefs[key] };
+        setNotifPrefs(next);
+        try {
+            const { data } = await supabase.auth.getUser();
+            if (data.user?.id) {
+                await AsyncStorage.setItem(`openmatch:notifPrefs:${data.user.id}`, JSON.stringify(next));
+            }
+        } catch (e) {
+            console.warn('Failed to save notification preferences:', e);
+        }
+    }, [notifPrefs]);
+
+    function handleVerifyIdentity() {
+        setShowVerifyScreen(true);
+    }
 
     const handleSignOut = useCallback(() => {
+        if (Platform.OS === 'web') {
+            const confirm = window.confirm('Are you sure you want to sign out?');
+            if (confirm) {
+                void (async () => {
+                    setSigningOut(true);
+                    try {
+                        try {
+                            await updateUserPresence('offline');
+                        } catch (presenceErr) {
+                            console.warn('Failed to set status to offline before sign out:', presenceErr);
+                        }
+                        await supabase.auth.signOut();
+                        onSignedOut();
+                    } catch (e: any) {
+                        alert(e?.message ?? 'Sign out failed.');
+                        setSigningOut(false);
+                    }
+                })();
+            }
+            return;
+        }
+
         Alert.alert('Sign out', 'Are you sure you want to sign out?', [
             { text: 'Cancel', style: 'cancel' },
             {
@@ -214,6 +288,11 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                 onPress: async () => {
                     setSigningOut(true);
                     try {
+                        try {
+                            await updateUserPresence('offline');
+                        } catch (presenceErr) {
+                            console.warn('Failed to set status to offline before sign out:', presenceErr);
+                        }
                         await supabase.auth.signOut();
                         onSignedOut();
                     } catch (e: any) {
@@ -226,6 +305,16 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
     }, [onSignedOut]);
 
     const handleDeleteAccount = useCallback(() => {
+        if (Platform.OS === 'web') {
+            const confirm = window.confirm(
+                'Delete account\nThis permanently deletes your profile, matches, and all chat history. This cannot be undone. Do you want to continue?'
+            );
+            if (confirm) {
+                void Linking.openURL('mailto:support@openmatch.app?subject=Account%20Deletion%20Request');
+            }
+            return;
+        }
+
         Alert.alert(
             'Delete account',
             'This permanently deletes your profile, matches, and all chat history. This cannot be undone.',
@@ -243,6 +332,18 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
             ],
         );
     }, []);
+
+    if (showVerifyScreen) {
+        return (
+            <IdentityVerificationScreen
+                onBack={() => setShowVerifyScreen(false)}
+                onCompleted={(status) => {
+                    setVerificationStatus(status);
+                    setShowVerifyScreen(false);
+                }}
+            />
+        );
+    }
 
     return (
         <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
@@ -304,6 +405,27 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                         <SettingsRow
                             label="Contact Support"
                             onPress={() => Linking.openURL('mailto:support@openmatch.app')}
+                        />
+                    </SettingsSection>
+
+                    {/* ── Identity Verification ── */}
+                    <SettingsSection title="Identity Verification">
+                        <SettingsRow
+                            label="Verification Status"
+                            subtitle={
+                                verificationStatus === 'verified'
+                                    ? 'Verified ✅'
+                                    : verificationStatus === 'pending'
+                                    ? 'Pending Review ⏳'
+                                    : verificationStatus === 'rejected'
+                                    ? 'Rejected ❌ (Tap to try again)'
+                                    : 'Not Verified (Tap to verify)'
+                            }
+                            onPress={
+                                verificationStatus === 'verified' || verificationStatus === 'pending'
+                                    ? undefined
+                                    : () => void handleVerifyIdentity()
+                            }
                         />
                     </SettingsSection>
 

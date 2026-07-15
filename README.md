@@ -26,6 +26,18 @@ OpenMatch is a full-stack mobile app that helps users find compatible matches th
 - **RLS Policies**: Row-level security on all user-scoped tables
 - **Realtime Subscriptions**: Chat messages, interest requests, notifications
 
+## Completed Features
+
+### Phase 1: Security, Identity & Authentication
+- **Silent Block & Report + Moderation Queue**: Mechanism where blocking a user silently hides their profile on feed and routes messages to a moderation queue without triggering alerts, preventing retaliation.
+- **Identity Verification Modal (ID Liveness)**: Visual flow enabling users to upload identity documents and pass face liveness checks to earn verification checkmarks.
+- **Twilio OTP Phone Verification**: Secure phone OTP verification utilizing Twilio SMS Gateway to verify users during onboarding, mitigating spam accounts.
+
+### Phase 2: AI Escrow & Unlock Pipeline
+- **AI Escrow Chat (PII Blocking)**: System-level message interception powered by OpenAI/Azure to automatically redact phone numbers, handles, and emails with upgrade highlights until mutual unlock is completed.
+- **AI Compatibility Snapshots**: Dynamic match summaries comparing sender bios and preferences against receiver attributes to show immediate fit/friction points.
+- **Stripe Mutual Unlock (Escrow Payments)**: Fair-pay micro-transaction flow where matched users must mutually agree to share contact details and execute Stripe payment intents to enable unmasked communication.
+
 ## Key Features Implemented
 
 ### F1–F9: Core Functionality

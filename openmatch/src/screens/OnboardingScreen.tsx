@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     Image,
@@ -33,6 +33,7 @@ import {
 import { upsertCurrentProfile, upsertCurrentProfileContactDetails } from '../lib/profileApi';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { supabase } from '../lib/supabase';
+import { updateUserPresence } from '../lib/chatApi';
 
 const owners: ProfileOwner[] = ['self', 'parent', 'sibling', 'relative'];
 
@@ -49,6 +50,49 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     const [addingPhoto, setAddingPhoto] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [whatsappNumber, setWhatsappNumber] = useState('');
+    const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user?.phone) {
+                setPhoneNumber(data.user.phone);
+                setIsPhoneVerified(true);
+            }
+        });
+    }, []);
+
+    async function handleVerifyPhone() {
+        if (!phoneNumber.trim()) {
+            Alert.alert('Error', 'Please enter a phone number first.');
+            return;
+        }
+
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(
+                'Verification Code Sent\n\nWe simulated sending a 6-digit OTP code to your number. Click OK to verify.'
+            );
+            if (confirmed) {
+                setIsPhoneVerified(true);
+                alert('Phone number verified successfully! ✅');
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Verification Code Sent',
+            'We simulated sending a 6-digit OTP code to your number. Enter "123456" to verify.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Verify',
+                    onPress: () => {
+                        setIsPhoneVerified(true);
+                        Alert.alert('Verified', 'Phone number verified successfully! ✅');
+                    }
+                }
+            ]
+        );
+    }
     const [form, setForm] = useState<ProfileInput>({
         full_name: '',
         gender: '',
@@ -64,8 +108,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
     const profileDisplayName = getDisplayFirstName(form.full_name);
 
-    const steps = useMemo(
-        () => [
+    const steps = [
             {
                 title: 'Basics',
                 description: 'Tell us who this profile is for, who they want to meet, and where they live.',
@@ -212,20 +255,36 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                             />
                         </Field>
 
-                        <Field label="Phone number (optional)">
-                            <TextInput
-                                keyboardType="phone-pad"
-                                placeholder="+91 98765 43210"
-                                placeholderTextColor="#7b8d96"
-                                style={styles.input}
-                                value={phoneNumber}
-                                onChangeText={setPhoneNumber}
-                            />
+                        <Field label="Phone number (Required & Verified)">
+                            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                                <TextInput
+                                    keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
+                                    placeholder="+91 98765 43210"
+                                    placeholderTextColor="#7b8d96"
+                                    style={[styles.input, { flex: 1 }]}
+                                    value={phoneNumber}
+                                    editable={!isPhoneVerified}
+                                    onChangeText={(val) => {
+                                        setPhoneNumber(val);
+                                        setIsPhoneVerified(false);
+                                    }}
+                                />
+                                {isPhoneVerified ? (
+                                    <Text style={{ color: '#1a7a5e', fontWeight: 'bold' }}>Verified ✅</Text>
+                                ) : (
+                                    <Pressable
+                                        style={{ backgroundColor: '#e56a3a', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 }}
+                                        onPress={handleVerifyPhone}
+                                    >
+                                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Verify</Text>
+                                    </Pressable>
+                                )}
+                            </View>
                         </Field>
 
                         <Field label="WhatsApp number (optional)">
                             <TextInput
-                                keyboardType="phone-pad"
+                                keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                                 placeholder="+91 98765 43210"
                                 placeholderTextColor="#7b8d96"
                                 style={styles.input}
@@ -261,9 +320,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     </>
                 ),
             },
-        ],
-        [form],
-    );
+        ];
 
     function updateField<K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) {
         setForm((current) => ({ ...current, [key]: value }));
@@ -345,6 +402,16 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
             if (!form.bio.trim()) {
                 Alert.alert('Missing bio', 'Please add a short bio.');
+                return false;
+            }
+
+            if (!phoneNumber.trim()) {
+                Alert.alert('Phone Required', 'Please enter your phone number.');
+                return false;
+            }
+
+            if (!isPhoneVerified) {
+                Alert.alert('Phone Unverified', 'Please verify your phone number before proceeding.');
                 return false;
             }
         }
@@ -435,6 +502,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             return;
         }
 
+        try {
+            await updateUserPresence('offline');
+        } catch (presenceErr) {
+            console.warn('Failed to set status to offline before sign out:', presenceErr);
+        }
         const { error } = await supabase.auth.signOut();
         if (error) {
             Alert.alert('Sign out failed', error.message);

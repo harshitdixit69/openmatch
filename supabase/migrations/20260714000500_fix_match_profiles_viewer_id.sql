@@ -4,7 +4,6 @@
 -- auth.uid() returns null due to JWT context issues in security-definer functions.
 
 drop function if exists public.match_profiles(integer, integer, integer, integer, integer, text, text[], text, text, text, text, text);
-
 create or replace function public.match_profiles(
   result_limit              integer  default 20,
   p_viewer_id               uuid     default null,
@@ -115,7 +114,6 @@ as $$
   order by similarity desc, c.created_at desc
   limit result_limit;
 $$;
-
 grant execute on function public.match_profiles(
   integer, uuid, integer, integer, integer, integer,
   text, text[], text, text, text, text, text

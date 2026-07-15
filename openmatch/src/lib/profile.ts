@@ -31,6 +31,8 @@ export type ProfileRecord = {
     num_siblings: number | null;
     drinks_alcohol: boolean | null;
     smokes: boolean | null;
+    is_admin?: boolean;
+    verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
 };
 
 export type ProfileContactDetails = {
@@ -76,6 +78,27 @@ export type OnboardingCopilotResult = {
     preferences: string;
     summary: string;
     missingTopics: string[];
+};
+
+export type ProfileVariantTone = 'witty' | 'sincere' | 'balanced';
+
+export type ProfileVariantResult = {
+    bio: string;
+    preferences: string;
+    summary: string;
+    tone: ProfileVariantTone;
+};
+
+export type ProfileRevision = {
+    id: string;
+    profile_id: string;
+    tone: string;
+    bio: string;
+    preferences: string;
+    source: 'ai' | 'manual';
+    refinement: string | null;
+    revision_number: number;
+    created_at: string;
 };
 
 function normalizeGenderToken(value: string | null | undefined) {

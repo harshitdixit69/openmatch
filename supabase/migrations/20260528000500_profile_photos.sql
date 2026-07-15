@@ -1,6 +1,5 @@
 alter table public.profiles
 add column if not exists photo_urls text[] not null default '{}'::text[];
-
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
     'profile-photos',
@@ -13,18 +12,15 @@ on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
-
 drop policy if exists "Profile photos are public" on storage.objects;
 create policy "Profile photos are public" on storage.objects
     for select using (bucket_id = 'profile-photos');
-
 drop policy if exists "Users can upload their profile photos" on storage.objects;
 create policy "Users can upload their profile photos" on storage.objects
     for insert to authenticated with check (
         bucket_id = 'profile-photos'
         and (storage.foldername(name))[1] = auth.uid()::text
     );
-
 drop policy if exists "Users can update their profile photos" on storage.objects;
 create policy "Users can update their profile photos" on storage.objects
     for update to authenticated
@@ -36,16 +32,13 @@ create policy "Users can update their profile photos" on storage.objects
         bucket_id = 'profile-photos'
         and (storage.foldername(name))[1] = auth.uid()::text
     );
-
 drop policy if exists "Users can delete their profile photos" on storage.objects;
 create policy "Users can delete their profile photos" on storage.objects
     for delete to authenticated using (
         bucket_id = 'profile-photos'
         and (storage.foldername(name))[1] = auth.uid()::text
     );
-
 drop function if exists public.match_profiles(integer);
-
 create function public.match_profiles(result_limit integer default 20)
 returns table (
     id uuid,
@@ -109,5 +102,4 @@ as $$
     order by candidate.embedding <=> viewer.embedding
     limit greatest(coalesce(result_limit, 20), 1)
 $$;
-
 grant execute on function public.match_profiles(integer) to authenticated;

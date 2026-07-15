@@ -50,6 +50,13 @@ import {
     triggerIntentCallback,
     unsubscribeFromChannel,
     updateMatchUnlock,
+    clearTypingIndicator,
+    getMatchPresence,
+    setTypingIndicator,
+    subscribeToTypingIndicators,
+    subscribeToUserPresence,
+    blockUser,
+    reportUser,
 } from '../lib/chatApi';
 import { fetchCurrentProfile } from '../lib/profileApi';
 import {
@@ -68,11 +75,14 @@ import {
     shouldShowPremiumPopup,
 } from '../lib/premiumPopup';
 import { PremiumPromoModal } from '../components/PremiumPromoModal';
+import { PostAcceptanceCountdownBanner } from '../components/PostAcceptanceCountdownBanner';
 
 type ChatScreenProps = {
     onClose: () => void;
     initialMatchListFilter?: ChatListFilter;
     initialVisibilityFilter?: MessageVisibilityFilter;
+    isChatScreen?: boolean;
+    onViewProfile?: (profileId: string) => void;
 };
 
 type RecoverySuggestionAction = 'request_unlock' | 'accept_unlock' | 'pay_unlock' | 'call' | 'whatsapp';
@@ -84,10 +94,30 @@ type RecoverySuggestion = {
     actionLabel: string | null;
 };
 
+function getPresenceStatusText(presence: { status: string; last_seen_at: string; is_online: boolean } | null) {
+    if (!presence) return 'Offline';
+    if (presence.is_online) return 'Online';
+    
+    const lastSeen = new Date(presence.last_seen_at).getTime();
+    if (!lastSeen || isNaN(lastSeen)) return 'Offline';
+
+    const diffMs = Date.now() - lastSeen;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `Active ${diffMins}m ago`;
+    if (diffHours < 24) return `Active ${diffHours}h ago`;
+    return `Active ${diffDays}d ago`;
+}
+
 export function ChatScreen({
     onClose,
     initialMatchListFilter = 'accepted',
     initialVisibilityFilter = 'all',
+    isChatScreen = false,
+    onViewProfile,
 }: ChatScreenProps) {
     const { width: windowWidth } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
@@ -125,6 +155,9 @@ export function ChatScreen({
     const [trustDrawerMatch, setTrustDrawerMatch] = useState<Pick<ChatMatch, 'otherUserId' | 'otherUserName' | 'otherUserProfileOwner' | 'interestRequest'> | null>(null);
     const [trustLoadingProfileId, setTrustLoadingProfileId] = useState<string | null>(null);
     const [premiumPopup, setPremiumPopup] = useState<PremiumPromoVariant | null>(null);
+    const [otherUserTyping, setOtherUserTyping] = useState(false);
+    const [otherUserPresence, setOtherUserPresence] = useState<{ user_id: string; status: string; last_seen_at: string; is_online: boolean } | null>(null);
+    const lastSentTypingAt = useRef<number>(0);
 
     // Guards against overlapping / duplicate loadMatches runs (mount effect,
     // three realtime subscriptions and action handlers can all trigger it).
@@ -201,12 +234,27 @@ export function ChatScreen({
 
     useEffect(() => {
         if (!activeMatch) {
+            setOtherUserTyping(false);
+            setOtherUserPresence(null);
             return;
         }
 
         void loadMessages(activeMatch.id);
 
         let isMounted = true;
+
+        async function fetchInitialPresence() {
+            try {
+                const presence = await getMatchPresence(activeMatch!.id);
+                if (isMounted) {
+                    setOtherUserPresence(presence);
+                }
+            } catch (err) {
+                console.warn('Failed to load initial match presence:', err);
+            }
+        }
+        void fetchInitialPresence();
+
         const channel = subscribeToMatchMessages(activeMatch.id, (message) => {
             if (!isMounted) {
                 return;
@@ -219,11 +267,56 @@ export function ChatScreen({
             }
         });
 
+        const otherUserId = activeMatch.otherUserId;
+
+        const typingChannel = subscribeToTypingIndicators(activeMatch.id, (payload) => {
+            if (!isMounted) return;
+            const { event, row } = payload;
+            if (row && row.user_id === otherUserId) {
+                if (event === 'DELETE') {
+                    setOtherUserTyping(false);
+                } else {
+                    const expiresAt = new Date(row.expires_at).getTime();
+                    if (expiresAt > Date.now()) {
+                        setOtherUserTyping(true);
+                    } else {
+                        setOtherUserTyping(false);
+                    }
+                }
+            }
+        });
+
+        let presenceChannel: any = null;
+        if (otherUserId) {
+            presenceChannel = subscribeToUserPresence(otherUserId, (newPresence) => {
+                if (!isMounted) return;
+                setOtherUserPresence({
+                    user_id: newPresence.user_id,
+                    status: newPresence.status,
+                    last_seen_at: newPresence.last_seen_at,
+                    is_online: newPresence.status === 'online' && (new Date(newPresence.last_seen_at).getTime() > Date.now() - 2 * 60 * 1000)
+                });
+            });
+        }
+
         return () => {
             isMounted = false;
             void unsubscribeFromChannel(channel as RealtimeChannel);
+            if (typingChannel) void unsubscribeFromChannel(typingChannel as RealtimeChannel);
+            if (presenceChannel) void unsubscribeFromChannel(presenceChannel as RealtimeChannel);
+            setOtherUserTyping(false);
+            setOtherUserPresence(null);
+            lastSentTypingAt.current = 0;
         };
     }, [activeMatch?.id, currentUserId]);
+
+    useEffect(() => {
+        if (!otherUserTyping) return;
+        const timer = setTimeout(() => {
+            setOtherUserTyping(false);
+        }, 6000);
+        return () => clearTimeout(timer);
+    }, [otherUserTyping]);
 
     useEffect(() => {
         const requestId = activeMatch?.interestRequest?.id;
@@ -472,6 +565,168 @@ export function ChatScreen({
         }
     }
 
+    function handleMoreOptions() {
+        if (!activeMatch) return;
+        
+        if (Platform.OS === 'web') {
+            const action = window.prompt(
+                `Choose an option for ${activeMatch.otherUserName}:\nType "block" to block, or "report" to report.`
+            );
+            if (action === null) return;
+            const normalizedAction = action.trim().toLowerCase();
+            if (normalizedAction === 'block') {
+                confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
+            } else if (normalizedAction === 'report') {
+                promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
+            } else if (normalizedAction) {
+                alert('Invalid choice. Please type "block" or "report".');
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Options',
+            `Choose an action for ${activeMatch.otherUserName}`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Report User',
+                    style: 'destructive',
+                    onPress: () => promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName),
+                },
+                {
+                    text: 'Block User',
+                    style: 'destructive',
+                    onPress: () => confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName),
+                },
+            ]
+        );
+    }
+
+    function promptReportUser(reportedId: string, reportedName: string) {
+        if (Platform.OS === 'web') {
+            const reason = window.prompt(
+                `Report ${reportedName}:\nType a reason (e.g. "Inappropriate Messages", "Fake Profile / Scam", "Harassment", "Other"):`
+            );
+            if (reason) {
+                submitUserReport(reportedId, reason.trim());
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Report User',
+            `Why are you reporting ${reportedName}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Inappropriate Messages',
+                    onPress: () => submitUserReport(reportedId, 'Inappropriate Messages'),
+                },
+                {
+                    text: 'Fake Profile / Scam',
+                    onPress: () => submitUserReport(reportedId, 'Fake Profile / Scam'),
+                },
+                {
+                    text: 'Harassment',
+                    onPress: () => submitUserReport(reportedId, 'Harassment'),
+                },
+                {
+                    text: 'Other',
+                    onPress: () => submitUserReport(reportedId, 'Other (General)'),
+                }
+            ]
+        );
+    }
+
+    async function submitUserReport(reportedId: string, reason: string) {
+        try {
+            await reportUser(reportedId, reason, `Reported via chat screen.`);
+            if (Platform.OS === 'web') {
+                alert('Report Submitted. Thank you.');
+            } else {
+                Alert.alert('Report Submitted', 'Thank you. The moderation team has been notified.');
+            }
+        } catch (err) {
+            console.error('Failed to submit report:', err);
+            if (Platform.OS === 'web') {
+                alert('Could not submit report.');
+            } else {
+                Alert.alert('Error', 'Could not submit report.');
+            }
+        }
+    }
+
+    function confirmBlockUser(blockedId: string, blockedName: string) {
+        if (Platform.OS === 'web') {
+            const confirm = window.confirm(`Are you sure you want to block ${blockedName}? You will not see each other or be able to chat again.`);
+            if (confirm) {
+                void executeBlockUser(blockedId, blockedName);
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Block User',
+            `Are you sure you want to block ${blockedName}? You will not see each other or be able to chat again.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Block',
+                    style: 'destructive',
+                    onPress: () => void executeBlockUser(blockedId, blockedName),
+                }
+            ]
+        );
+    }
+
+    async function executeBlockUser(blockedId: string, blockedName: string) {
+        try {
+            await blockUser(blockedId);
+            if (Platform.OS === 'web') {
+                alert(`${blockedName} has been blocked.`);
+            } else {
+                Alert.alert('User Blocked', `${blockedName} has been blocked.`);
+            }
+            setActiveMatch(null);
+            setNotice(null);
+            void loadMatches(false);
+        } catch (err) {
+            console.error('Failed to block user:', err);
+            if (Platform.OS === 'web') {
+                alert('Could not block user.');
+            } else {
+                Alert.alert('Error', 'Could not block user.');
+            }
+        }
+    }
+
+    async function handleDraftChange(text: string) {
+        setDraft(text);
+
+        if (!activeMatch) return;
+
+        const trimmed = text.trim();
+        if (!trimmed) {
+            try {
+                await clearTypingIndicator(activeMatch.id);
+            } catch (err) {
+                // silent
+            }
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastSentTypingAt.current > 3000) {
+            lastSentTypingAt.current = now;
+            try {
+                await setTypingIndicator(activeMatch.id);
+            } catch (err) {
+                // silent
+            }
+        }
+    }
+
     async function handleSend() {
         if (!activeMatch || sending || !draft.trim()) {
             return;
@@ -481,11 +736,28 @@ export function ChatScreen({
         setNotice(null);
 
         try {
+            try {
+                void clearTypingIndicator(activeMatch.id);
+            } catch (err) {
+                // silent
+            }
             const result = await sendEscrowMessage(activeMatch.id, draft);
             setDraft('');
             setMessages((current) => mergeMessages(current, [result.message]));
             setContactShareBlocked(result.blocked && !result.unlocked);
             setNotice(result.blocked ? null : result.notice);
+
+            if (result.blocked && !result.unlocked) {
+                if (Platform.OS === 'web') {
+                    alert('Sharing Blocked: Direct contact details are hidden until mutual unlock. Upgrade to share contact info.');
+                } else {
+                    Alert.alert(
+                        'Sharing Blocked',
+                        'Direct contact details are hidden until mutual unlock. Upgrade to share contact info.',
+                        [{ text: 'OK' }]
+                    );
+                }
+            }
 
             if (
                 activeMatch.interestRequest?.status === 'accepted' &&
@@ -990,34 +1262,90 @@ export function ChatScreen({
                             }}
                         />
 
-                        <View style={styles.headerCopy}>
-                            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                                {activeMatch ? activeMatch.otherUserName : currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
-                            </Text>
-                        </View>
+                        <Pressable
+                            style={styles.headerProfileContainer}
+                            onPress={() => {
+                                if (activeMatch) {
+                                    onViewProfile?.(activeMatch.otherUserId);
+                                }
+                            }}
+                            disabled={!activeMatch}
+                        >
+                            {activeMatch ? (
+                                <>
+                                    {activeMatch.otherUserPhotoUrls?.[0] ? (
+                                        <Image source={{ uri: activeMatch.otherUserPhotoUrls[0] }} style={styles.headerAvatar} />
+                                    ) : (
+                                        <View style={styles.headerAvatarPlaceholder}>
+                                            <Text style={styles.headerAvatarInitial}>
+                                                {activeMatch.otherUserName.slice(0, 1).toUpperCase()}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.headerCopy}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                                {activeMatch.otherUserName}
+                                            </Text>
+                                            {activeMatch.otherUserVerificationStatus === 'verified' ? (
+                                                <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
+                                            ) : null}
+                                        </View>
+                                        <Text
+                                            style={[
+                                                styles.headerSubtitle,
+                                                otherUserTyping ? styles.headerSubtitleTyping : null,
+                                            ]}
+                                            numberOfLines={1}
+                                        >
+                                            {otherUserTyping ? 'typing...' : getPresenceStatusText(otherUserPresence)}
+                                        </Text>
+                                    </View>
+                                </>
+                            ) : (
+                                <View style={styles.headerCopy}>
+                                    <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                        {currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
+                                    </Text>
+                                </View>
+                            )}
+                        </Pressable>
 
                         {activeMatch ? (
-                            <Pressable
-                                style={({ pressed }) => [
-                                    styles.copilotHeaderButton,
-                                    pressed && styles.headerButtonPressed,
-                                ]}
-                                onPress={() => {
-                                    if (promptSuggestions.length > 0 || chemistry) {
-                                        setPromptSuggestions([]);
-                                        setChemistry(null);
-                                    } else {
-                                        void handleLoadPromptSuggestions();
-                                    }
-                                }}
-                                disabled={promptsLoading}
-                                accessibilityRole="button"
-                                accessibilityLabel="AI chat copilot"
-                            >
-                                <Text style={styles.copilotHeaderButtonText}>
-                                    {promptsLoading ? '✨…' : '✨ Help'}
-                                </Text>
-                            </Pressable>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.copilotHeaderButton,
+                                        pressed && styles.headerButtonPressed,
+                                    ]}
+                                    onPress={() => {
+                                        if (promptSuggestions.length > 0 || chemistry) {
+                                            setPromptSuggestions([]);
+                                            setChemistry(null);
+                                        } else {
+                                            void handleLoadPromptSuggestions();
+                                        }
+                                    }}
+                                    disabled={promptsLoading}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="AI chat copilot"
+                                >
+                                    <Text style={styles.copilotHeaderButtonText}>
+                                        {promptsLoading ? '✨…' : '✨ Help'}
+                                    </Text>
+                                </Pressable>
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.moreHeaderButton,
+                                        pressed && styles.headerButtonPressed,
+                                    ]}
+                                    onPress={() => handleMoreOptions()}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="More options"
+                                >
+                                    <Text style={styles.moreHeaderButtonText}>⋮</Text>
+                                </Pressable>
+                            </View>
                         ) : null}
 
                         {activeMatch?.isUnlocked ? (
@@ -1091,21 +1419,23 @@ export function ChatScreen({
                                         autoCorrect={false}
                                     />
 
-                                    <FlatList
-                                        data={chatListFilters}
-                                        horizontal
-                                        keyExtractor={(item) => item.value}
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={styles.matchFilterList}
-                                        renderItem={({ item }) => (
-                                            <MatchFilterChip
-                                                label={item.label}
-                                                count={inboxTabCounts[item.value]}
-                                                active={matchListFilter === item.value}
-                                                onPress={() => setMatchListFilter(item.value)}
-                                            />
-                                        )}
-                                    />
+                                    {!isChatScreen && (
+                                        <FlatList
+                                            data={chatListFilters}
+                                            horizontal
+                                            keyExtractor={(item) => item.value}
+                                            showsHorizontalScrollIndicator={false}
+                                            contentContainerStyle={styles.matchFilterList}
+                                            renderItem={({ item }) => (
+                                                <MatchFilterChip
+                                                    label={item.label}
+                                                    count={inboxTabCounts[item.value]}
+                                                    active={matchListFilter === item.value}
+                                                    onPress={() => setMatchListFilter(item.value)}
+                                                />
+                                            )}
+                                        />
+                                    )}
 
                                     <ScrollView
                                         horizontal
@@ -1125,12 +1455,14 @@ export function ChatScreen({
                                             active={messageVisibilityFilter === 'unread'}
                                             onPress={() => setMessageVisibilityFilter('unread')}
                                         />
-                                        <MatchFilterChip
-                                            label="Needs reply"
-                                            count={needsReplyCount}
-                                            active={messageVisibilityFilter === 'needs_reply'}
-                                            onPress={() => setMessageVisibilityFilter('needs_reply')}
-                                        />
+                                        {!isChatScreen && (
+                                            <MatchFilterChip
+                                                label="Needs reply"
+                                                count={needsReplyCount}
+                                                active={messageVisibilityFilter === 'needs_reply'}
+                                                onPress={() => setMessageVisibilityFilter('needs_reply')}
+                                            />
+                                        )}
                                     </ScrollView>
                                 </View>
 
@@ -1160,198 +1492,60 @@ export function ChatScreen({
                                         windowSize={7}
                                         removeClippedSubviews
                                         renderItem={({ item }) => {
-                                            const premiumHighlight = getPremiumInboxHighlight(item);
-
-                                            return (
-                                                <View style={[styles.matchCard, premiumHighlight ? styles.matchCardPremium : null]}>
-                                                    <Pressable
-                                                        style={styles.matchCardPressableContent}
+                                            if (isChatScreen) {
+                                                return (
+                                                    <ChatListItemCard
+                                                        item={item}
                                                         onPress={() => {
-                                                            if (premiumHighlight) {
-                                                                void trackPremiumEvent({
-                                                                    eventName: 'premium_highlight_card_open',
-                                                                    surface: 'chat_inbox',
-                                                                    context: 'match_card',
-                                                                    metadata: {
-                                                                        matchId: item.id,
-                                                                        otherUserId: item.otherUserId,
-                                                                        reason: premiumHighlight,
-                                                                    },
-                                                                });
-                                                            }
                                                             setNotice(null);
                                                             setActiveMatch(item);
                                                         }}
-                                                    >
-                                                        {premiumHighlight ? (
-                                                            <View style={styles.matchPremiumTag}>
-                                                                <Text style={styles.matchPremiumTagText}>Premium highlight</Text>
-                                                                <Text style={styles.matchPremiumReasonText}>{premiumHighlight}</Text>
-                                                            </View>
-                                                        ) : null}
+                                                    />
+                                                );
+                                            }
 
-                                                        <View style={styles.matchCardTopRow}>
-                                                            {item.otherUserPhotoUrls[0] ? (
-                                                                <Image source={{ uri: item.otherUserPhotoUrls[0] }} style={styles.matchAvatar} />
-                                                            ) : (
-                                                                <View style={styles.matchAvatarPlaceholder}>
-                                                                    <Text style={styles.matchAvatarInitial}>
-                                                                        {getDisplayFirstName(item.otherUserName).slice(0, 1).toUpperCase() || '?'}
-                                                                    </Text>
-                                                                </View>
-                                                            )}
+                                            const handleCardPress = () => {
+                                                const premiumHighlight = getPremiumInboxHighlight(item);
+                                                if (premiumHighlight) {
+                                                    void trackPremiumEvent({
+                                                        eventName: 'premium_highlight_card_open',
+                                                        surface: 'chat_inbox',
+                                                        context: 'match_card',
+                                                        metadata: {
+                                                            matchId: item.id,
+                                                            otherUserId: item.otherUserId,
+                                                            reason: premiumHighlight,
+                                                        },
+                                                    });
+                                                }
 
-                                                            <View style={styles.matchCardContent}>
-                                                                <View style={styles.matchCardHeader}>
-                                                                    <Text style={styles.matchName}>{item.otherUserName}</Text>
-                                                                    <View style={styles.matchCardHeaderBadges}>
-                                                                        {item.unreadCount > 0 ? (
-                                                                            <Text style={styles.matchUnreadPill}>
-                                                                                {item.unreadCount > 99 ? '99+' : item.unreadCount}
-                                                                            </Text>
-                                                                        ) : null}
-                                                                        <Text style={styles.matchStatusPill}>{getMatchStatusLabel(item)}</Text>
-                                                                    </View>
-                                                                </View>
+                                                if (matchListFilter === 'received' || matchListFilter === 'sent' || (matchListFilter === 'accepted' && initialMatchListFilter === 'received')) {
+                                                    onViewProfile?.(item.otherUserId);
+                                                } else {
+                                                    setNotice(null);
+                                                    setActiveMatch(item);
+                                                }
+                                            };
 
-                                                                <View style={styles.matchTagRow}>
-                                                                    <View style={styles.matchTagPill}>
-                                                                        <Text style={styles.matchTagText}>{item.otherUserLocation}</Text>
-                                                                    </View>
-
-                                                                    <View style={styles.matchTagPillMuted}>
-                                                                        <Text style={styles.matchTagTextMuted}>
-                                                                            {item.otherUserProfileOwner ? `Managed by ${item.otherUserProfileOwner}` : 'Self profile'}
-                                                                        </Text>
-                                                                    </View>
-                                                                </View>
-                                                            </View>
-                                                        </View>
-
-                                                        <View style={styles.matchStateRow}>
-                                                            {getInboxStateChips(item).map((chip) => (
-                                                                <StateChip key={`${item.id}-${chip.label}`} label={chip.label} tone={chip.tone} />
-                                                            ))}
-                                                        </View>
-
-                                                        <Text style={styles.matchPreviewStatus}>{getMatchInboxPreview(item)}</Text>
-
-                                                        {shouldShowInboxBrokerCard(item) ? (
-                                                            <View style={styles.brokerInfoCard}>
-                                                                <Text style={styles.brokerInfoText}>{getInboxBrokerPreview(item)}</Text>
-
-                                                                {item.interestRequest &&
-                                                                item.interestRequest.senderId !== currentUserId &&
-                                                                (item.brokerSummary?.currentUserConsent ?? 'unknown') !== 'granted' ? (
-                                                                    <Pressable
-                                                                        style={[
-                                                                            styles.brokerConsentInlineButton,
-                                                                            brokerConsentPendingRequestId === item.interestRequest.id
-                                                                                ? styles.sendButtonDisabled
-                                                                                : null,
-                                                                        ]}
-                                                                        onPress={() => void handleBrokerConsent(item, true)}
-                                                                        disabled={brokerConsentPendingRequestId === item.interestRequest.id}
-                                                                    >
-                                                                        <Text style={styles.brokerConsentInlineButtonText}>
-                                                                            {brokerConsentPendingRequestId === item.interestRequest.id
-                                                                                ? 'Saving...'
-                                                                                : 'Allow intro call'}
-                                                                        </Text>
-                                                                    </Pressable>
-                                                                ) : null}
-
-                                                                <FollowupJobStatusBlock match={item} />
-                                                            </View>
-                                                        ) : null}
-
-                                                        <Text numberOfLines={2} style={styles.matchPreview}>
-                                                            {item.otherUserBio ?? item.otherUserPreferences ?? 'No profile summary yet.'}
-                                                        </Text>
-                                                    </Pressable>
-
-                                                    {item.matchRequestState === 'received' ? (
-                                                        <View style={styles.matchCardActionsRow}>
-                                                            <Pressable
-                                                                style={[
-                                                                    styles.matchCardPrimaryAction,
-                                                                    matchRequestPending && matchRequestActionMatchId === item.id
-                                                                        ? styles.sendButtonDisabled
-                                                                        : null,
-                                                                ]}
-                                                                onPress={() => void handleRequestAction(item, 'accept')}
-                                                                disabled={matchRequestPending}
-                                                            >
-                                                                <Text style={styles.matchCardPrimaryActionText}>
-                                                                    {matchRequestPending && matchRequestAction === 'accept' && matchRequestActionMatchId === item.id
-                                                                        ? 'Accepting...'
-                                                                        : 'Accept'}
-                                                                </Text>
-                                                            </Pressable>
-
-                                                            <Pressable
-                                                                style={[
-                                                                    styles.matchCardSecondaryAction,
-                                                                    matchRequestPending && matchRequestActionMatchId === item.id
-                                                                        ? styles.sendButtonDisabled
-                                                                        : null,
-                                                                ]}
-                                                                onPress={() => void handleRequestAction(item, 'decline')}
-                                                                disabled={matchRequestPending}
-                                                            >
-                                                                <Text style={styles.matchCardSecondaryActionText}>
-                                                                    {matchRequestPending && matchRequestAction === 'decline' && matchRequestActionMatchId === item.id
-                                                                        ? 'Declining...'
-                                                                        : 'Decline'}
-                                                                </Text>
-                                                            </Pressable>
-                                                        </View>
-                                                    ) : shouldShowAcceptedCardQuickActions(item) ? (
-                                                        <View style={styles.matchCardActionsRow}>
-                                                            <Pressable
-                                                                style={styles.matchCardPrimaryAction}
-                                                                onPress={() => {
-                                                                    setNotice(null);
-                                                                    setActiveMatch(item);
-                                                                }}
-                                                            >
-                                                                <Text style={styles.matchCardPrimaryActionText}>Open chat</Text>
-                                                            </Pressable>
-
-                                                            {item.isUnlocked && item.otherUserWhatsappNumber ? (
-                                                                <Pressable
-                                                                    style={styles.matchCardSecondaryAction}
-                                                                    onPress={() => void handleMatchCardContactAction(item, 'whatsapp')}
-                                                                >
-                                                                    <WhatsAppLogo size={14} color="#25d366" />
-                                                                    <Text style={styles.matchCardSecondaryActionText}>WhatsApp</Text>
-                                                                </Pressable>
-                                                            ) : null}
-
-                                                            {item.isUnlocked && item.otherUserPhoneNumber ? (
-                                                                <Pressable
-                                                                    style={styles.matchCardSecondaryAction}
-                                                                    onPress={() => void handleMatchCardContactAction(item, 'call')}
-                                                                >
-                                                                    <PhoneIcon size={14} color="#35525b" />
-                                                                    <Text style={styles.matchCardSecondaryActionText}>Call</Text>
-                                                                </Pressable>
-                                                            ) : null}
-
-                                                            {!item.isUnlocked ? (
-                                                                <Pressable
-                                                                    style={styles.matchCardSecondaryAction}
-                                                                    onPress={() => {
-                                                                        setNotice(null);
-                                                                        setActiveMatch(item);
-                                                                    }}
-                                                                >
-                                                                    <Text style={styles.matchCardSecondaryActionText}>Unlock contacts</Text>
-                                                                </Pressable>
-                                                            ) : null}
-                                                        </View>
-                                                    ) : null}
-                                                </View>
+                                            return (
+                                                <ProfileListItemCard
+                                                    item={item}
+                                                    onPress={handleCardPress}
+                                                    currentUserId={currentUserId}
+                                                    matchRequestPending={matchRequestPending}
+                                                    matchRequestAction={matchRequestAction}
+                                                    matchRequestActionMatchId={matchRequestActionMatchId}
+                                                    brokerConsentPendingRequestId={brokerConsentPendingRequestId}
+                                                    onAcceptRequest={(m) => void handleRequestAction(m, 'accept')}
+                                                    onDeclineRequest={(m) => void handleRequestAction(m, 'decline')}
+                                                    onBrokerConsent={(m, consent) => void handleBrokerConsent(m, consent)}
+                                                    onContactAction={(m, act) => void handleMatchCardContactAction(m, act)}
+                                                    onOpenChat={(m) => {
+                                                        setNotice(null);
+                                                        setActiveMatch(m);
+                                                    }}
+                                                    onViewProfile={onViewProfile}
+                                                />
                                             );
                                         }}
                                     />
@@ -1512,23 +1706,54 @@ export function ChatScreen({
 
                         {activeMatch.interestRequest &&
                             activeMatch.interestRequest.senderId === currentUserId &&
-                            messages.filter((m) => m.senderId === activeMatch.otherUserId).length <= 1 ? (
+                            !activeMatch.interestRequest.firstReplyAt &&
+                            activeMatch.interestRequest.firstReplyDueAt ? (
                             <View style={styles.deadlineCardMuted}>
-                                {!activeMatch.interestRequest.firstReplyAt && activeMatch.interestRequest.firstReplyDueAt ? (
+                                <Text style={styles.deadlineTitleMuted}>Waiting for your reply</Text>
+                                <Text style={styles.deadlineBodyMuted}>
+                                    You still have {formatCountdownLabel(activeMatch.interestRequest.firstReplyDueAt, currentTime)} to follow up after acceptance.
+                                </Text>
+
+                                <BrokerToolsToggle
+                                    open={showBrokerTools}
+                                    onToggle={() => setShowBrokerTools((prev) => !prev)}
+                                    summary="Voice reminder"
+                                />
+
+                                {showBrokerTools ? (
                                     <>
-                                        <Text style={styles.deadlineTitle}>Reply within 24 hours</Text>
-                                        <Text style={styles.deadlineBody}>
-                                            Send a real follow-up message within {formatCountdownLabel(activeMatch.interestRequest.firstReplyDueAt, currentTime)} so this accepted request does not expire.
-                                        </Text>
+                                        <View style={styles.brokerActionsRow}>
+                                            <Pressable
+                                                style={[
+                                                    styles.callbackActionButton,
+                                                    brokerNudgePendingRequestId === activeMatch.interestRequest.id
+                                                        ? styles.sendButtonDisabled
+                                                        : null,
+                                                ]}
+                                                onPress={() => void handleQueueBrokerNudge(activeMatch, 'voice')}
+                                                disabled={brokerNudgePendingRequestId === activeMatch.interestRequest.id}
+                                            >
+                                                <Text style={styles.callbackActionButtonText}>
+                                                    {brokerNudgePendingRequestId === activeMatch.interestRequest.id
+                                                        ? 'Sending…'
+                                                        : 'Send a voice reminder'}
+                                                </Text>
+                                            </Pressable>
+                                        </View>
                                     </>
-                                ) : (
-                                    <>
-                                        <Text style={styles.deadlineTitleMuted}>Waiting for {activeMatch.otherUserName} to reply</Text>
-                                        <Text style={styles.deadlineBodyMuted}>
-                                            You've sent your follow-up. We can nudge them with a voice reminder if they haven't responded.
-                                        </Text>
-                                    </>
-                                )}
+                                ) : null}
+                            </View>
+                        ) : null}
+
+                        {activeMatch.interestRequest &&
+                            activeMatch.interestRequest.senderId === currentUserId &&
+                            messages.filter((m) => m.senderId === activeMatch.otherUserId).length <= 1 &&
+                            (activeMatch.interestRequest.firstReplyAt || !activeMatch.interestRequest.firstReplyDueAt) ? (
+                            <View style={styles.deadlineCardMuted}>
+                                <Text style={styles.deadlineTitleMuted}>Waiting for {activeMatch.otherUserName} to reply</Text>
+                                <Text style={styles.deadlineBodyMuted}>
+                                    You've sent your follow-up. We can nudge them with a voice reminder if they haven't responded.
+                                </Text>
 
                                 <BrokerToolsToggle
                                     open={showBrokerTools}
@@ -1787,6 +2012,15 @@ export function ChatScreen({
                                             </View>
                                         );
                                     }}
+                                    ListHeaderComponent={
+                                        otherUserTyping ? (
+                                            <View style={styles.typingBubbleRow}>
+                                                <View style={[styles.messageBubble, styles.messageBubbleOther, styles.typingBubble]}>
+                                                    <Text style={styles.typingDots}>●  ●  ●</Text>
+                                                </View>
+                                            </View>
+                                        ) : null
+                                    }
                                 />
                             )}
                         </View>
@@ -1851,7 +2085,7 @@ export function ChatScreen({
                                 placeholder="Write a message"
                                 placeholderTextColor="#7d8c90"
                                 value={draft}
-                                onChangeText={setDraft}
+                                onChangeText={handleDraftChange}
                                 multiline
                                 maxLength={2000}
                             />
@@ -1928,6 +2162,282 @@ function MessageSkeletonList() {
             <View style={styles.messageSkeletonBubbleOther} />
         </View>
     );
+}
+
+interface ProfileListItemCardProps {
+    item: ChatMatch;
+    onPress: () => void;
+    currentUserId: string | null;
+    matchRequestPending: boolean;
+    matchRequestAction: 'accept' | 'decline' | null;
+    matchRequestActionMatchId: string | null;
+    brokerConsentPendingRequestId: string | null;
+    onAcceptRequest: (item: ChatMatch) => void;
+    onDeclineRequest: (item: ChatMatch) => void;
+    onBrokerConsent: (item: ChatMatch, consent: boolean) => void;
+    onContactAction: (item: ChatMatch, action: 'call' | 'whatsapp') => void;
+    onOpenChat: (item: ChatMatch) => void;
+    onViewProfile?: (profileId: string) => void;
+}
+
+function ProfileListItemCard({
+    item,
+    onPress,
+    currentUserId,
+    matchRequestPending,
+    matchRequestAction,
+    matchRequestActionMatchId,
+    brokerConsentPendingRequestId,
+    onAcceptRequest,
+    onDeclineRequest,
+    onBrokerConsent,
+    onContactAction,
+    onOpenChat,
+    onViewProfile,
+}: ProfileListItemCardProps) {
+    const premiumHighlight = getPremiumInboxHighlight(item);
+
+    return (
+        <View style={[styles.matchCard, premiumHighlight ? styles.matchCardPremium : null]}>
+            <Pressable
+                style={styles.matchCardPressableContent}
+                onPress={onPress}
+            >
+                {premiumHighlight ? (
+                    <View style={styles.matchPremiumTag}>
+                        <Text style={styles.matchPremiumTagText}>Premium highlight</Text>
+                        <Text style={styles.matchPremiumReasonText}>{premiumHighlight}</Text>
+                    </View>
+                ) : null}
+
+                <View style={styles.matchCardTopRow}>
+                    <Pressable onPress={() => onViewProfile?.(item.otherUserId)} style={{ borderRadius: 24, overflow: 'hidden' }}>
+                        {item.otherUserPhotoUrls[0] ? (
+                            <Image source={{ uri: item.otherUserPhotoUrls[0] }} style={styles.matchAvatar} />
+                        ) : (
+                            <View style={styles.matchAvatarPlaceholder}>
+                                <Text style={styles.matchAvatarInitial}>
+                                    {getDisplayFirstName(item.otherUserName).slice(0, 1).toUpperCase() || '?'}
+                                </Text>
+                            </View>
+                        )}
+                    </Pressable>
+
+                    <View style={styles.matchCardContent}>
+                        <View style={styles.matchCardHeader}>
+                            <Pressable onPress={() => onViewProfile?.(item.otherUserId)}>
+                                <Text style={styles.matchName}>{item.otherUserName}</Text>
+                            </Pressable>
+                            <View style={styles.matchCardHeaderBadges}>
+                                {item.unreadCount > 0 ? (
+                                    <Text style={styles.matchUnreadPill}>
+                                        {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                                    </Text>
+                                ) : null}
+                                <Text style={styles.matchStatusPill}>{getMatchStatusLabel(item)}</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.matchTagRow}>
+                            <View style={styles.matchTagPill}>
+                                <Text style={styles.matchTagText}>{item.otherUserLocation}</Text>
+                            </View>
+
+                            <View style={styles.matchTagPillMuted}>
+                                <Text style={styles.matchTagTextMuted}>
+                                    {item.otherUserProfileOwner ? `Managed by ${item.otherUserProfileOwner}` : 'Self profile'}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                <View style={styles.matchStateRow}>
+                    {getInboxStateChips(item).map((chip) => (
+                        <StateChip key={`${item.id}-${chip.label}`} label={chip.label} tone={chip.tone} />
+                    ))}
+                </View>
+
+                <Text style={styles.matchPreviewStatus}>{getMatchInboxPreview(item)}</Text>
+
+                {shouldShowInboxBrokerCard(item) ? (
+                    <View style={styles.brokerInfoCard}>
+                        <Text style={styles.brokerInfoText}>{getInboxBrokerPreview(item)}</Text>
+
+                        {item.interestRequest &&
+                        item.interestRequest.senderId !== currentUserId &&
+                        (item.brokerSummary?.currentUserConsent ?? 'unknown') !== 'granted' ? (
+                            <Pressable
+                                style={[
+                                    styles.brokerConsentInlineButton,
+                                    brokerConsentPendingRequestId === item.interestRequest.id
+                                        ? styles.sendButtonDisabled
+                                        : null,
+                                ]}
+                                onPress={() => void onBrokerConsent(item, true)}
+                                disabled={brokerConsentPendingRequestId === item.interestRequest.id}
+                            >
+                                <Text style={styles.brokerConsentInlineButtonText}>
+                                    {brokerConsentPendingRequestId === item.interestRequest.id
+                                        ? 'Saving...'
+                                        : 'Allow intro call'}
+                                </Text>
+                            </Pressable>
+                        ) : null}
+
+                        <FollowupJobStatusBlock match={item} />
+                    </View>
+                ) : null}
+
+                <Text numberOfLines={2} style={styles.matchPreview}>
+                    {item.otherUserBio ?? item.otherUserPreferences ?? 'No profile summary yet.'}
+                </Text>
+            </Pressable>
+
+            {item.matchRequestState === 'received' ? (
+                <View style={styles.matchCardActionsRow}>
+                    <Pressable
+                        style={[
+                            styles.matchCardPrimaryAction,
+                            matchRequestPending && matchRequestActionMatchId === item.id
+                                ? styles.sendButtonDisabled
+                                : null,
+                        ]}
+                        onPress={() => void onAcceptRequest(item)}
+                        disabled={matchRequestPending}
+                    >
+                        <Text style={styles.matchCardPrimaryActionText}>
+                            {matchRequestPending && matchRequestAction === 'accept' && matchRequestActionMatchId === item.id
+                                ? 'Accepting...'
+                                : 'Accept'}
+                        </Text>
+                    </Pressable>
+
+                    <Pressable
+                        style={[
+                            styles.matchCardSecondaryAction,
+                            matchRequestPending && matchRequestActionMatchId === item.id
+                                ? styles.sendButtonDisabled
+                                : null,
+                        ]}
+                        onPress={() => void onDeclineRequest(item)}
+                        disabled={matchRequestPending}
+                    >
+                        <Text style={styles.matchCardSecondaryActionText}>
+                            {matchRequestPending && matchRequestAction === 'decline' && matchRequestActionMatchId === item.id
+                                ? 'Declining...'
+                                : 'Decline'}
+                        </Text>
+                    </Pressable>
+                </View>
+            ) : shouldShowAcceptedCardQuickActions(item) ? (
+                <View style={styles.matchCardActionsRow}>
+                    <Pressable
+                        style={styles.matchCardPrimaryAction}
+                        onPress={() => onOpenChat(item)}
+                    >
+                        <Text style={styles.matchCardPrimaryActionText}>Open chat</Text>
+                    </Pressable>
+
+                    {item.isUnlocked && item.otherUserWhatsappNumber ? (
+                        <Pressable
+                            style={styles.matchCardSecondaryAction}
+                            onPress={() => void onContactAction(item, 'whatsapp')}
+                        >
+                            <WhatsAppLogo size={14} color="#25d366" />
+                            <Text style={styles.matchCardSecondaryActionText}>WhatsApp</Text>
+                        </Pressable>
+                    ) : null}
+
+                    {item.isUnlocked && item.otherUserPhoneNumber ? (
+                        <Pressable
+                            style={styles.matchCardSecondaryAction}
+                            onPress={() => void onContactAction(item, 'call')}
+                        >
+                            <PhoneIcon size={14} color="#35525b" />
+                            <Text style={styles.matchCardSecondaryActionText}>Call</Text>
+                        </Pressable>
+                    ) : null}
+
+                    {!item.isUnlocked ? (
+                        <Pressable
+                            style={styles.matchCardSecondaryAction}
+                            onPress={() => onOpenChat(item)}
+                        >
+                            <Text style={styles.matchCardSecondaryActionText}>Unlock contacts</Text>
+                        </Pressable>
+                    ) : null}
+                </View>
+            ) : null}
+        </View>
+    );
+}
+
+function ChatListItemCard({ item, onPress }: { item: ChatMatch; onPress: () => void }) {
+    const lastMessage = getMatchInboxPreview(item);
+
+    return (
+        <Pressable
+            style={({ pressed }) => [styles.chatCard, pressed && styles.chatCardPressed]}
+            onPress={onPress}
+        >
+            <View style={styles.chatCardAvatarContainer}>
+                {item.otherUserPhotoUrls[0] ? (
+                    <Image source={{ uri: item.otherUserPhotoUrls[0] }} style={styles.chatAvatar} />
+                ) : (
+                    <View style={styles.chatAvatarPlaceholder}>
+                        <Text style={styles.chatAvatarInitial}>
+                            {getDisplayFirstName(item.otherUserName).slice(0, 1).toUpperCase() || '?'}
+                        </Text>
+                    </View>
+                )}
+            </View>
+
+            <View style={styles.chatCardBody}>
+                <View style={styles.chatCardHeader}>
+                    <Text style={styles.chatCardName} numberOfLines={1}>
+                        {item.otherUserName}
+                    </Text>
+                    <Text style={styles.chatCardTime}>
+                        {formatChatListTime(item.createdAt)}
+                    </Text>
+                </View>
+
+                <View style={styles.chatCardMessageRow}>
+                    <Text style={styles.chatCardMessage} numberOfLines={1}>
+                        {lastMessage}
+                    </Text>
+                    {item.unreadCount > 0 ? (
+                        <View style={styles.chatUnreadBadge}>
+                            <Text style={styles.chatUnreadText}>
+                                {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                            </Text>
+                        </View>
+                    ) : null}
+                </View>
+            </View>
+        </Pressable>
+    );
+}
+
+function formatChatListTime(dateString: string): string {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function StateChip({ label, tone }: { label: string; tone: 'primary' | 'accent' | 'muted' }) {
@@ -4064,5 +4574,152 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 14,
         fontWeight: '800',
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        color: '#7d8c90',
+        marginTop: 2,
+    },
+    headerSubtitleTyping: {
+        color: '#1a7a5e',
+        fontWeight: '700',
+    },
+    typingBubbleRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+        paddingHorizontal: 16,
+        paddingVertical: 4,
+    },
+    typingBubble: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        minWidth: 60,
+        alignItems: 'center',
+    },
+    typingDots: {
+        fontSize: 14,
+        color: '#7d8c90',
+        letterSpacing: 2,
+    },
+    moreHeaderButton: {
+        marginLeft: 8,
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: '#f1f3f4',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 36,
+        height: 36,
+    },
+    moreHeaderButtonText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#4a5568',
+        lineHeight: 20,
+    },
+    chatCard: {
+        flexDirection: 'row',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        backgroundColor: '#ffffff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f7',
+        alignItems: 'center',
+    },
+    chatCardPressed: {
+        backgroundColor: '#f8fafc',
+    },
+    chatCardAvatarContainer: {
+        marginRight: 14,
+    },
+    chatAvatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+    },
+    chatAvatarPlaceholder: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: '#e2e8f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    chatAvatarInitial: {
+        color: '#475569',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    chatCardBody: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    chatCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        marginBottom: 4,
+    },
+    chatCardName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#0f172a',
+        flex: 1,
+        marginRight: 8,
+    },
+    chatCardTime: {
+        fontSize: 12,
+        color: '#64748b',
+    },
+    chatCardMessageRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    chatCardMessage: {
+        fontSize: 14,
+        color: '#64748b',
+        flex: 1,
+        marginRight: 8,
+    },
+    chatUnreadBadge: {
+        backgroundColor: '#10b981',
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+    },
+    chatUnreadText: {
+        color: '#ffffff',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    headerProfileContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginRight: 8,
+    },
+    headerAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        marginRight: 8,
+    },
+    headerAvatarPlaceholder: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#e2e8f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    headerAvatarInitial: {
+        color: '#475569',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
 });
