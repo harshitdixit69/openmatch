@@ -30,6 +30,7 @@ import {
     fetchCompatibilitySnapshot,
     fetchSemanticMatches,
     recordPassedProfile,
+    recordHardRejectProfile,
     clearPassedProfiles,
 } from '../lib/matchmakingApi';
 import {
@@ -439,12 +440,27 @@ export function HomeScreen() {
     async function savePass(candidate: MatchCandidate) {
         try {
             await recordPassedProfile(candidate.id);
+            // Mark locally as 'passed' so it's filtered from the session feed.
+            // The DB enforces the 30-day TTL; after that the profile reappears automatically.
             setCandidates((prev) =>
-                prev.map((c) => (c.id === candidate.id ? { ...c, matchStatus: 'rejected' } : c)),
+                prev.map((c) => (c.id === candidate.id ? { ...c, matchStatus: 'passed' } : c)),
             );
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not save this pass.';
             Alert.alert('Pass save failed', message);
+        }
+    }
+
+    async function saveHardReject(candidate: MatchCandidate) {
+        try {
+            await recordHardRejectProfile(candidate.id);
+            // Mark locally as 'rejected' (permanent hard block)
+            setCandidates((prev) =>
+                prev.map((c) => (c.id === candidate.id ? { ...c, matchStatus: 'rejected' } : c)),
+            );
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not block this profile.';
+            Alert.alert('Block failed', message);
         }
     }
 
@@ -547,6 +563,21 @@ export function HomeScreen() {
         }
 
         void savePass(candidate);
+    }
+
+    function handleHardRejectFromDetail() {
+        if (!selectedCandidate) {
+            return;
+        }
+
+        const candidate = selectedCandidate;
+        setSelectedCandidate(null);
+
+        if (candidate.id === activeCandidate?.id) {
+            advanceCard();
+        }
+
+        void saveHardReject(candidate);
     }
 
     const responder = useMemo(
@@ -861,6 +892,7 @@ export function HomeScreen() {
                         summaryLoading={summaryLoading}
                         onClose={() => setSelectedCandidate(null)}
                         onPass={handlePassFromDetail}
+                        onHardReject={handleHardRejectFromDetail}
                         onConnect={handleConnectFromDetail}
                     />
                 ) : null}
