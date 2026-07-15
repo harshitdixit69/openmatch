@@ -140,7 +140,7 @@ async function fetchViewerMatchProfile(currentUserId: string) {
     } satisfies ViewerEmbeddingRow;
 }
 
-async function fetchPassedProfileIds(currentUserId: string) {
+export async function fetchPassedProfileIds(currentUserId: string) {
     const storedValue = await AsyncStorage.getItem(getPassedProfilesStorageKey(currentUserId));
     if (!storedValue) {
         return new Set<string>();
@@ -205,12 +205,11 @@ export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult>
         };
     }
 
-    const [existingMatchedProfileIds, passedProfileIds] = await Promise.all([
+    const [existingMatchedProfileIds] = await Promise.all([
         fetchExistingMatchedProfileIds(user.id),
-        fetchPassedProfileIds(user.id),
     ]);
 
-    const excludedProfileIds = new Set<string>([...existingMatchedProfileIds, ...passedProfileIds]);
+    const excludedProfileIds = new Set<string>([...existingMatchedProfileIds]);
 
     const { data, error } = await supabase.rpc('match_profiles', {
         result_limit: limit,

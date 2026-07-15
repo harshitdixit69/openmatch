@@ -31,6 +31,7 @@ import {
     fetchSemanticMatches,
     recordPassedProfile,
     clearPassedProfiles,
+    fetchPassedProfileIds,
 } from '../lib/matchmakingApi';
 import {
     fetchCurrentProfile,
@@ -81,6 +82,7 @@ export function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFeedFilter, setActiveFeedFilter] = useState<FeedFilter>('new');
+    const [passedProfileIds, setPassedProfileIds] = useState<Set<string>>(new Set());
     const [viewerEmbeddingStatus, setViewerEmbeddingStatus] = useState<ViewerEmbeddingStatus>('ready');
     const [usingLegacyMatchFunction, setUsingLegacyMatchFunction] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState<MatchCandidate | null>(null);
@@ -125,18 +127,19 @@ export function HomeScreen() {
                 return false;
             }
 
-            return matchesFeedFilter(candidate, activeFeedFilter, viewerProfile?.location ?? null);
+            return matchesFeedFilter(candidate, activeFeedFilter, viewerProfile?.location ?? null, passedProfileIds);
         });
-    }, [activeFeedFilter, candidates, searchQuery, viewerProfile?.location]);
+    }, [activeFeedFilter, candidates, searchQuery, viewerProfile?.location, passedProfileIds]);
 
     const feedFilterCounts = useMemo<Record<FeedFilter, number>>(
         () => ({
-            new: candidates.filter((candidate) => matchesFeedFilter(candidate, 'new', viewerProfile?.location ?? null)).length,
-            daily: candidates.filter((candidate) => matchesFeedFilter(candidate, 'daily', viewerProfile?.location ?? null)).length,
-            withPhotos: candidates.filter((candidate) => matchesFeedFilter(candidate, 'withPhotos', viewerProfile?.location ?? null)).length,
-            nearby: candidates.filter((candidate) => matchesFeedFilter(candidate, 'nearby', viewerProfile?.location ?? null)).length,
+            new: candidates.filter((candidate) => matchesFeedFilter(candidate, 'new', viewerProfile?.location ?? null, passedProfileIds)).length,
+            daily: candidates.filter((candidate) => matchesFeedFilter(candidate, 'daily', viewerProfile?.location ?? null, passedProfileIds)).length,
+            withPhotos: candidates.filter((candidate) => matchesFeedFilter(candidate, 'withPhotos', viewerProfile?.location ?? null, passedProfileIds)).length,
+            nearby: candidates.filter((candidate) => matchesFeedFilter(candidate, 'nearby', viewerProfile?.location ?? null, passedProfileIds)).length,
+            passed: candidates.filter((candidate) => matchesFeedFilter(candidate, 'passed', viewerProfile?.location ?? null, passedProfileIds)).length,
         }),
-        [candidates, viewerProfile?.location],
+        [candidates, viewerProfile?.location, passedProfileIds],
     );
 
     async function onSignOut() {
@@ -158,6 +161,7 @@ export function HomeScreen() {
 
     async function resetFeedAndPassed() {
         await clearPassedProfiles();
+        setPassedProfileIds(new Set());
         resetFeedFilters();
         await loadFeed(true);
     }
@@ -170,6 +174,11 @@ export function HomeScreen() {
         }
 
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const passed = await fetchPassedProfileIds(user.id);
+                setPassedProfileIds(passed);
+            }
             const result = await fetchSemanticMatches();
             setCandidates(result.candidates);
             setViewerEmbeddingStatus(result.viewerEmbeddingStatus);
@@ -438,6 +447,11 @@ export function HomeScreen() {
     async function savePass(candidate: MatchCandidate) {
         try {
             await recordPassedProfile(candidate.id);
+            setPassedProfileIds((prev) => {
+                const next = new Set(prev);
+                next.add(candidate.id);
+                return next;
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not save this pass.';
             Alert.alert('Pass save failed', message);
@@ -887,13 +901,14 @@ export function HomeScreen() {
     );
 }
 
-type FeedFilter = 'new' | 'daily' | 'withPhotos' | 'nearby';
+type FeedFilter = 'new' | 'daily' | 'withPhotos' | 'nearby' | 'passed';
 
 const feedFilters: { label: string; value: FeedFilter }[] = [
     { label: 'New', value: 'new' },
     { label: 'Daily', value: 'daily' },
     { label: 'With photos', value: 'withPhotos' },
     { label: 'Nearby', value: 'nearby' },
+    { label: 'Passed', value: 'passed' },
 ];
 
 type CandidateCardProps = {
@@ -1071,7 +1086,15 @@ function getPremiumHighlightForCandidate(candidate: MatchCandidate) {
     return null;
 }
 
-function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewerLocation: string | null) {
+function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewerLocation: string | null, passedProfileIds: Set<string>) {
+    if (filter === 'passed') {
+        return passedProfileIds.has(candidate.id);
+    }
+
+    if (passedProfileIds.has(candidate.id)) {
+        return false;
+    }
+
     if (filter === 'new') {
         return true;
     }
