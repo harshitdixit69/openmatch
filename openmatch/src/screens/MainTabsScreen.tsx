@@ -70,6 +70,7 @@ export function MainTabsScreen() {
     const [showSettings, setShowSettings] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [showPremiumUpgrade, setShowPremiumUpgrade] = useState(false);
+    const [viewerProfile, setViewerProfile] = useState<ProfileRecord | null>(null);
     const [showShortlist, setShowShortlist] = useState(false);
     const [showMyMatches, setShowMyMatches] = useState(false);
     const [showWhoViewedMe, setShowWhoViewedMe] = useState(false);
@@ -270,6 +271,7 @@ export function MainTabsScreen() {
             setViewerFirstName(getDisplayFirstName(profile?.full_name));
             setViewerPhotoUrl(profile?.photo_urls?.[0] ?? null);
             setViewerProfileId(profile?.id ?? null);
+            setViewerProfile(profile);
             
             const baseCounts = buildShellCounts(matches);
             baseCounts.unreadNotifications = unreadNotifsResult.count ?? 0;
@@ -397,7 +399,7 @@ export function MainTabsScreen() {
             );
         }
 
-        return <PremiumTab onOpenMatches={() => openTab('matches')} onOpenInbox={() => openTab('inbox')} onOpenUpgrade={() => setShowPremiumUpgrade(true)} />;
+        return <PremiumTab onOpenMatches={() => openTab('matches')} onOpenInbox={() => openTab('inbox')} onOpenUpgrade={() => setShowPremiumUpgrade(true)} viewerProfile={viewerProfile} />;
     }
 
     if (showPartnerPrefs) {
@@ -694,9 +696,13 @@ function HomeHubTab({
     );
 }
 
-function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade }: { onOpenMatches: () => void; onOpenInbox: () => void; onOpenUpgrade: () => void }) {
+function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade, viewerProfile }: { onOpenMatches: () => void; onOpenInbox: () => void; onOpenUpgrade: () => void; viewerProfile: ProfileRecord | null }) {
     const [loadingSummary, setLoadingSummary] = useState(true);
     const [analyticsSummary, setAnalyticsSummary] = useState<PremiumAnalyticsSummary | null>(null);
+
+    const isPremium = viewerProfile?.subscription_tier === 'plus' || viewerProfile?.subscription_tier === 'vip';
+    const isExpired = viewerProfile?.subscription_expires_at ? new Date(viewerProfile.subscription_expires_at).getTime() < Date.now() : true;
+    const isActivePremium = isPremium && !isExpired;
 
     useEffect(() => {
         let isMounted = true;
@@ -722,16 +728,84 @@ function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade }: { onOpenMatch
         };
     }, []);
 
+    const expiryDateStr = viewerProfile?.subscription_expires_at 
+        ? new Date(viewerProfile.subscription_expires_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+        : '';
+
     return (
         <SafeAreaView style={styles.panelSafeArea} edges={['top', 'left', 'right']}>
             <ScrollView contentContainerStyle={styles.panelScrollContent} showsVerticalScrollIndicator={false}>
-                <View style={[styles.heroCard, styles.premiumHeroCard]}>
-                    <Text style={styles.heroEyebrow}>Premium</Text>
-                    <Text style={styles.heroTitle}>Fair-pay upgrades, not lockouts</Text>
-                    <Text style={styles.heroBody}>
-                        Premium surfaces can spotlight serious profiles and concierge-style help, but matching, escrow chat, and mutual unlock stay usable for free users.
-                    </Text>
-                </View>
+                {isActivePremium ? (
+                    /* Subscribed Premium Member View */
+                    <View style={[styles.heroCard, { backgroundColor: '#14313a', borderColor: '#d9643d', borderWidth: 2 }]}>
+                        <Text style={[styles.heroEyebrow, { color: '#f9a159' }]}>
+                            👑 OpenMatch {viewerProfile?.subscription_tier === 'vip' ? 'VIP' : 'Plus'} Active
+                        </Text>
+                        <Text style={styles.heroTitle}>Premium status is unlocked</Text>
+                        <Text style={styles.heroBody}>
+                            Thank you for supporting a fair matchmaking ecosystem. Your subscription is active until <Text style={{ fontWeight: '800', color: '#ffffff' }}>{expiryDateStr}</Text>.
+                        </Text>
+                        
+                        <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                            <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 24, fontWeight: '900', color: '#f9a159' }}>
+                                    🔑 {viewerProfile?.manual_unlock_credits ?? 0}
+                                </Text>
+                                <Text style={{ fontSize: 10, fontWeight: '700', color: '#c7d6d8', textTransform: 'uppercase', marginTop: 4 }}>
+                                    Unlock Credits
+                                </Text>
+                            </View>
+                            {viewerProfile?.subscription_tier === 'vip' && (
+                                <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#f9a159' }}>
+                                        📞 {viewerProfile?.ai_call_credits ?? 0}
+                                    </Text>
+                                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#c7d6d8', textTransform: 'uppercase', marginTop: 4 }}>
+                                        AI Voice Calls
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                ) : (
+                    /* Free Promo Member View */
+                    <View style={[styles.heroCard, styles.premiumHeroCard]}>
+                        <Text style={styles.heroEyebrow}>Premium</Text>
+                        <Text style={styles.heroTitle}>Fair-pay upgrades, not lockouts</Text>
+                        <Text style={styles.heroBody}>
+                            Premium upgrades add upfront convenience like batch unlock credits and AI-assisted matching support, keeping direct matching free.
+                        </Text>
+                    </View>
+                )}
+
+                {/* Subscription Action Segment */}
+                {isActivePremium ? (
+                    <View style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>Subscription Management</Text>
+                        <Text style={[styles.featureBody, { marginBottom: 12 }]}>
+                            Extend your active period or upgrade to a higher tier to add additional unlock credits and concierge outreach features.
+                        </Text>
+                        <QuickActionButton
+                            label="Extend or Upgrade Subscription"
+                            subtitle="View Plus / VIP package grids"
+                            tone="accent"
+                            onPress={onOpenUpgrade}
+                        />
+                    </View>
+                ) : (
+                    <View style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>Unlock premium benefits</Text>
+                        <Text style={[styles.featureBody, { marginBottom: 12 }]}>
+                            Subscribe to get upfront unlock credits, priority verification, or concierge AI broker outreach matching options.
+                        </Text>
+                        <QuickActionButton
+                            label="Upgrade subscription"
+                            subtitle="Choose Plus or VIP tier"
+                            tone="accent"
+                            onPress={onOpenUpgrade}
+                        />
+                    </View>
+                )}
 
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionTitle}>Premium analytics snapshot</Text>
@@ -787,19 +861,6 @@ function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade }: { onOpenMatch
                     ) : (
                         <Text style={styles.featureBody}>Premium analytics will appear here once events are generated.</Text>
                     )}
-                </View>
-
-                <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>Unlock premium benefits</Text>
-                    <Text style={[styles.featureBody, { marginBottom: 12 }]}>
-                        Subscribe to get upfront unlock credits, priority verification, or concierge AI broker outreach matching options.
-                    </Text>
-                    <QuickActionButton
-                        label="Upgrade subscription"
-                        subtitle="Choose Plus or VIP tier"
-                        tone="accent"
-                        onPress={onOpenUpgrade}
-                    />
                 </View>
 
                 <View style={styles.sectionCard}>
