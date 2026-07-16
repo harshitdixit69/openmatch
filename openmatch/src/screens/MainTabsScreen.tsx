@@ -27,6 +27,7 @@ import { SettingsScreen } from './SettingsScreen';
 import { ShortlistScreen } from './ShortlistScreen';
 import { WhoViewedMeScreen } from './WhoViewedMeScreen';
 import { MatchProfileScreen } from './MatchProfileScreen';
+import { PremiumUpgradeScreen } from './PremiumUpgradeScreen';
 
 
 // Base height of the tab bar content (padding + tab button minHeight) before the
@@ -68,6 +69,7 @@ export function MainTabsScreen() {
     const [showProfileEdit, setShowProfileEdit] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
+    const [showPremiumUpgrade, setShowPremiumUpgrade] = useState(false);
     const [showShortlist, setShowShortlist] = useState(false);
     const [showMyMatches, setShowMyMatches] = useState(false);
     const [showWhoViewedMe, setShowWhoViewedMe] = useState(false);
@@ -90,13 +92,14 @@ export function MainTabsScreen() {
             if (showMyMatches) { setShowMyMatches(false); return true; }
             if (showShortlist) { setShowShortlist(false); return true; }
             if (showSearch) { setShowSearch(false); return true; }
+            if (showPremiumUpgrade) { setShowPremiumUpgrade(false); return true; }
             if (showSettings) { setShowSettings(false); return true; }
             if (showProfileEdit) { setShowProfileEdit(false); return true; }
             if (showPartnerPrefs) { setShowPartnerPrefs(false); return true; }
             return false;
         });
         return () => handler.remove();
-    }, [selectedProfileId, showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
+    }, [selectedProfileId, showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs, showPremiumUpgrade]);
 
     // Keep the home-indicator clear on notched devices while still leaving a
     // comfortable tap area on phones without a bottom inset.
@@ -394,7 +397,7 @@ export function MainTabsScreen() {
             );
         }
 
-        return <PremiumTab onOpenMatches={() => openTab('matches')} onOpenInbox={() => openTab('inbox')} />;
+        return <PremiumTab onOpenMatches={() => openTab('matches')} onOpenInbox={() => openTab('inbox')} onOpenUpgrade={() => setShowPremiumUpgrade(true)} />;
     }
 
     if (showPartnerPrefs) {
@@ -403,6 +406,10 @@ export function MainTabsScreen() {
 
     if (showProfileEdit) {
         return <ProfileEditScreen onBack={() => setShowProfileEdit(false)} />;
+    }
+
+    if (showPremiumUpgrade) {
+        return <PremiumUpgradeScreen onBack={() => setShowPremiumUpgrade(false)} />;
     }
 
     if (showSettings) {
@@ -687,7 +694,7 @@ function HomeHubTab({
     );
 }
 
-function PremiumTab({ onOpenMatches, onOpenInbox }: { onOpenMatches: () => void; onOpenInbox: () => void }) {
+function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade }: { onOpenMatches: () => void; onOpenInbox: () => void; onOpenUpgrade: () => void }) {
     const [loadingSummary, setLoadingSummary] = useState(true);
     const [analyticsSummary, setAnalyticsSummary] = useState<PremiumAnalyticsSummary | null>(null);
 
@@ -780,6 +787,19 @@ function PremiumTab({ onOpenMatches, onOpenInbox }: { onOpenMatches: () => void;
                     ) : (
                         <Text style={styles.featureBody}>Premium analytics will appear here once events are generated.</Text>
                     )}
+                </View>
+
+                <View style={styles.sectionCard}>
+                    <Text style={styles.sectionTitle}>Unlock premium benefits</Text>
+                    <Text style={[styles.featureBody, { marginBottom: 12 }]}>
+                        Subscribe to get upfront unlock credits, priority verification, or concierge AI broker outreach matching options.
+                    </Text>
+                    <QuickActionButton
+                        label="Upgrade subscription"
+                        subtitle="Choose Plus or VIP tier"
+                        tone="accent"
+                        onPress={onOpenUpgrade}
+                    />
                 </View>
 
                 <View style={styles.sectionCard}>
