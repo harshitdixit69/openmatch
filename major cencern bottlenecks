@@ -1,0 +1,85 @@
+1. Fix the "Mutual Payment Deadlock" (Monetization)
+The Flaw: In Phase 4/5, both users must pay (e.g., $1) to unlock the chat. If User A pays, but User B ignores the request, User A feels scammed and will never pay again.
+The Fix: Implement a Financial Escrow/Credit System.
+
+When User A initiates the unlock, their $1 is authorized (or charged as a credit).
+
+User B gets a notification: "Sam just paid to unlock your contact! Pay ₹99 to accept."
+
+If User B doesn’t pay within 48 hours, User A gets an automatic refund or a "Free Unlock Token" for their next match. This completely removes the purchase hesitation for the first mover.
+
+    2. Upgrade to "Hybrid Search" (Match Feed)
+    The Flaw: In Phase 1 & 2, you generate a 1536-dimensional embedding and rely on that for the feed. Pure vector search (pgvector cosine similarity) is great for "vibes" and bio similarities, but it notoriously fails at strict constraints. It might match a 22-year-old with a 45-year-old just because they both wrote passionately about hiking.
+    The Fix: Use a Hybrid Search Pipeline.
+
+    First, use standard Postgres SQL filtering for non-negotiable dealbreakers (e.g., Age range, Religion, Diet, Location radius).
+
+    Then, apply the pgvector semantic search only on the pool of candidates that survived the hard filters. This guarantees matches are both logistically viable and emotionally compatible.
+
+3. Make PII Redactions Actionable (AI Escrow)
+The Flaw: In Phase 4, the send-escrow-message intercepts and redacts PII. A flat blocked message frustrates users.
+The Fix: Turn the AI Interceptor into a sales agent.
+
+When the LLM detects a phone number, it shouldn't just replace it with [Redacted].
+
+It should replace it with an interactive UI component in the chat: [Phone Number Hidden] -> Tap here to send a Mutual Unlock Request. Convert the friction directly into a monetization trigger.
+
+4. SLA Grace Periods (Anti-Ghosting)
+The Flaw: A strict 24-hour SLA (Phase 3) is brilliant for momentum, but humans have lives. If they match on a Friday night, they might not check the app until Sunday, resulting in a false "ghosted" status and an annoyed user.
+The Fix: Add a "Snooze" or "Weekend Mode".
+
+Allow users to toggle a "Busy" status that automatically pauses active SLAs.
+
+Alternatively, extend the SLA to 48 hours for weekend matches, or let the sender trigger one "SLA Extension" nudge if they really like the person, before the AI Broker call kicks in.
+
+5. The "Soft Pass" (Discovery)
+The Flaw: Swiping left triggers Reject_Profile_RPC and sets the status to rejected. In matrimony, a "no" today might be a "yes" in 3 months if the user broadens their filters.
+The Fix: Implement a "Maybe" or "Bookmark" state alongside the hard reject.
+
+If they swipe left quickly, it's a soft pass (hide for 30 days).
+
+If they explicitly block or hard-reject, it's permanent. This keeps your candidate pool from drying up too quickly in smaller cities.
+
+Which of these bottlenecks worries you the most right now—are you more concerned about the mutual payment drop-off, or dialing in the strictness of the 24-hour SLA?
+
+
+# OpenMatch System Architecture Enhancements
+**Target:** Conversion Optimization, User Retention, & Search Accuracy
+**Status:** Proposed Upgrades (Post-Phase 7)
+
+## 1. Monetization: Financial Escrow & Credit System
+**Current Flaw:** The mutual-unlock deadlock. If User A pays to unlock a chat and User B ignores the request, User A experiences buyer's remorse and churns.
+**Architectural Upgrade:** 
+*   **The Escrow Hold:** When User A initiates an unlock, authorize the micro-transaction (e.g., ₹99) but hold it in escrow, or grant an instant system credit.
+*   **Asynchronous Consent:** Notify User B: *"Your match paid to unlock contacts. Pay ₹99 to accept and reveal."*
+*   **Automated Fallback:** If User B fails to pay within a 48-hour window, automatically refund User A or issue a "Free Unlock Token" for their next match. 
+*   **Impact:** Removes first-mover financial hesitation, drastically increasing top-of-funnel payment intents.
+
+## 2. Discovery Feed: Hybrid Search Pipeline
+**Current Flaw:** Pure vector search (`pgvector` cosine similarity) captures semantic alignment (vibes/interests) but fails at enforcing strict logical dealbreakers (Age, Height, Religion).
+**Architectural Upgrade:**
+*   **Pre-filtering (Hard Constraints):** Execute a standard PostgreSQL indexed query first to filter out non-negotiable dealbreakers (e.g., `age BETWEEN 24 AND 28`, `location_radius < 50km`).
+*   **Post-filtering (Soft Constraints):** Pass the resulting constrained pool into the `pgvector` semantic search to rank by bio/interest compatibility.
+*   **Impact:** Guarantees that matches shown in the feed are both logistically viable and emotionally compatible.
+
+## 3. AI Escrow: Actionable PII Redaction
+**Current Flaw:** The `send-escrow-message` Edge Function replaces PII with a static `[Redacted]` string, creating a dead-end user experience.
+**Architectural Upgrade:**
+*   **Dynamic Payload:** When the LLM intercepts PII, it should return a structured JSON flag alongside the redacted text.
+*   **UI Conversion:** The React Native frontend parses this flag and renders an interactive CTA bubble in the chat UI in place of the phone number: `[Contact Details Hidden] ➔ Tap here to send a Mutual Unlock Request`.
+*   **Impact:** Transforms trust-and-safety friction directly into a point-of-sale monetization trigger.
+
+## 4. Anti-Ghosting: SLA Grace Periods ("Weekend Mode")
+**Current Flaw:** A rigid 24-hour SLA penalizes users who legitimately match on a busy workday or weekend, resulting in false "ghosted" states and dropping reliability scores.
+**Architectural Upgrade:**
+*   **Dynamic Timers:** Extend the default `first_reply_due_at` from 24 hours to 48 hours for matches made on Friday-Saturday.
+*   **Snooze State:** Allow users to toggle a global "Busy" mode that temporarily pauses SLA countdowns for active pending requests.
+*   **Sender Grace:** Allow the sender to trigger one manual "SLA Extension Nudge" before the automated AI Broker call loop takes over.
+*   **Impact:** Reduces false-positive ghosting metrics and prevents punishing high-intent users for real-world scheduling conflicts.
+
+## 5. Feed Pruning: The "Soft Pass" State
+**Current Flaw:** Swiping left triggers a permanent `rejected` row in the `matches` table. This permanently drains the candidate pool, which is dangerous in early startup phases with lower user density.
+**Architectural Upgrade:**
+*   **State Split:** Introduce a `passed` (soft pass) state alongside the hard `rejected` (blocked) state in the database enum.
+*   **Cooldown TTL:** If a user swipes left normally, mark as `passed` and hide the profile for a 30-day cooldown period. After 30 days, reintroduce them to the feed if both users have updated their profiles or broadened their filters.
+*   **Impact:** Preserves database inventory and accounts for human indecision/changing preferences over time.

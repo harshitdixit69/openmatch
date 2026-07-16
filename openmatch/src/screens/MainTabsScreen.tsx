@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -43,6 +43,7 @@ type ShellCounts = {
     accepted: number;
     contacts: number;
     sent: number;
+    unreadNotifications: number;
 };
 
 const emptyShellCounts: ShellCounts = {
@@ -52,12 +53,15 @@ const emptyShellCounts: ShellCounts = {
     accepted: 0,
     contacts: 0,
     sent: 0,
+    unreadNotifications: 0,
 };
 
 export function MainTabsScreen() {
     const [activeTab, setActiveTab] = useState<AppTab>('matches');
     const [shellLoading, setShellLoading] = useState(true);
     const [viewerFirstName, setViewerFirstName] = useState('');
+    const [viewerPhotoUrl, setViewerPhotoUrl] = useState<string | null>(null);
+    const [viewerProfileId, setViewerProfileId] = useState<string | null>(null);
     const [shellCounts, setShellCounts] = useState<ShellCounts>(emptyShellCounts);
     const [isAdmin, setIsAdmin] = useState(false);
     const [showPartnerPrefs, setShowPartnerPrefs] = useState(false);
@@ -245,18 +249,54 @@ export function MainTabsScreen() {
     async function loadShellData() {
         lastTabLoadAt.current = Date.now();
         try {
-            const [profile, matches] = await Promise.all([
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            const [profile, matches, unreadNotifsResult] = await Promise.all([
                 fetchCurrentProfile().catch(() => null),
                 fetchChatMatches().catch(() => [] as ChatMatch[]),
+                user
+                    ? supabase
+                          .from('notifications')
+                          .select('id', { count: 'exact', head: true })
+                          .eq('user_id', user.id)
+                          .eq('is_read', false)
+                    : Promise.resolve({ count: 0 }),
             ]);
 
             setViewerFirstName(getDisplayFirstName(profile?.full_name));
-            setShellCounts(buildShellCounts(matches));
+            setViewerPhotoUrl(profile?.photo_urls?.[0] ?? null);
+            setViewerProfileId(profile?.id ?? null);
+            
+            const baseCounts = buildShellCounts(matches);
+            baseCounts.unreadNotifications = unreadNotifsResult.count ?? 0;
+            setShellCounts(baseCounts);
+            
             setIsAdmin(profile?.is_admin === true);
         } catch (error) {
             console.warn('Failed to refresh main tab summary.', error);
         } finally {
             setShellLoading(false);
+        }
+    }
+
+    async function handleSignOut() {
+        if (Platform.OS === 'web') {
+            const confirm = window.confirm('Are you sure you want to sign out?');
+            if (!confirm) return;
+        } else {
+            const confirmed = await new Promise<boolean>((resolve) => {
+                Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+                    { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+                    { text: 'Sign out', onPress: () => resolve(true), style: 'destructive' },
+                ]);
+            });
+            if (!confirmed) return;
+        }
+        try {
+            await updateUserPresence('offline').catch(() => {});
+            await supabase.auth.signOut();
+        } catch (err: any) {
+            console.error('Sign out error:', err);
         }
     }
 
@@ -307,26 +347,29 @@ export function MainTabsScreen() {
                 <HomeHubTab
                     loading={shellLoading}
                     viewerFirstName={viewerFirstName}
+                    viewerPhotoUrl={viewerPhotoUrl}
+                    viewerProfileId={viewerProfileId}
                     counts={shellCounts}
-                    onOpenMatches={() => openTab('matches')}
-                    onOpenInbox={() => openTab('inbox')}
-                    onOpenChat={() => openTab('chat')}
-                    onOpenPremium={() => openTab('premium')}
-                    onOpenPartnerPrefs={() => setShowPartnerPrefs(true)}
-                    onOpenProfileEdit={() => setShowProfileEdit(true)}
                     onOpenSettings={() => setShowSettings(true)}
                     onOpenSearch={() => setShowSearch(true)}
                     onOpenShortlist={() => setShowShortlist(true)}
-                    onOpenMyMatches={() => setShowMyMatches(true)}
                     onOpenWhoViewedMe={() => setShowWhoViewedMe(true)}
+                    onOpenProfileEdit={() => setShowProfileEdit(true)}
+                    onOpenPartnerPrefs={() => setShowPartnerPrefs(true)}
                     onOpenNotifications={() => setShowNotifications(true)}
-                    onOpenDashboard={() => setShowDashboard(true)}
+                    onViewSelfProfile={(id) => setSelectedProfileId(id)}
+                    onSignOut={handleSignOut}
                 />
             );
         }
 
         if (activeTab === 'matches') {
-            return <HomeScreen />;
+            return (
+                <HomeScreen
+                    onOpenNotifications={() => setShowNotifications(true)}
+                    unreadNotificationsCount={shellCounts.unreadNotifications}
+                />
+            );
         }
 
         if (activeTab === 'inbox') {
@@ -338,6 +381,8 @@ export function MainTabsScreen() {
                     initialVisibilityFilter="all"
                     isChatScreen={false}
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
+                    onOpenNotifications={() => setShowNotifications(true)}
+                    unreadNotificationsCount={shellCounts.unreadNotifications}
                 />
             );
         }
@@ -351,6 +396,8 @@ export function MainTabsScreen() {
                     initialVisibilityFilter={shellCounts.unread > 0 ? 'unread' : 'all'}
                     isChatScreen={true}
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
+                    onOpenNotifications={() => setShowNotifications(true)}
+                    unreadNotificationsCount={shellCounts.unreadNotifications}
                 />
             );
         }
@@ -531,43 +578,55 @@ function TabButton({ label, subtitle, badge, disabled = false, active, onPress }
 function HomeHubTab({
     loading,
     viewerFirstName,
+    viewerPhotoUrl,
+    viewerProfileId,
     counts,
-    onOpenMatches,
-    onOpenInbox,
-    onOpenChat,
-    onOpenPremium,
-    onOpenPartnerPrefs,
-    onOpenProfileEdit,
     onOpenSettings,
     onOpenSearch,
     onOpenShortlist,
-    onOpenMyMatches,
     onOpenWhoViewedMe,
+    onOpenProfileEdit,
+    onOpenPartnerPrefs,
     onOpenNotifications,
-    onOpenDashboard,
+    onViewSelfProfile,
+    onSignOut,
 }: {
     loading: boolean;
     viewerFirstName: string;
+    viewerPhotoUrl: string | null;
+    viewerProfileId: string | null;
     counts: ShellCounts;
-    onOpenMatches: () => void;
-    onOpenInbox: () => void;
-    onOpenChat: () => void;
-    onOpenPremium: () => void;
-    onOpenPartnerPrefs: () => void;
-    onOpenProfileEdit: () => void;
     onOpenSettings: () => void;
     onOpenSearch: () => void;
     onOpenShortlist: () => void;
-    onOpenMyMatches: () => void;
     onOpenWhoViewedMe: () => void;
+    onOpenProfileEdit: () => void;
+    onOpenPartnerPrefs: () => void;
     onOpenNotifications: () => void;
-    onOpenDashboard: () => void;
+    onViewSelfProfile: (profileId: string) => void;
+    onSignOut: () => void;
 }) {
     return (
         <SafeAreaView style={styles.panelSafeArea} edges={['top', 'left', 'right']}>
             <ScrollView contentContainerStyle={styles.panelScrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.heroCard}>
                     <View style={styles.heroCardHeader}>
+                        {viewerProfileId && (
+                            <Pressable 
+                                onPress={() => onViewSelfProfile(viewerProfileId)} 
+                                style={({ pressed }) => [{ marginRight: 12, borderRadius: 28, overflow: 'hidden' }, pressed && { opacity: 0.8 }]}
+                            >
+                                {viewerPhotoUrl ? (
+                                    <Image source={{ uri: viewerPhotoUrl }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: '#fff' }} />
+                                ) : (
+                                    <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' }}>
+                                        <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>
+                                            {viewerFirstName?.charAt(0).toUpperCase() || 'U'}
+                                        </Text>
+                                    </View>
+                                )}
+                            </Pressable>
+                        )}
                         <View style={{ flex: 1 }}>
                             <Text style={styles.heroEyebrow}>OpenMatch</Text>
                             <Text style={styles.heroTitle}>{viewerFirstName ? `Welcome back, ${viewerFirstName}` : 'Welcome back'}</Text>
@@ -577,7 +636,7 @@ function HomeHubTab({
                         </Pressable>
                     </View>
                     <Text style={styles.heroBody}>
-                        Keep track of fresh matches, pending requests, and unlocked conversations without hiding the core journey behind a subscription wall.
+                        Keep track of your match requests and unlocked conversations.
                     </Text>
                 </View>
 
@@ -598,18 +657,12 @@ function HomeHubTab({
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionTitle}>Jump back in</Text>
                     <View style={styles.quickActionGrid}>
-                        <QuickActionButton label="Open matches" subtitle="See your ranked feed" tone="primary" onPress={onOpenMatches} />
-                        <QuickActionButton label="My matches" subtitle="All connected profiles" tone="primary" onPress={onOpenMyMatches} />
-                        <QuickActionButton label="Who viewed me" subtitle="Recent profile visitors" tone="accent" onPress={onOpenWhoViewedMe} />
-                        <QuickActionButton label="Notifications" subtitle="All your recent alerts" tone="neutral" onPress={onOpenNotifications} />
-                        <QuickActionButton label="My dashboard" subtitle="Stats & trust scores" tone="neutral" onPress={onOpenDashboard} />
                         <QuickActionButton label="Search profiles" subtitle="Filter by age, religion…" tone="primary" onPress={onOpenSearch} />
+                        <QuickActionButton label="Who viewed me" subtitle="Recent profile visitors" tone="accent" onPress={onOpenWhoViewedMe} />
                         <QuickActionButton label="Saved profiles" subtitle="Your bookmarks" tone="neutral" onPress={onOpenShortlist} />
-                        <QuickActionButton label="Review inbox" subtitle="Handle fresh requests" tone="accent" onPress={onOpenInbox} />
-                        <QuickActionButton label="Continue chat" subtitle="Focus on active threads" tone="neutral" onPress={onOpenChat} />
                         <QuickActionButton label="Edit profile" subtitle="Update your details" tone="neutral" onPress={onOpenProfileEdit} />
                         <QuickActionButton label="Edit preferences" subtitle="Refine match filters" tone="neutral" onPress={onOpenPartnerPrefs} />
-                        <QuickActionButton label="See premium" subtitle="Fair-pay extras only" tone="neutral" onPress={onOpenPremium} />
+                        <QuickActionButton label="Sign out" subtitle="Log out of your account" tone="accent" onPress={onSignOut} />
                     </View>
                 </View>
             </ScrollView>
@@ -1057,7 +1110,7 @@ const styles = StyleSheet.create({
     },
     heroCardHeader: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         marginBottom: 4,
     },
     settingsBtn: {
@@ -1065,7 +1118,7 @@ const styles = StyleSheet.create({
         marginLeft: 8,
     },
     settingsBtnText: {
-        fontSize: 22,
+        fontSize: 28,
         color: 'rgba(255,255,255,0.6)',
     },
     heroTitle: {
@@ -1314,12 +1367,20 @@ function MatchProfileScreenModal({
                     });
                 }
 
-                setSummaryLoading(true);
-                const summary = await fetchCompatibilitySnapshot(profileId);
-                if (active) {
-                    setCompatibilitySummary(summary?.summary || null);
-                    setFitPoints(summary?.fitPoints || []);
-                    setFrictionPoints(summary?.frictionPoints || []);
+                if (vProfile && vProfile.id !== profileId) {
+                    setSummaryLoading(true);
+                    const summary = await fetchCompatibilitySnapshot(profileId);
+                    if (active) {
+                        setCompatibilitySummary(summary?.summary || null);
+                        setFitPoints(summary?.fitPoints || []);
+                        setFrictionPoints(summary?.frictionPoints || []);
+                    }
+                } else {
+                    if (active) {
+                        setCompatibilitySummary("This is how your profile appears to other matches.");
+                        setFitPoints([]);
+                        setFrictionPoints([]);
+                    }
                 }
             } catch (err) {
                 console.warn('Failed to load profile details for review:', err);

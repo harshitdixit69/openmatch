@@ -57,6 +57,7 @@ export function MatchProfileScreen({
     onOpenChat,
 }: MatchProfileScreenProps) {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+    const isSelf = viewerProfile && candidate && viewerProfile.id === candidate.id;
     const [trustSummary, setTrustSummary] = useState<ProfileReliabilitySummary | null>(null);
     const [trustLoading, setTrustLoading] = useState(false);
     const [trustDrawerVisible, setTrustDrawerVisible] = useState(false);
@@ -757,19 +758,25 @@ export function MatchProfileScreen({
                         )}
                     </View>
 
-                    <View style={styles.blockReportRow}>
-                        <Pressable style={styles.secondaryActionButton} onPress={() => handleReport()}>
-                            <Text style={styles.secondaryActionText}>Report Profile</Text>
-                        </Pressable>
-                        <View style={styles.divider} />
-                        <Pressable style={styles.secondaryActionButton} onPress={() => handleBlock()}>
-                            <Text style={styles.secondaryActionText}>Block Profile</Text>
-                        </Pressable>
-                    </View>
+                    {!isSelf && (
+                        <View style={styles.blockReportRow}>
+                            <Pressable style={styles.secondaryActionButton} onPress={() => handleReport()}>
+                                <Text style={styles.secondaryActionText}>Report Profile</Text>
+                            </Pressable>
+                            <View style={styles.divider} />
+                            <Pressable style={styles.secondaryActionButton} onPress={() => handleBlock()}>
+                                <Text style={styles.secondaryActionText}>Block Profile</Text>
+                            </Pressable>
+                        </View>
+                    )}
                 </ScrollView>
 
                 <View style={styles.footerRow}>
-                    {relationshipStatus === 'loading' ? (
+                    {isSelf ? (
+                        <Pressable style={[styles.passButton, { flex: 1 }]} onPress={onClose}>
+                            <Text style={styles.passButtonText}>Close</Text>
+                        </Pressable>
+                    ) : relationshipStatus === 'loading' ? (
                         <ActivityIndicator size="small" color="#123340" style={{ flex: 1 }} />
                     ) : relationshipStatus === 'none' ? (
                         <>

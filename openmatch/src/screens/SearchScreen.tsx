@@ -171,90 +171,207 @@ function FilterBar({
     onChange: (f: ActiveFilters) => void;
     onClear: () => void;
 }) {
+    const [activeDropdown, setActiveDropdown] = useState<'age' | 'religion' | 'education' | 'diet' | null>(null);
     const activeCount = countActiveFilters(filters);
 
+    let currentAgeLabel = 'Age';
+    if (filters.age_min !== null && filters.age_max !== null) {
+        const bracket = AGE_BRACKETS.find(b => b.min === filters.age_min && b.max === filters.age_max);
+        if (bracket) currentAgeLabel = bracket.label;
+    }
+
+    const currentReligionLabel = filters.religion || 'Religion';
+    const currentEducationLabel = filters.education || 'Education';
+    const currentDietLabel = filters.diet || 'Diet';
+
+    const toggleDropdown = (type: 'age' | 'religion' | 'education' | 'diet') => {
+        setActiveDropdown(prev => prev === type ? null : type);
+    };
+
     return (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterBar}
-        >
-            {/* Age brackets */}
-            {AGE_BRACKETS.map((b) => {
-                const isActive = filters.age_min === b.min && filters.age_max === b.max;
-                return (
+        <View style={styles.filterContainer}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ overflow: 'visible' }}
+                contentContainerStyle={styles.filterBar}
+            >
+                {/* Age Dropdown */}
+                <View style={{ position: 'relative', zIndex: activeDropdown === 'age' ? 100 : 1 }}>
                     <Pressable
-                        key={b.label}
-                        style={[styles.filterChip, isActive && styles.filterChipActive]}
-                        onPress={() =>
-                            onChange({
-                                ...filters,
-                                age_min: isActive ? null : b.min,
-                                age_max: isActive ? null : b.max,
-                            })
-                        }
+                        style={[styles.filterDropdownButton, (filters.age_min !== null) && styles.filterChipActive]}
+                        onPress={() => toggleDropdown('age')}
                     >
-                        <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-                            {b.label}
+                        <Text style={[styles.filterChipText, (filters.age_min !== null) && styles.filterChipTextActive]}>
+                            {currentAgeLabel} {activeDropdown === 'age' ? '▴' : '▾'}
                         </Text>
                     </Pressable>
-                );
-            })}
+                    {activeDropdown === 'age' && (
+                        <View style={styles.dropdownMenu}>
+                            <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                                <Pressable
+                                    style={styles.dropdownOption}
+                                    onPress={() => {
+                                        onChange({ ...filters, age_min: null, age_max: null });
+                                        setActiveDropdown(null);
+                                    }}
+                                >
+                                    <Text style={[styles.dropdownOptionText, (filters.age_min === null) && styles.dropdownOptionTextActive]}>Any</Text>
+                                </Pressable>
+                                {AGE_BRACKETS.map((b) => {
+                                    const isActive = filters.age_min === b.min && filters.age_max === b.max;
+                                    return (
+                                        <Pressable
+                                            key={b.label}
+                                            style={styles.dropdownOption}
+                                            onPress={() => {
+                                                onChange({ ...filters, age_min: b.min, age_max: b.max });
+                                                setActiveDropdown(null);
+                                            }}
+                                        >
+                                            <Text style={[styles.dropdownOptionText, isActive && styles.dropdownOptionTextActive]}>{b.label}</Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    )}
+                </View>
 
-            {/* Religion */}
-            {PREF_RELIGIONS.filter((r) => r !== 'Any').map((r) => {
-                const isActive = filters.religion === r;
-                return (
+                {/* Religion Dropdown */}
+                <View style={{ position: 'relative', zIndex: activeDropdown === 'religion' ? 100 : 1 }}>
                     <Pressable
-                        key={r}
-                        style={[styles.filterChip, isActive && styles.filterChipActive]}
-                        onPress={() => onChange({ ...filters, religion: isActive ? null : r })}
+                        style={[styles.filterDropdownButton, filters.religion && styles.filterChipActive]}
+                        onPress={() => toggleDropdown('religion')}
                     >
-                        <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-                            {r}
+                        <Text style={[styles.filterChipText, filters.religion && styles.filterChipTextActive]}>
+                            {currentReligionLabel} {activeDropdown === 'religion' ? '▴' : '▾'}
                         </Text>
                     </Pressable>
-                );
-            })}
+                    {activeDropdown === 'religion' && (
+                        <View style={styles.dropdownMenu}>
+                            <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                                <Pressable
+                                    style={styles.dropdownOption}
+                                    onPress={() => {
+                                        onChange({ ...filters, religion: null });
+                                        setActiveDropdown(null);
+                                    }}
+                                >
+                                    <Text style={[styles.dropdownOptionText, !filters.religion && styles.dropdownOptionTextActive]}>Any</Text>
+                                </Pressable>
+                                {PREF_RELIGIONS.filter((r) => r !== 'Any').map((r) => {
+                                    const isActive = filters.religion === r;
+                                    return (
+                                        <Pressable
+                                            key={r}
+                                            style={styles.dropdownOption}
+                                            onPress={() => {
+                                                onChange({ ...filters, religion: r });
+                                                setActiveDropdown(null);
+                                            }}
+                                        >
+                                            <Text style={[styles.dropdownOptionText, isActive && styles.dropdownOptionTextActive]}>{r}</Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    )}
+                </View>
 
-            {/* Education */}
-            {PREF_EDUCATIONS.filter((e) => e !== 'Any').map((e) => {
-                const isActive = filters.education === e;
-                return (
+                {/* Education Dropdown */}
+                <View style={{ position: 'relative', zIndex: activeDropdown === 'education' ? 100 : 1 }}>
                     <Pressable
-                        key={e}
-                        style={[styles.filterChip, isActive && styles.filterChipActive]}
-                        onPress={() => onChange({ ...filters, education: isActive ? null : e })}
+                        style={[styles.filterDropdownButton, filters.education && styles.filterChipActive]}
+                        onPress={() => toggleDropdown('education')}
                     >
-                        <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-                            {e}
+                        <Text style={[styles.filterChipText, filters.education && styles.filterChipTextActive]}>
+                            {currentEducationLabel} {activeDropdown === 'education' ? '▴' : '▾'}
                         </Text>
                     </Pressable>
-                );
-            })}
+                    {activeDropdown === 'education' && (
+                        <View style={styles.dropdownMenu}>
+                            <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                                <Pressable
+                                    style={styles.dropdownOption}
+                                    onPress={() => {
+                                        onChange({ ...filters, education: null });
+                                        setActiveDropdown(null);
+                                    }}
+                                >
+                                    <Text style={[styles.dropdownOptionText, !filters.education && styles.dropdownOptionTextActive]}>Any</Text>
+                                </Pressable>
+                                {PREF_EDUCATIONS.filter((e) => e !== 'Any').map((e) => {
+                                    const isActive = filters.education === e;
+                                    return (
+                                        <Pressable
+                                            key={e}
+                                            style={styles.dropdownOption}
+                                            onPress={() => {
+                                                onChange({ ...filters, education: e });
+                                                setActiveDropdown(null);
+                                            }}
+                                        >
+                                            <Text style={[styles.dropdownOptionText, isActive && styles.dropdownOptionTextActive]}>{e}</Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    )}
+                </View>
 
-            {/* Diet */}
-            {PREF_DIETS.filter((d) => d !== 'Any').map((d) => {
-                const isActive = filters.diet === d;
-                return (
+                {/* Diet Dropdown */}
+                <View style={{ position: 'relative', zIndex: activeDropdown === 'diet' ? 100 : 1 }}>
                     <Pressable
-                        key={d}
-                        style={[styles.filterChip, isActive && styles.filterChipActive]}
-                        onPress={() => onChange({ ...filters, diet: isActive ? null : d })}
+                        style={[styles.filterDropdownButton, filters.diet && styles.filterChipActive]}
+                        onPress={() => toggleDropdown('diet')}
                     >
-                        <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-                            {d}
+                        <Text style={[styles.filterChipText, filters.diet && styles.filterChipTextActive]}>
+                            {currentDietLabel} {activeDropdown === 'diet' ? '▴' : '▾'}
                         </Text>
                     </Pressable>
-                );
-            })}
+                    {activeDropdown === 'diet' && (
+                        <View style={styles.dropdownMenu}>
+                            <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                                <Pressable
+                                    style={styles.dropdownOption}
+                                    onPress={() => {
+                                        onChange({ ...filters, diet: null });
+                                        setActiveDropdown(null);
+                                    }}
+                                >
+                                    <Text style={[styles.dropdownOptionText, !filters.diet && styles.dropdownOptionTextActive]}>Any</Text>
+                                </Pressable>
+                                {PREF_DIETS.filter((d) => d !== 'Any').map((d) => {
+                                    const isActive = filters.diet === d;
+                                    return (
+                                        <Pressable
+                                            key={d}
+                                            style={styles.dropdownOption}
+                                            onPress={() => {
+                                                onChange({ ...filters, diet: d });
+                                                setActiveDropdown(null);
+                                            }}
+                                        >
+                                            <Text style={[styles.dropdownOptionText, isActive && styles.dropdownOptionTextActive]}>{d}</Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    )}
+                </View>
 
-            {activeCount > 0 && (
-                <Pressable style={styles.clearChip} onPress={onClear}>
-                    <Text style={styles.clearChipText}>✕ Clear</Text>
-                </Pressable>
-            )}
-        </ScrollView>
+                {/* Clear Button */}
+                {activeCount > 0 && (
+                    <Pressable style={styles.clearChip} onPress={onClear}>
+                        <Text style={styles.clearChipText}>✕ Clear</Text>
+                    </Pressable>
+                )}
+            </ScrollView>
+        </View>
     );
 }
 
@@ -454,49 +571,88 @@ const styles = StyleSheet.create({
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#f8fafc',
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
         paddingHorizontal: 12,
         height: 42,
     },
-    searchIcon: { fontSize: 18, color: '#999', marginRight: 6 },
-    searchInput: { flex: 1, fontSize: 15, color: '#111' },
+    searchIcon: { fontSize: 18, color: '#94a3b8', marginRight: 6 },
+    searchInput: { flex: 1, fontSize: 15, color: '#0f172a' },
+    filterContainer: {
+        backgroundColor: '#fff',
+        zIndex: 50,
+        overflow: 'visible',
+    },
     filterBar: {
         flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 10,
         gap: 8,
         backgroundColor: '#fff',
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e8e8e8',
+        borderBottomColor: '#e2e8f0',
+        overflow: 'visible',
     },
-    filterChip: {
+    filterDropdownButton: {
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 16,
-        borderWidth: 1.5,
-        borderColor: '#d0d0d0',
-        backgroundColor: '#fafafa',
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        backgroundColor: '#f8fafc',
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    filterChipActive: { borderColor: '#123340', backgroundColor: '#123340' },
-    filterChipText: { fontSize: 13, color: '#555', fontWeight: '500' },
+    dropdownMenu: {
+        position: 'absolute',
+        top: 36,
+        left: 0,
+        backgroundColor: '#ffffff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        width: 140,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 5,
+        zIndex: 1000,
+    },
+    dropdownOption: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    dropdownOptionText: {
+        fontSize: 14,
+        color: '#334155',
+    },
+    dropdownOptionTextActive: {
+        color: '#14313a',
+        fontWeight: '700',
+    },
+    filterChipActive: { borderColor: '#14313a', backgroundColor: '#14313a' },
+    filterChipText: { fontSize: 13, color: '#475569', fontWeight: '500' },
     filterChipTextActive: { color: '#fff' },
     clearChip: {
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 16,
-        backgroundColor: '#fde8e8',
-        borderWidth: 1.5,
-        borderColor: '#f5c0c0',
+        backgroundColor: '#fef2f2',
+        borderWidth: 1,
+        borderColor: '#fca5a5',
     },
-    clearChipText: { fontSize: 13, color: '#c0392b', fontWeight: '600' },
+    clearChipText: { fontSize: 13, color: '#b91c1c', fontWeight: '600' },
     resultsMeta: {
         paddingHorizontal: 20,
         paddingVertical: 8,
         minHeight: 32,
         justifyContent: 'center',
     },
-    resultsCount: { fontSize: 12, color: '#888' },
+    resultsCount: { fontSize: 12, color: '#64748b' },
     listContent: { paddingTop: 4 },
     inner: { maxWidth: MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
     // Card
@@ -507,10 +663,12 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         padding: 12,
         marginBottom: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
         elevation: 2,
     },
     cardPressed: { opacity: 0.85 },
@@ -520,23 +678,24 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#123340',
+        backgroundColor: '#475569',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    cardImgPlaceholderText: { color: '#fff', fontSize: 22, fontWeight: '700' },
+    cardImgPlaceholderText: { color: '#fff', fontSize: 18, fontWeight: '600' },
     cardBody: { flex: 1 },
-    cardName: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 2 },
-    cardMeta: { fontSize: 13, color: '#777', marginBottom: 3 },
-    cardBio: { fontSize: 13, color: '#555', lineHeight: 18 },
+    cardName: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
+    cardMeta: { fontSize: 13, color: '#64748b', marginBottom: 3 },
+    cardBio: { fontSize: 13, color: '#334155', lineHeight: 18 },
     cardBadge: {
-        backgroundColor: '#eaf4f0',
-        borderRadius: 10,
+        backgroundColor: '#ecfdf5',
+        borderRadius: 8,
         paddingHorizontal: 8,
         paddingVertical: 4,
-        marginLeft: 8,
+        borderWidth: 1,
+        borderColor: '#a7f3d0',
     },
-    cardBadgeText: { fontSize: 11, color: '#1a7a5e', fontWeight: '700' },
+    cardBadgeText: { fontSize: 11, color: '#065f46', fontWeight: '700' },
     cardRight: {
         alignItems: 'center',
         gap: 6,

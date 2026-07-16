@@ -84,6 +84,8 @@ type ChatScreenProps = {
     initialVisibilityFilter?: MessageVisibilityFilter;
     isChatScreen?: boolean;
     onViewProfile?: (profileId: string) => void;
+    onOpenNotifications?: () => void;
+    unreadNotificationsCount?: number;
 };
 
 type RecoverySuggestionAction = 'request_unlock' | 'accept_unlock' | 'pay_unlock' | 'call' | 'whatsapp';
@@ -119,6 +121,8 @@ export function ChatScreen({
     initialVisibilityFilter = 'all',
     isChatScreen = false,
     onViewProfile,
+    onOpenNotifications,
+    unreadNotificationsCount = 0,
 }: ChatScreenProps) {
     const { width: windowWidth } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
@@ -1441,7 +1445,33 @@ export function ChatScreen({
                                     )}
                                 </View>
                             </View>
-                        ) : null}
+                        ) : (
+                            onOpenNotifications && (
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.moreHeaderButton,
+                                        { width: 42, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+                                        pressed && styles.headerButtonPressed,
+                                    ]}
+                                    onPress={onOpenNotifications}
+                                >
+                                    <Text style={{ fontSize: 18 }}>🔔</Text>
+                                    {unreadNotificationsCount > 0 && (
+                                        <View style={{
+                                            position: 'absolute',
+                                            right: -2,
+                                            top: -2,
+                                            backgroundColor: '#ef4444',
+                                            borderRadius: 6,
+                                            width: 12,
+                                            height: 12,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }} />
+                                    )}
+                                </Pressable>
+                            )
+                        )}
                     </View>
 
                     {chatHeaderSubtitle ? <Text style={styles.subtitle}>{chatHeaderSubtitle}</Text> : null}

@@ -75,7 +75,13 @@ function validateContactNumber(rawValue: string, fieldLabel: string): string | n
     return null;
 }
 
-export function HomeScreen() {
+export function HomeScreen({
+    onOpenNotifications,
+    unreadNotificationsCount = 0,
+}: {
+    onOpenNotifications?: () => void;
+    unreadNotificationsCount?: number;
+} = {}) {
     const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -650,7 +656,37 @@ export function HomeScreen() {
             >
                 <View style={[styles.headerRow, useStackedHeader ? styles.headerRowStacked : null]}>
                     <View style={styles.headerCopy}>
-                        <Text style={styles.title}>{viewerFirstName ? `Hi, ${viewerFirstName}` : 'Semantic Matchmaking Feed'}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1} ellipsizeMode="tail">
+                                {viewerFirstName ? `Hi, ${viewerFirstName}` : 'Semantic Feed'}
+                            </Text>
+                            {onOpenNotifications && (
+                                <Pressable
+                                    style={{ position: 'relative', padding: 6 }}
+                                    onPress={onOpenNotifications}
+                                >
+                                    <Text style={{ fontSize: 22 }}>🔔</Text>
+                                    {unreadNotificationsCount > 0 && (
+                                        <View style={{
+                                            position: 'absolute',
+                                            right: 0,
+                                            top: 0,
+                                            backgroundColor: '#ef4444',
+                                            borderRadius: 8,
+                                            minWidth: 16,
+                                            height: 16,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            paddingHorizontal: 3,
+                                        }}>
+                                            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', lineHeight: 11 }}>
+                                                {unreadNotificationsCount}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </Pressable>
+                            )}
+                        </View>
                         <Text style={styles.subtitle}>
                             {viewerFirstName
                                 ? 'Swipe through profiles ranked for you and tap a card for the compatibility snapshot.'
@@ -685,22 +721,6 @@ export function HomeScreen() {
                                 ))}
                             </ScrollView>
                         </View>
-                    </View>
-
-                    <View style={[styles.headerActions, useStackedHeader ? styles.headerActionsInline : null]}>
-                        <Pressable
-                            style={[styles.photosButton, useStackedHeader ? styles.headerActionButtonCompact : null]}
-                            onPress={() => {
-                                setPhotoManagerVisible(true);
-                                void syncViewerProfile();
-                            }}
-                        >
-                            <Text style={styles.photosButtonText}>My profile</Text>
-                        </Pressable>
-
-                        <Pressable style={[styles.signOutButton, useStackedHeader ? styles.headerActionButtonCompact : null]} onPress={onSignOut}>
-                            <Text style={styles.signOutText}>Sign out</Text>
-                        </Pressable>
                     </View>
                 </View>
 
