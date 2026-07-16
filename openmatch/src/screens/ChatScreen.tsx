@@ -1354,36 +1354,6 @@ export function ChatScreen({
                             )}
                         </Pressable>
 
-                        {activeMatch?.isUnlocked ? (
-                            activeMatch.otherUserPhoneNumber || activeMatch.otherUserWhatsappNumber ? (
-                                <View style={styles.headerUnlockActions}>
-                                    {activeMatch.otherUserPhoneNumber ? (
-                                        <Pressable
-                                            style={({ pressed }) => [styles.headerCallButton, isNarrowHeader && styles.headerButtonCompact, pressed && styles.headerButtonPressed]}
-                                            onPress={() => void handleContactAction('call')}
-                                        >
-                                            <PhoneIcon size={15} color="#ffffff" />
-                                            {isNarrowHeader ? null : <Text style={styles.headerCallText}>Call</Text>}
-                                        </Pressable>
-                                    ) : null}
-                                    {activeMatch.otherUserWhatsappNumber ? (
-                                        <Pressable
-                                            style={({ pressed }) => [styles.headerWhatsappButton, isNarrowHeader && styles.headerButtonCompact, pressed && styles.headerButtonPressed]}
-                                            onPress={() => void handleContactAction('whatsapp')}
-                                        >
-                                            <WhatsAppLogo size={16} color="#ffffff" />
-                                            {isNarrowHeader ? null : <Text style={styles.headerWhatsappText}>WhatsApp</Text>}
-                                        </Pressable>
-                                    ) : null}
-                                </View>
-                            ) : (
-                                <View style={styles.headerUnlockNoteBadge}>
-                                    <Text style={styles.headerUnlockNoteIcon}>🔓</Text>
-                                    <Text style={styles.headerUnlockNoteText}>No contacts yet</Text>
-                                </View>
-                            )
-                        ) : null}
-
                         {activeMatch ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1000 }}>
                                 <Pressable
@@ -1473,6 +1443,35 @@ export function ChatScreen({
                             )
                         )}
                     </View>
+
+                    {activeMatch?.isUnlocked && (
+                        <View style={styles.contactActionSubBar}>
+                            {activeMatch.otherUserPhoneNumber ? (
+                                <Pressable
+                                    style={({ pressed }) => [styles.subBarCallButton, pressed && styles.subBarButtonPressed]}
+                                    onPress={() => void handleContactAction('call')}
+                                >
+                                    <PhoneIcon size={16} color="#ffffff" />
+                                    <Text style={styles.subBarCallText}>Call {activeMatch.otherUserName}</Text>
+                                </Pressable>
+                            ) : null}
+                            {activeMatch.otherUserWhatsappNumber ? (
+                                <Pressable
+                                    style={({ pressed }) => [styles.subBarWhatsappButton, pressed && styles.subBarButtonPressed]}
+                                    onPress={() => void handleContactAction('whatsapp')}
+                                >
+                                    <WhatsAppLogo size={16} color="#ffffff" />
+                                    <Text style={styles.subBarWhatsappText}>WhatsApp</Text>
+                                </Pressable>
+                            ) : null}
+                            {!activeMatch.otherUserPhoneNumber && !activeMatch.otherUserWhatsappNumber && (
+                                <View style={styles.subBarUnlockNoteBadge}>
+                                    <Text style={styles.subBarUnlockNoteIcon}>🔓</Text>
+                                    <Text style={styles.subBarUnlockNoteText}>No contact details available yet</Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
 
                     {chatHeaderSubtitle ? <Text style={styles.subtitle}>{chatHeaderSubtitle}</Text> : null}
                 </View>
@@ -3515,6 +3514,7 @@ const styles = StyleSheet.create({
     headerCopy: {
         flex: 1,
         gap: 4,
+        marginHorizontal: 12,
     },
     headerUnlockActions: {
         alignItems: 'center',
@@ -4800,6 +4800,81 @@ const styles = StyleSheet.create({
     headerDropdownDivider: {
         height: 1,
         backgroundColor: '#f1f5f9',
+    },
+    contactActionSubBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        backgroundColor: '#edf3f2',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#d6e1df',
+        gap: 12,
+    },
+    subBarCallButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#17323d',
+        borderRadius: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        shadowColor: '#0a1a1f',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    subBarCallText: {
+        color: '#ffffff',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    subBarWhatsappButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#25d366',
+        borderRadius: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        shadowColor: '#0a1a1f',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    subBarWhatsappText: {
+        color: '#ffffff',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    subBarButtonPressed: {
+        opacity: 0.85,
+    },
+    subBarUnlockNoteBadge: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f1f5f9',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        gap: 6,
+    },
+    subBarUnlockNoteIcon: {
+        fontSize: 14,
+    },
+    subBarUnlockNoteText: {
+        color: '#64748b',
+        fontSize: 12,
+        fontWeight: '600',
     },
     chatCard: {
         flexDirection: 'row',
