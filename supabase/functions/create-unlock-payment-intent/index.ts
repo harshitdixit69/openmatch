@@ -124,6 +124,13 @@ Deno.serve(async (request) => {
                     payer_user_id: user.id,
                     unlock_mode: 'mutual',
                 },
+                payment_intent_data: {
+                    metadata: {
+                        match_id: match.id,
+                        payer_user_id: user.id,
+                        unlock_mode: 'mutual',
+                    },
+                },
                 success_url: payload.successUrl || env.supabaseUrl,
                 cancel_url: payload.cancelUrl || env.supabaseUrl,
             });
