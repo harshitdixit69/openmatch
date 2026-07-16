@@ -80,6 +80,8 @@ export function HomeScreen() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFeedFilter, setActiveFeedFilter] = useState<FeedFilter>('new');
     const [viewerEmbeddingStatus, setViewerEmbeddingStatus] = useState<ViewerEmbeddingStatus>('ready');
@@ -164,20 +166,34 @@ export function HomeScreen() {
         await loadFeed(true);
     }
 
-    async function loadFeed(showLoader: boolean, silentErrors = false) {
+    async function loadFeed(showLoader: boolean, silentErrors = false, isAppend = false) {
+        if (isAppend && (!hasMore || loadingMore)) {
+            return;
+        }
+
         if (showLoader) {
             setLoading(true);
+        } else if (isAppend) {
+            setLoadingMore(true);
         } else {
             setRefreshing(true);
         }
 
         try {
-            const result = await fetchSemanticMatches();
-            setCandidates(result.candidates);
+            const offset = isAppend ? candidates.length : 0;
+            const result = await fetchSemanticMatches(50, offset);
+
+            if (isAppend) {
+                setCandidates((prev) => [...prev, ...result.candidates]);
+                setHasMore(result.candidates.length >= 50);
+            } else {
+                setCandidates(result.candidates);
+                setHasMore(result.candidates.length >= 50);
+                setCurrentIndex(0);
+                pan.setValue({ x: 0, y: 0 });
+            }
             setViewerEmbeddingStatus(result.viewerEmbeddingStatus);
             setUsingLegacyMatchFunction(result.usedLegacyFunction);
-            setCurrentIndex(0);
-            pan.setValue({ x: 0, y: 0 });
         } catch (error) {
             if (!silentErrors) {
                 const message = error instanceof Error ? error.message : 'Unable to load the semantic feed.';
@@ -186,6 +202,7 @@ export function HomeScreen() {
         } finally {
             setLoading(false);
             setRefreshing(false);
+            setLoadingMore(false);
         }
     }
 
@@ -343,16 +360,16 @@ export function HomeScreen() {
     useEffect(() => {
         setCurrentIndex(0);
         pan.setValue({ x: 0, y: 0 });
-    }, [activeFeedFilter, searchQuery, pan, candidates.length]);
+    }, [activeFeedFilter, searchQuery, pan]);
 
     // Auto-fetch more profiles when the user is 5 cards from the end of the feed.
     useEffect(() => {
-        if (loading || refreshing) return;
+        if (loading || refreshing || loadingMore || !hasMore) return;
         if (visibleCandidates.length === 0) return;
         if (currentIndex < visibleCandidates.length - 5) return;
-        void loadFeed(false, true);
+        void loadFeed(false, true, true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentIndex]);
+    }, [currentIndex, loading, refreshing, loadingMore, hasMore, visibleCandidates.length]);
 
     const activeCandidate = visibleCandidates[currentIndex] ?? null;
     const nextCandidate = visibleCandidates[currentIndex + 1] ?? null;

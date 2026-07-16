@@ -128,7 +128,7 @@ async function fetchViewerMatchProfile(currentUserId: string) {
     } satisfies ViewerEmbeddingRow;
 }
 
-export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult> {
+export async function fetchSemanticMatches(limit = 50, offset = 0): Promise<MatchFeedResult> {
     const {
         data: { user },
         error: userError,
@@ -173,6 +173,7 @@ export async function fetchSemanticMatches(limit = 50): Promise<MatchFeedResult>
     const { data, error } = await supabase.rpc('match_profiles', {
         result_limit: limit,
         p_viewer_id: user.id,
+        p_offset: offset,
     });
 
     if (error) {
