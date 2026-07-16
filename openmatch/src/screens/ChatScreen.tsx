@@ -1288,8 +1288,9 @@ export function ChatScreen({
     return (
         <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
                 <View style={styles.headerRow}>
                     <View style={styles.headerTitleRow}>
@@ -2090,6 +2091,8 @@ export function ChatScreen({
                                     maxToRenderPerBatch={12}
                                     windowSize={9}
                                     removeClippedSubviews
+                                    keyboardShouldPersistTaps="handled"
+                                    keyboardDismissMode="on-drag"
                                     renderItem={({ item }) => {
                                         const isOwnMessage = item.senderId === currentUserId;
                                         
@@ -4692,7 +4695,7 @@ const styles = StyleSheet.create({
         color: '#7d8c90',
     },
     composerRow: {
-        alignItems: 'flex-end',
+        alignItems: 'center',
         flexDirection: 'row',
         gap: 10,
         marginTop: 12,
@@ -4700,22 +4703,24 @@ const styles = StyleSheet.create({
     composerInput: {
         backgroundColor: '#ffffff',
         borderColor: '#d7e1e2',
-        borderRadius: 20,
+        borderRadius: 24,
         borderWidth: 1,
         color: '#14313a',
         flex: 1,
         fontSize: 15,
         maxHeight: 120,
-        minHeight: 52,
+        minHeight: 48,
         paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingVertical: 12,
         textAlignVertical: 'top',
     },
     sendButton: {
         backgroundColor: '#d9643d',
-        borderRadius: 18,
-        paddingHorizontal: 18,
-        paddingVertical: 16,
+        borderRadius: 24,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
     },
     sendButtonDisabled: {
         opacity: 0.6,
