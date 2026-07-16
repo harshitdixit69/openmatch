@@ -614,13 +614,13 @@ function HomeHubTab({
                         {viewerProfileId && (
                             <Pressable 
                                 onPress={() => onViewSelfProfile(viewerProfileId)} 
-                                style={({ pressed }) => [{ marginRight: 12, borderRadius: 28, overflow: 'hidden' }, pressed && { opacity: 0.8 }]}
+                                style={({ pressed }) => [{ marginRight: 10, borderRadius: 24, overflow: 'hidden' }, pressed && { opacity: 0.8 }]}
                             >
                                 {viewerPhotoUrl ? (
-                                    <Image source={{ uri: viewerPhotoUrl }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: '#fff' }} />
+                                    <Image source={{ uri: viewerPhotoUrl }} style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: '#fff' }} />
                                 ) : (
-                                    <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' }}>
-                                        <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>
+                                    <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#475569', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' }}>
+                                        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>
                                             {viewerFirstName?.charAt(0).toUpperCase() || 'U'}
                                         </Text>
                                     </View>
@@ -1087,23 +1087,23 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     panelScrollContent: {
-        gap: 14,
+        gap: 10,
         paddingBottom: 20,
-        paddingHorizontal: 20,
-        paddingTop: 16,
+        paddingHorizontal: 16,
+        paddingTop: 12,
     },
     heroCard: {
         backgroundColor: '#14313a',
-        borderRadius: 28,
-        gap: 10,
-        padding: 22,
+        borderRadius: 20,
+        gap: 8,
+        padding: 16,
     },
     premiumHeroCard: {
         backgroundColor: '#29464f',
     },
     heroEyebrow: {
         color: '#f1c57b',
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
@@ -1118,18 +1118,18 @@ const styles = StyleSheet.create({
         marginLeft: 8,
     },
     settingsBtnText: {
-        fontSize: 28,
+        fontSize: 24,
         color: 'rgba(255,255,255,0.6)',
     },
     heroTitle: {
         color: '#ffffff',
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: '800',
     },
     heroBody: {
         color: '#d5e2e4',
-        fontSize: 15,
-        lineHeight: 22,
+        fontSize: 13.5,
+        lineHeight: 19,
     },
     summaryLoadingCard: {
         alignItems: 'center',
@@ -1139,24 +1139,24 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         flexDirection: 'row',
         gap: 10,
-        padding: 18,
+        padding: 12,
     },
     summaryLoadingText: {
         color: '#35525b',
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '700',
     },
     summaryGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: 8,
     },
     summaryCard: {
-        borderRadius: 22,
-        flexBasis: '47%',
+        borderRadius: 16,
+        flexBasis: '45%',
         flexGrow: 1,
-        gap: 6,
-        padding: 18,
+        gap: 4,
+        padding: 12,
     },
     summaryCardPrimary: {
         backgroundColor: '#14313a',
@@ -1170,7 +1170,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     summaryValue: {
-        fontSize: 28,
+        fontSize: 22,
         fontWeight: '800',
     },
     summaryValuePrimary: {
@@ -1183,7 +1183,7 @@ const styles = StyleSheet.create({
         color: '#14313a',
     },
     summaryLabel: {
-        fontSize: 13,
+        fontSize: 11.5,
         fontWeight: '700',
     },
     summaryLabelPrimary: {
@@ -1198,23 +1198,23 @@ const styles = StyleSheet.create({
     sectionCard: {
         backgroundColor: '#ffffff',
         borderColor: '#d6e1df',
-        borderRadius: 24,
+        borderRadius: 18,
         borderWidth: 1,
-        gap: 14,
-        padding: 18,
+        gap: 10,
+        padding: 14,
     },
     sectionTitle: {
         color: '#14313a',
-        fontSize: 18,
+        fontSize: 15,
         fontWeight: '800',
     },
     quickActionGrid: {
-        gap: 10,
+        gap: 8,
     },
     quickActionButton: {
-        borderRadius: 20,
+        borderRadius: 14,
         gap: 4,
-        padding: 16,
+        padding: 12,
     },
     quickActionButtonPrimary: {
         backgroundColor: '#14313a',
@@ -1226,7 +1226,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#edf3f2',
     },
     quickActionLabel: {
-        fontSize: 15,
+        fontSize: 13.5,
         fontWeight: '800',
     },
     quickActionLabelPrimary: {
@@ -1239,8 +1239,8 @@ const styles = StyleSheet.create({
         color: '#244049',
     },
     quickActionSubtitle: {
-        fontSize: 13,
-        lineHeight: 19,
+        fontSize: 11.5,
+        lineHeight: 16,
     },
     quickActionSubtitlePrimary: {
         color: '#c7d6d8',
@@ -1253,14 +1253,14 @@ const styles = StyleSheet.create({
     },
     featureRow: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 10,
     },
     featureDot: {
         backgroundColor: '#d9643d',
         borderRadius: 999,
-        height: 10,
-        marginTop: 7,
-        width: 10,
+        height: 8,
+        marginTop: 5,
+        width: 8,
     },
     featureCopy: {
         flex: 1,
@@ -1268,13 +1268,13 @@ const styles = StyleSheet.create({
     },
     featureTitle: {
         color: '#14313a',
-        fontSize: 15,
+        fontSize: 13.5,
         fontWeight: '800',
     },
     featureBody: {
         color: '#5d6d71',
-        fontSize: 14,
-        lineHeight: 21,
+        fontSize: 12.5,
+        lineHeight: 18,
     },
 });
 
