@@ -116,6 +116,7 @@ type CreateUnlockPaymentIntentResponse = {
     currency?: string;
     merchantDisplayName?: string;
     reused?: boolean;
+    checkoutUrl?: string | null;
 };
 
 type UpdateMatchUnlockResponse = {
@@ -743,9 +744,17 @@ export async function extendSlaDeadline(requestId: string): Promise<MatchInteres
     return mapInterestRequest(payload.updatedRequest);
 }
 
-export async function createUnlockPaymentIntent(matchId: string): Promise<UnlockPaymentIntent> {
+export async function createUnlockPaymentIntent(
+    matchId: string,
+    options?: { isWeb?: boolean; successUrl?: string; cancelUrl?: string }
+): Promise<UnlockPaymentIntent> {
     const { data, error } = await supabase.functions.invoke('create-unlock-payment-intent', {
-        body: { matchId },
+        body: {
+            matchId,
+            isWeb: options?.isWeb,
+            successUrl: options?.successUrl,
+            cancelUrl: options?.cancelUrl,
+        },
     });
 
     if (error) {
@@ -763,8 +772,8 @@ export async function createUnlockPaymentIntent(matchId: string): Promise<Unlock
         throw new Error('Unlock payment response was incomplete.');
     }
 
-    if (!payload.alreadyUnlocked && typeof payload.clientSecret !== 'string') {
-        throw new Error('Unlock payment response did not include a client secret.');
+    if (!payload.alreadyUnlocked && typeof payload.clientSecret !== 'string' && typeof payload.checkoutUrl !== 'string') {
+        throw new Error('Unlock payment response did not include a client secret or checkout URL.');
     }
 
     return {
@@ -775,6 +784,7 @@ export async function createUnlockPaymentIntent(matchId: string): Promise<Unlock
         currency: payload.currency.toLowerCase(),
         merchantDisplayName: payload.merchantDisplayName,
         reused: Boolean(payload.reused),
+        checkoutUrl: typeof payload.checkoutUrl === 'string' ? payload.checkoutUrl : null,
     };
 }
 

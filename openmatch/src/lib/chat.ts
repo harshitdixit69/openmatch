@@ -89,6 +89,7 @@ export type UnlockPaymentIntent = {
     currency: string;
     merchantDisplayName: string;
     reused: boolean;
+    checkoutUrl?: string | null;
 };
 
 export type UnlockPaymentSheetResult = {

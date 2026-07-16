@@ -788,7 +788,9 @@ export function ChatScreen({
             return;
         }
 
-        if (!supportsUnlockPayments()) {
+        const isWeb = Platform.OS === 'web';
+
+        if (!isWeb && !supportsUnlockPayments()) {
             setNotice(getUnsupportedUnlockMessage());
             return;
         }
@@ -797,11 +799,27 @@ export function ChatScreen({
         setNotice(null);
 
         try {
-            const intent = await createUnlockPaymentIntent(activeMatch.id);
+            const intent = await createUnlockPaymentIntent(
+                activeMatch.id,
+                isWeb ? {
+                    isWeb: true,
+                    successUrl: window.location.href,
+                    cancelUrl: window.location.href,
+                } : undefined
+            );
 
             if (intent.alreadyUnlocked) {
                 await refreshUnlockedMatch(activeMatch.id);
                 setNotice('This conversation is already unlocked. Direct chat is available now.');
+                return;
+            }
+
+            if (isWeb) {
+                if (intent.checkoutUrl) {
+                    window.location.href = intent.checkoutUrl;
+                } else {
+                    throw new Error('Checkout session URL was not returned.');
+                }
                 return;
             }
 
@@ -832,7 +850,9 @@ export function ChatScreen({
             const message = error instanceof Error ? error.message : 'Could not start the unlock flow.';
             Alert.alert('Unlock failed', message);
         } finally {
-            setUnlocking(false);
+            if (!isWeb) {
+                setUnlocking(false);
+            }
         }
     }
 
@@ -2827,10 +2847,9 @@ function matchesChatListFilter(match: ChatMatch, filter: ChatListFilter) {
 
     if (filter === 'accepted') {
         return (
-            !match.isUnlocked &&
-            (match.interestRequest?.status === 'accepted' ||
-                match.interestRequest?.status === 'ghosted' ||
-                match.status === 'connected')
+            match.interestRequest?.status === 'accepted' ||
+            match.interestRequest?.status === 'ghosted' ||
+            match.status === 'connected'
         );
     }
 

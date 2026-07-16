@@ -10,6 +10,9 @@ const corsHeaders = {
 
 type CreateUnlockPaymentIntentRequest = {
     matchId?: string;
+    isWeb?: boolean;
+    successUrl?: string;
+    cancelUrl?: string;
 };
 
 type PaymentAttemptRow = {
@@ -97,6 +100,41 @@ Deno.serve(async (request) => {
 
         if (state.hasCurrentUserPaid) {
             return json({ error: 'Your payment is already complete. Waiting for the other person.' }, 409);
+        }
+
+        if (payload.isWeb) {
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                line_items: [
+                    {
+                        price_data: {
+                            currency: env.unlockCurrency.toLowerCase(),
+                            product_data: {
+                                name: `OpenMatch mutual unlock for match ${match.id}`,
+                                description: 'One-time fee to unlock direct chat and contact sharing',
+                            },
+                            unit_amount: env.unlockAmount,
+                        },
+                        quantity: 1,
+                    },
+                ],
+                mode: 'payment',
+                metadata: {
+                    match_id: match.id,
+                    payer_user_id: user.id,
+                    unlock_mode: 'mutual',
+                },
+                success_url: payload.successUrl || env.supabaseUrl,
+                cancel_url: payload.cancelUrl || env.supabaseUrl,
+            });
+
+            return json({
+                alreadyUnlocked: false,
+                checkoutUrl: session.url,
+                reused: false,
+                state,
+                ...baseResponse,
+            });
         }
 
         const existingAttempt = await fetchLatestPaymentAttempt(serviceClient, match.id, user.id);
