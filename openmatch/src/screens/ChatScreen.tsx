@@ -1392,27 +1392,33 @@ export function ChatScreen({
                                     </Pressable>
 
                                     {dropdownVisible && (
-                                        <View style={styles.headerDropdownMenu}>
+                                        <>
                                             <Pressable
-                                                style={styles.headerDropdownItem}
-                                                onPress={() => {
-                                                    setDropdownVisible(false);
-                                                    confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                }}
-                                            >
-                                                <Text style={styles.headerDropdownItemText}>Block User</Text>
-                                            </Pressable>
-                                            <View style={styles.headerDropdownDivider} />
-                                            <Pressable
-                                                style={styles.headerDropdownItem}
-                                                onPress={() => {
-                                                    setDropdownVisible(false);
-                                                    promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                }}
-                                            >
-                                                <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
-                                            </Pressable>
-                                        </View>
+                                                style={styles.dropdownBackdrop}
+                                                onPress={() => setDropdownVisible(false)}
+                                            />
+                                            <View style={styles.headerDropdownMenu}>
+                                                <Pressable
+                                                    style={styles.headerDropdownItem}
+                                                    onPress={() => {
+                                                        setDropdownVisible(false);
+                                                        confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                    }}
+                                                >
+                                                    <Text style={styles.headerDropdownItemText}>Block User</Text>
+                                                </Pressable>
+                                                <View style={styles.headerDropdownDivider} />
+                                                <Pressable
+                                                    style={styles.headerDropdownItem}
+                                                    onPress={() => {
+                                                        setDropdownVisible(false);
+                                                        promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                    }}
+                                                >
+                                                    <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
+                                                </Pressable>
+                                            </View>
+                                        </>
                                     )}
                                 </View>
                             </View>
@@ -3513,6 +3519,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         flexDirection: 'row',
         gap: 10,
+        zIndex: 10,
     },
     headerCopy: {
         flex: 1,
@@ -4772,6 +4779,15 @@ const styles = StyleSheet.create({
         color: '#4a5568',
         lineHeight: 20,
     },
+    dropdownBackdrop: {
+        position: 'absolute',
+        top: -3000,
+        left: -3000,
+        right: -3000,
+        bottom: -3000,
+        backgroundColor: 'transparent',
+        zIndex: 1,
+    },
     headerDropdownMenu: {
         position: 'absolute',
         top: 40,
@@ -4816,6 +4832,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#d6e1df',
         gap: 12,
+        zIndex: 1,
     },
     subBarCallButton: {
         flex: 1,
