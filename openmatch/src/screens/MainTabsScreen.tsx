@@ -74,6 +74,7 @@ export function MainTabsScreen() {
     const [showNotifications, setShowNotifications] = useState(false);
     const [showDashboard, setShowDashboard] = useState(false);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
     const insets = useSafeAreaInsets();
     // Debounce ref: track the last time loadShellData was triggered by a tab
     // switch so rapid tab changes don't fire multiple heavy fetchChatMatches calls.
@@ -279,25 +280,8 @@ export function MainTabsScreen() {
         }
     }
 
-    async function handleSignOut() {
-        if (Platform.OS === 'web') {
-            const confirm = window.confirm('Are you sure you want to sign out?');
-            if (!confirm) return;
-        } else {
-            const confirmed = await new Promise<boolean>((resolve) => {
-                Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-                    { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
-                    { text: 'Sign out', onPress: () => resolve(true), style: 'destructive' },
-                ]);
-            });
-            if (!confirmed) return;
-        }
-        try {
-            await updateUserPresence('offline').catch(() => {});
-            await supabase.auth.signOut();
-        } catch (err: any) {
-            console.error('Sign out error:', err);
-        }
+    function handleSignOut() {
+        setShowSignOutConfirm(true);
     }
 
     const tabItems = useMemo(
@@ -535,6 +519,39 @@ export function MainTabsScreen() {
                             }}
                         />
                     ) : null}
+                </Modal>
+
+                <Modal
+                    transparent
+                    animationType="fade"
+                    visible={showSignOutConfirm}
+                    onRequestClose={() => setShowSignOutConfirm(false)}
+                >
+                    <View style={styles.confirmModalOverlay}>
+                        <View style={styles.confirmModalContent}>
+                            <Text style={styles.confirmModalTitle}>Sign out</Text>
+                            <Text style={styles.confirmModalBody}>Are you sure you want to sign out of your account?</Text>
+                            <View style={styles.confirmModalButtons}>
+                                <Pressable style={styles.confirmCancelBtn} onPress={() => setShowSignOutConfirm(false)}>
+                                    <Text style={styles.confirmCancelText}>Cancel</Text>
+                                </Pressable>
+                                <Pressable
+                                    style={styles.confirmActionBtn}
+                                    onPress={async () => {
+                                        setShowSignOutConfirm(false);
+                                        try {
+                                            await updateUserPresence('offline').catch(() => {});
+                                            await supabase.auth.signOut();
+                                        } catch (err) {
+                                            console.error('Sign out error:', err);
+                                        }
+                                    }}
+                                >
+                                    <Text style={styles.confirmActionText}>Sign out</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </View>
                 </Modal>
             </View>
         </TabBarSpacingContext.Provider>
@@ -1275,6 +1292,67 @@ const styles = StyleSheet.create({
         color: '#5d6d71',
         fontSize: 12.5,
         lineHeight: 18,
+    },
+    confirmModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(10, 26, 31, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    confirmModalContent: {
+        backgroundColor: '#ffffff',
+        borderRadius: 24,
+        padding: 24,
+        width: '100%',
+        maxWidth: 340,
+        gap: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 6,
+    },
+    confirmModalTitle: {
+        color: '#14313a',
+        fontSize: 20,
+        fontWeight: '800',
+    },
+    confirmModalBody: {
+        color: '#5d6d71',
+        fontSize: 15,
+        lineHeight: 22,
+    },
+    confirmModalButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 8,
+    },
+    confirmCancelBtn: {
+        flex: 1,
+        backgroundColor: '#edf3f2',
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    confirmCancelText: {
+        color: '#244049',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    confirmActionBtn: {
+        flex: 1,
+        backgroundColor: '#d9643d',
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    confirmActionText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '700',
     },
 });
 
