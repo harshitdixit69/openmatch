@@ -158,6 +158,7 @@ export function ChatScreen({
     const [trustLoadingProfileId, setTrustLoadingProfileId] = useState<string | null>(null);
     const [premiumPopup, setPremiumPopup] = useState<PremiumPromoVariant | null>(null);
     const [otherUserTyping, setOtherUserTyping] = useState(false);
+    const [dropdownVisible, setDropdownVisible] = useState(false);
     const [otherUserPresence, setOtherUserPresence] = useState<{ user_id: string; status: string; last_seen_at: string; is_online: boolean } | null>(null);
     const lastSentTypingAt = useRef<number>(0);
 
@@ -1349,43 +1350,6 @@ export function ChatScreen({
                             )}
                         </Pressable>
 
-                        {activeMatch ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.copilotHeaderButton,
-                                        pressed && styles.headerButtonPressed,
-                                    ]}
-                                    onPress={() => {
-                                        if (promptSuggestions.length > 0 || chemistry) {
-                                            setPromptSuggestions([]);
-                                            setChemistry(null);
-                                        } else {
-                                            void handleLoadPromptSuggestions();
-                                        }
-                                    }}
-                                    disabled={promptsLoading}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="AI chat copilot"
-                                >
-                                    <Text style={styles.copilotHeaderButtonText}>
-                                        {promptsLoading ? '✨…' : '✨ Help'}
-                                    </Text>
-                                </Pressable>
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.moreHeaderButton,
-                                        pressed && styles.headerButtonPressed,
-                                    ]}
-                                    onPress={() => handleMoreOptions()}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="More options"
-                                >
-                                    <Text style={styles.moreHeaderButtonText}>⋮</Text>
-                                </Pressable>
-                            </View>
-                        ) : null}
-
                         {activeMatch?.isUnlocked ? (
                             activeMatch.otherUserPhoneNumber || activeMatch.otherUserWhatsappNumber ? (
                                 <View style={styles.headerUnlockActions}>
@@ -1414,6 +1378,69 @@ export function ChatScreen({
                                     <Text style={styles.headerUnlockNoteText}>No contacts yet</Text>
                                 </View>
                             )
+                        ) : null}
+
+                        {activeMatch ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1000 }}>
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.copilotHeaderButton,
+                                        pressed && styles.headerButtonPressed,
+                                    ]}
+                                    onPress={() => {
+                                        if (promptSuggestions.length > 0 || chemistry) {
+                                            setPromptSuggestions([]);
+                                            setChemistry(null);
+                                        } else {
+                                            void handleLoadPromptSuggestions();
+                                        }
+                                    }}
+                                    disabled={promptsLoading}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="AI chat copilot"
+                                >
+                                    <Text style={styles.copilotHeaderButtonText}>
+                                        {promptsLoading ? '✨…' : '✨ Help'}
+                                    </Text>
+                                </Pressable>
+                                <View style={{ position: 'relative', zIndex: 1100 }}>
+                                    <Pressable
+                                        style={({ pressed }) => [
+                                            styles.moreHeaderButton,
+                                            pressed && styles.headerButtonPressed,
+                                        ]}
+                                        onPress={() => setDropdownVisible(!dropdownVisible)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="More options"
+                                    >
+                                        <Text style={styles.moreHeaderButtonText}>⋮</Text>
+                                    </Pressable>
+
+                                    {dropdownVisible && (
+                                        <View style={styles.headerDropdownMenu}>
+                                            <Pressable
+                                                style={styles.headerDropdownItem}
+                                                onPress={() => {
+                                                    setDropdownVisible(false);
+                                                    confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                }}
+                                            >
+                                                <Text style={styles.headerDropdownItemText}>Block User</Text>
+                                            </Pressable>
+                                            <View style={styles.headerDropdownDivider} />
+                                            <Pressable
+                                                style={styles.headerDropdownItem}
+                                                onPress={() => {
+                                                    setDropdownVisible(false);
+                                                    promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                }}
+                                            >
+                                                <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
+                                            </Pressable>
+                                        </View>
+                                    )}
+                                </View>
+                            </View>
                         ) : null}
                     </View>
 
@@ -4709,6 +4736,40 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#4a5568',
         lineHeight: 20,
+    },
+    headerDropdownMenu: {
+        position: 'absolute',
+        top: 40,
+        right: 0,
+        backgroundColor: '#ffffff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        paddingVertical: 4,
+        width: 140,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 5,
+        zIndex: 1500,
+    },
+    headerDropdownItem: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    headerDropdownItemText: {
+        fontSize: 14,
+        color: '#0f172a',
+    },
+    headerDropdownItemTextDestructive: {
+        fontSize: 14,
+        color: '#ef4444',
+        fontWeight: '500',
+    },
+    headerDropdownDivider: {
+        height: 1,
+        backgroundColor: '#f1f5f9',
     },
     chatCard: {
         flexDirection: 'row',
