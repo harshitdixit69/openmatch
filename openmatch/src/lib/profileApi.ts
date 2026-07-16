@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { ProfileContactDetails, ProfileContactInput, ProfileInput, ProfileRecord } from './profile';
 
 const baseProfileSelect = 'id, full_name, gender, dob, location, bio, preferences, height_cm, profile_owner, onboarding_completed_at';
-const profileSelect = `${baseProfileSelect}, partner_gender_preference, photo_urls, religion, marital_status, education, diet, mother_tongue, income_band, occupation, company, complexion, family_type, family_status, num_siblings, drinks_alcohol, smokes, busy_mode, busy_mode_changed_at`;
+const profileSelect = `${baseProfileSelect}, partner_gender_preference, photo_urls, religion, marital_status, education, diet, mother_tongue, income_band, occupation, company, complexion, family_type, family_status, num_siblings, drinks_alcohol, smokes, busy_mode, busy_mode_changed_at, subscription_tier, subscription_expires_at, manual_unlock_credits, ai_call_credits`;
 const profileContactSelect = 'profile_id, phone_number, whatsapp_number';
 
 function isMissingOptionalProfileColumn(error: { message?: string } | null | undefined) {

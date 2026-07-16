@@ -35,6 +35,10 @@ export type ProfileRecord = {
     verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
     busy_mode?: boolean;
     busy_mode_changed_at?: string;
+    subscription_tier?: 'free' | 'plus' | 'vip';
+    subscription_expires_at?: string | null;
+    manual_unlock_credits?: number;
+    ai_call_credits?: number;
 };
 
 export type ProfileContactDetails = {
