@@ -200,8 +200,10 @@ async function handleSucceededPayment(
 
     if (match.user_1_id === payerUserId) {
         nextUnlock.user_1_paid_at = unlock.user_1_paid_at ?? now;
+        (nextUnlock as any).user_1_payment_method = 'stripe_direct';
     } else if (match.user_2_id === payerUserId) {
         nextUnlock.user_2_paid_at = unlock.user_2_paid_at ?? now;
+        (nextUnlock as any).user_2_payment_method = 'stripe_direct';
     } else {
         throw new Error('Webhook payer is not part of the match.');
     }

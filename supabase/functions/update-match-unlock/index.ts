@@ -150,8 +150,8 @@ Deno.serve(async (request) => {
                 return json({ error: 'No unlock request exists for this conversation yet.' }, 409);
             }
 
-            if (unlock.user_1_paid_at || unlock.user_2_paid_at) {
-                return json({ error: 'This unlock flow already has a payment. Decline is no longer available.' }, 409);
+            if (unlock.user_1_paid_at && unlock.user_2_paid_at) {
+                return json({ error: 'Both users have completed payment. Chat is fully unlocked.' }, 409);
             }
 
             const { data, error } = await serviceClient
