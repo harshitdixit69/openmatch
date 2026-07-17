@@ -276,6 +276,101 @@ Deno.serve(async (request) => {
 
         console.log('VIP 12 Months purchase and roll-forward verified successfully!');
 
+        // 3. Test Credit Refund trigger
+        console.log('==> Testing automated credit refund trigger...');
+        // Create second test user (receiver of the unlock request)
+        const testEmail2 = `test-receiver-${Date.now()}@example.com`;
+        const { data: authData2, error: authError2 } = await client.auth.admin.createUser({
+            email: testEmail2,
+            password: 'TestPassword123!',
+            email_confirm: true,
+        });
+        if (authError2 || !authData2.user) {
+            throw authError2 ?? new Error('Failed to create second test user.');
+        }
+        const userId2 = authData2.user.id;
+
+        // Upsert initial profile for receiver
+        const { error: profileInitErr2 } = await client
+            .from('profiles')
+            .upsert({
+                id: userId2,
+                full_name: 'Test Receiver User',
+                gender: 'male',
+                dob: '1994-05-15',
+                location: 'Lucknow, India',
+                subscription_tier: 'free',
+                onboarding_completed_at: new Date().toISOString(),
+            });
+        if (profileInitErr2) throw profileInitErr2;
+
+        // Create a mock match
+        const { data: matchObj, error: matchObjErr } = await client
+            .from('matches')
+            .insert({
+                user_1_id: userId < userId2 ? userId : userId2,
+                user_2_id: userId < userId2 ? userId2 : userId,
+                status: 'connected',
+                is_unlocked: false,
+            })
+            .select('id')
+            .single();
+        if (matchObjErr || !matchObj) throw matchObjErr ?? new Error('Failed to create test match.');
+
+        const testMatchId = matchObj.id;
+
+        // Set userId's credits to 10 for clean assertion
+        await client.from('profiles').update({ unlock_credits_remaining: 10 }).eq('id', userId);
+
+        // Call consume_unlock_credit as the first user
+        // We simulate this by writing the DB state directly since consume_unlock_credit is equivalent
+        await client.from('profiles').update({ unlock_credits_remaining: 9 }).eq('id', userId);
+        const isUser1 = (userId < userId2);
+        
+        await client.from('match_unlocks').insert({
+            match_id: testMatchId,
+            requested_by: userId,
+            status: 'awaiting_payment',
+            user_1_accepted_at: isUser1 ? new Date().toISOString() : null,
+            user_2_accepted_at: !isUser1 ? new Date().toISOString() : null,
+            user_1_paid_at: isUser1 ? new Date().toISOString() : null,
+            user_2_paid_at: !isUser1 ? new Date().toISOString() : null,
+            user_1_payment_method: isUser1 ? 'credit' : null,
+            user_2_payment_method: !isUser1 ? 'credit' : null,
+        });
+
+        // Trigger decline (transition status to 'declined')
+        console.log('    Declinining/Cancelling unlock flow to trigger refund...');
+        const { error: declineErr } = await client
+            .from('match_unlocks')
+            .update({
+                status: 'declined',
+                declined_by: userId2,
+                declined_at: new Date().toISOString(),
+            })
+            .eq('match_id', testMatchId);
+
+        if (declineErr) throw declineErr;
+
+        // Check if credits were refunded (+1)
+        const { data: refundedProfile } = await client
+            .from('profiles')
+            .select('unlock_credits_remaining')
+            .eq('id', userId)
+            .single();
+
+        console.log(`    Refunded profile credit: ${refundedProfile?.unlock_credits_remaining} (Expected: 10)`);
+        if (refundedProfile?.unlock_credits_remaining !== 10) {
+            throw new Error(`Expected credit to be refunded to 10, got ${refundedProfile?.unlock_credits_remaining}`);
+        }
+
+        // Clean up second test user and match
+        console.log('    Cleaning up receiver and match...');
+        await client.from('matches').delete().eq('id', testMatchId);
+        await client.auth.admin.deleteUser(userId2);
+
+        console.log('Credit refund trigger verified successfully!');
+
         return new Response(JSON.stringify({ success: true, message: 'All integration checks passed.' }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
