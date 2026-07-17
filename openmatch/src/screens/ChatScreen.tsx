@@ -27,9 +27,10 @@ import { fetchChatCopilot } from '../lib/aiApi';
 import { BrokerCallSummary, ChatChemistry, ChatMatch, ChatMessage, MatchUnlockAction } from '../lib/chat';
 import { ProfileReliabilitySummary } from '../lib/intentEscrow';
 import { getRequestTrustSummary } from '../lib/intentEscrowApi';
-import { getDisplayFirstName } from '../lib/profile';
+import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import {
     acceptMatchRequest,
+    consumeUnlockCredit,
     createUnlockPaymentIntent,
     declineMatchRequest,
     fetchBrokerCallSummary,
@@ -154,6 +155,7 @@ export function ChatScreen({
     const [showBrokerTools, setShowBrokerTools] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
     const [contactShareBlocked, setContactShareBlocked] = useState(false);
+    const [currentUserProfile, setCurrentUserProfile] = useState<ProfileRecord | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [currentUserFirstName, setCurrentUserFirstName] = useState('');
     const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -413,6 +415,7 @@ export function ChatScreen({
         try {
             const profile = await fetchCurrentProfile(user?.id);
             setCurrentUserFirstName(getDisplayFirstName(profile?.full_name));
+            setCurrentUserProfile(profile);
         } catch (profileError) {
             console.warn('Failed to load current user display name.', profileError);
         }
@@ -790,6 +793,29 @@ export function ChatScreen({
 
     async function handleUnlock() {
         if (!activeMatch || unlocking) {
+            return;
+        }
+
+        const credits = currentUserProfile?.unlock_credits_remaining ?? 0;
+        if (credits > 0) {
+            setUnlocking(true);
+            setNotice(null);
+            try {
+                const res = await consumeUnlockCredit(activeMatch.id);
+                if (res.success) {
+                    const nextMatch = await refreshUnlockedMatch(activeMatch.id);
+                    if (nextMatch) {
+                        applyMatchUpdate(nextMatch);
+                    }
+                    await syncCurrentUser();
+                    setNotice('Direct chat unlocked. Contact details can now be shared without AI redaction.');
+                }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Could not consume unlock credit.';
+                Alert.alert('Unlock failed', message);
+            } finally {
+                setUnlocking(false);
+            }
             return;
         }
 
@@ -1244,7 +1270,7 @@ export function ChatScreen({
     const isCurrentUserOriginalSender = activeMatch?.interestRequest?.senderId === currentUserId;
     const canQueueCurrentBrokerNudge = !isCurrentUserOriginalSender && canQueueBrokerNudge;
 
-    const unlockCardCopy = activeMatch ? getUnlockCardCopy(activeMatch, contactShareBlocked) : null;
+    const unlockCardCopy = activeMatch ? getUnlockCardCopy(activeMatch, contactShareBlocked, currentUserProfile?.unlock_credits_remaining ?? 0) : null;
     const unlockModalVisible = Boolean(activeMatch && !activeMatch.isUnlocked && contactShareBlocked && unlockCardCopy);
     const activeRecoverySuggestion = useMemo(
         () => (activeMatch ? getRecoverySuggestion(activeMatch) : null),
@@ -1357,27 +1383,47 @@ export function ChatScreen({
 
                         {activeMatch ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1000 }}>
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.copilotHeaderButton,
-                                        pressed && styles.headerButtonPressed,
-                                    ]}
-                                    onPress={() => {
-                                        if (promptSuggestions.length > 0 || chemistry) {
-                                            setPromptSuggestions([]);
-                                            setChemistry(null);
-                                        } else {
-                                            void handleLoadPromptSuggestions();
-                                        }
-                                    }}
-                                    disabled={promptsLoading}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="AI chat copilot"
-                                >
-                                    <Text style={styles.copilotHeaderButtonText}>
-                                        {promptsLoading ? '✨…' : '✨ Help'}
-                                    </Text>
-                                </Pressable>
+                                {!activeMatch.isUnlocked && (
+                                    <Pressable
+                                        style={({ pressed }) => [
+                                            styles.shareContactHeaderButton,
+                                            activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonPending,
+                                            pressed && styles.headerButtonPressed,
+                                        ]}
+                                        onPress={() => {
+                                            if (activeMatch.unlockState.canAccept) {
+                                                void handleUnlockAction('accept');
+                                            } else if (activeMatch.unlockState.canPay) {
+                                                void handleUnlock();
+                                            } else if (activeMatch.unlockState.waitingOn === 'other_acceptance') {
+                                                Alert.alert(
+                                                    'Request Sent',
+                                                    `Waiting for ${activeMatch.otherUserName} to accept your contact exchange request. Cancel it?`,
+                                                    [
+                                                        { text: 'Keep Pending', style: 'cancel' },
+                                                        { text: 'Cancel Request', style: 'destructive', onPress: () => void handleUnlockAction('decline') },
+                                                    ]
+                                                );
+                                            } else if (activeMatch.unlockState.waitingOn === 'other_payment') {
+                                                Alert.alert('Waiting on Payment', `You've already paid. Waiting for ${activeMatch.otherUserName} to complete their payment.`);
+                                            } else {
+                                                void handleUnlockAction('request');
+                                            }
+                                        }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Share Contact"
+                                    >
+                                        <Text style={[
+                                            styles.shareContactHeaderButtonText,
+                                            activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonTextPending,
+                                        ]}>
+                                            {activeMatch.unlockState.canAccept ? '🔑 Accept Share' :
+                                             activeMatch.unlockState.canPay ? ((currentUserProfile?.unlock_credits_remaining ?? 0) > 0 ? '🔑 Use Credit' : '🔑 Pay ₹45') :
+                                             activeMatch.unlockState.waitingOn === 'other_acceptance' ? '⏳ Pending' :
+                                             activeMatch.unlockState.waitingOn === 'other_payment' ? '⏳ They Pay' : '🔑 Share Contact'}
+                                        </Text>
+                                    </Pressable>
+                                )}
                                 <View style={{ position: 'relative', zIndex: 1100 }}>
                                     <Pressable
                                         style={({ pressed }) => [
@@ -2033,20 +2079,22 @@ export function ChatScreen({
                             </View>
                         ) : null}
 
-                        {!activeMatch.isUnlocked && activeMatch.unlockState.canPay ? (
+                        {!activeMatch.isUnlocked && activeMatch.unlockState.canPay && unlockCardCopy ? (
                             <View style={styles.unlockRequestInlineCard}>
                                 <View style={styles.unlockHeaderRow}>
                                     <View style={styles.unlockCopy}>
-                                        <Text style={styles.unlockEyebrow}>Payment pending</Text>
-                                        <Text style={styles.unlockTitle}>Pay your share</Text>
+                                        <Text style={styles.unlockEyebrow}>{unlockCardCopy.eyebrow}</Text>
+                                        <Text style={styles.unlockTitle}>{(currentUserProfile?.unlock_credits_remaining ?? 0) > 0 ? 'Unlock Contact' : unlockCardCopy.title}</Text>
                                     </View>
-                                    <Text style={styles.unlockBadge}>No subscription</Text>
+                                    <Text style={styles.unlockBadge}>
+                                        {(currentUserProfile?.unlock_credits_remaining ?? 0) > 0 ? 'Credit available' : unlockCardCopy.badge}
+                                    </Text>
                                 </View>
 
                                 <Text style={styles.unlockBody}>
-                                    {activeMatch.unlockState.hasOtherUserPaid
-                                        ? `${activeMatch.otherUserName} already paid. Pay your share now to unlock direct chat for both of you.`
-                                        : 'Both of you agreed. Each person pays the same one-time amount before contact details become visible.'}
+                                    {(currentUserProfile?.unlock_credits_remaining ?? 0) > 0
+                                        ? `You have ${currentUserProfile?.unlock_credits_remaining} unlock credits remaining. Use 1 credit to unlock contact details immediately.`
+                                        : unlockCardCopy.body}
                                 </Text>
 
                                 <View style={styles.unlockActionsRow}>
@@ -2056,7 +2104,7 @@ export function ChatScreen({
                                         disabled={unlocking}
                                     >
                                         <Text style={styles.unlockButtonText}>
-                                            {unlocking ? 'Working...' : activeMatch.unlockState.hasOtherUserPaid ? 'Pay and unlock' : 'Pay your share'}
+                                            {unlocking ? 'Working...' : unlockCardCopy.primaryLabel}
                                         </Text>
                                     </Pressable>
                                 </View>
@@ -2129,7 +2177,7 @@ export function ChatScreen({
                                                     void handleUnlockAction('request');
                                                 }
                                             },
-                                            style: ({ pressed }) => [
+                                            style: ({ pressed }: { pressed: boolean }) => [
                                                 styles.messageBubble,
                                                 isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
                                                 styles.messageBubbleFlagged,
@@ -2246,11 +2294,28 @@ export function ChatScreen({
                             />
 
                             <Pressable
+                                style={[styles.aiCopilotIconButton, promptsLoading && styles.sendButtonDisabled]}
+                                onPress={() => {
+                                    if (promptSuggestions.length > 0 || chemistry) {
+                                        setPromptSuggestions([]);
+                                        setChemistry(null);
+                                    } else {
+                                        void handleLoadPromptSuggestions();
+                                    }
+                                }}
+                                disabled={promptsLoading}
+                                accessibilityRole="button"
+                                accessibilityLabel="AI suggestions"
+                            >
+                                <Text style={styles.aiCopilotIconText}>{promptsLoading ? '✨' : '✨'}</Text>
+                            </Pressable>
+
+                            <Pressable
                                 style={[styles.sendButton, sending ? styles.sendButtonDisabled : null]}
                                 onPress={() => void handleSend()}
                                 disabled={sending || !draft.trim()}
                             >
-                                <Text style={styles.sendButtonText}>{sending ? 'Sending...' : 'Send'}</Text>
+                                <Text style={styles.sendButtonText}>{sending ? '…' : 'Send'}</Text>
                             </Pressable>
                         </View>
                     </>
@@ -3377,7 +3442,7 @@ function getEmptyInboxBody(filter: ChatListFilter) {
     return 'Requests you send to the other person will appear here while you wait for acceptance or payment.';
 }
 
-function getUnlockCardCopy(match: ChatMatch, contactShareBlocked = false) {
+function getUnlockCardCopy(match: ChatMatch, contactShareBlocked = false, creditsCount = 0) {
     if (match.isUnlocked) {
         return {
             eyebrow: 'Mutual unlock',
@@ -3419,7 +3484,7 @@ function getUnlockCardCopy(match: ChatMatch, contactShareBlocked = false) {
                     : 'Both of you agreed. Each person pays the same one-time amount before contact details become visible.',
             badge: 'No subscription',
             primaryAction: 'pay' as const,
-            primaryLabel: match.unlockState.hasOtherUserPaid ? 'Pay and unlock' : 'Pay your share',
+            primaryLabel: creditsCount > 0 ? 'Unlock Contact (Uses 1 Credit)' : 'Pay ₹45 to Unlock',
             secondaryAction: null,
             secondaryLabel: null,
         };
@@ -3580,6 +3645,43 @@ const styles = StyleSheet.create({
     headerButtonPressed: {
         opacity: 0.85,
         transform: [{ scale: 0.97 }],
+    },
+    shareContactHeaderButton: {
+        alignItems: 'center',
+        backgroundColor: '#fff1ed',
+        borderColor: '#ffd6cc',
+        borderRadius: 999,
+        borderWidth: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+    },
+    shareContactHeaderButtonPending: {
+        backgroundColor: '#f5f0e8',
+        borderColor: '#e8d9b8',
+    },
+    shareContactHeaderButtonText: {
+        color: '#d94f2b',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    shareContactHeaderButtonTextPending: {
+        color: '#8a6d2e',
+    },
+    aiCopilotIconButton: {
+        alignItems: 'center',
+        backgroundColor: '#eef4f3',
+        borderColor: '#cfe0dd',
+        borderRadius: 999,
+        borderWidth: 1,
+        height: 40,
+        justifyContent: 'center',
+        width: 40,
+        marginRight: 6,
+    },
+    aiCopilotIconText: {
+        fontSize: 18,
     },
     copilotHeaderButton: {
         alignItems: 'center',

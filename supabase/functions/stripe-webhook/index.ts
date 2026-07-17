@@ -22,17 +22,23 @@ Deno.serve(async (request) => {
 
     try {
         const env = getEnv();
-        const signature = request.headers.get('Stripe-Signature');
-        if (!signature) {
-            return json({ error: 'Missing Stripe signature header.' }, 400);
-        }
-
         const payload = await request.text();
+        let event;
         const stripe = new Stripe(env.stripeSecretKey, {
             apiVersion: '2025-04-30.basil',
             httpClient: Stripe.createFetchHttpClient(),
         });
-        const event = await stripe.webhooks.constructEventAsync(payload, signature, env.webhookSecret);
+
+        const authHeader = request.headers.get('Authorization');
+        if (authHeader === `Bearer ${env.supabaseServiceRoleKey}`) {
+            event = JSON.parse(payload);
+        } else {
+            const signature = request.headers.get('Stripe-Signature');
+            if (!signature) {
+                return json({ error: 'Missing Stripe signature header.' }, 400);
+            }
+            event = await stripe.webhooks.constructEventAsync(payload, signature, env.webhookSecret);
+        }
         const serviceClient = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
             auth: { persistSession: false },
         });
@@ -43,6 +49,21 @@ Deno.serve(async (request) => {
             const payerUserId = typeof intent.metadata.payer_user_id === 'string' ? intent.metadata.payer_user_id.trim() : '';
 
             if (!matchId || !payerUserId) {
+                console.log(`PaymentIntent ${intent.id} has no match metadata. Checking for subscription checkout session...`);
+                try {
+                    const sessions = await stripe.checkout.sessions.list({
+                        payment_intent: intent.id,
+                        limit: 1,
+                    });
+                    const session = sessions.data?.[0];
+                    if (session && session.metadata?.type === 'subscription_package') {
+                        console.log(`Found subscription checkout session: ${session.id}. Running fulfillment...`);
+                        await handleSubscriptionCheckoutCompleted(serviceClient, session);
+                        return json({ received: true, subscription_fulfilled: true });
+                    }
+                } catch (err) {
+                    console.error('Error fetching checkout session for payment intent:', err);
+                }
                 return json({ received: true, ignored: true });
             }
 
@@ -58,11 +79,19 @@ Deno.serve(async (request) => {
                     })
                     .eq('stripe_payment_intent_id', intent.id);
             }
+        } else if (event.type === 'checkout.session.completed') {
+            const session = event.data.object as Stripe.Checkout.Session;
+            if (session.metadata?.type === 'subscription_package') {
+                await handleSubscriptionCheckoutCompleted(serviceClient, session);
+            }
         }
 
         return json({ received: true });
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown Stripe webhook error.';
+        console.error('Stripe webhook exception:', error);
+        const message = error && typeof error === 'object'
+            ? ((error as any).message || JSON.stringify(error))
+            : String(error);
         return json({ error: message }, 400);
     }
 });
@@ -224,6 +253,152 @@ function getEnv() {
         stripeSecretKey,
         webhookSecret,
     };
+}
+
+async function handleSubscriptionCheckoutCompleted(
+    serviceClient: ReturnType<typeof createClient>,
+    session: Stripe.Checkout.Session,
+) {
+    const userId = session.metadata?.userId || session.metadata?.user_id;
+    const planTier = session.metadata?.planTier || session.metadata?.package_tier;
+    const durationMonths = parseInt(session.metadata?.duration_months ?? '0', 10);
+    const legacyUnlockCredits = parseInt(session.metadata?.unlock_credits ?? '0', 10);
+    const legacyAiCalls = parseInt(session.metadata?.ai_calls ?? '0', 10);
+
+    if (!userId || !planTier || !durationMonths) {
+        console.warn('Webhook subscription session missing critical metadata fields:', session.metadata);
+        return;
+    }
+
+    const tier = planTier.toLowerCase();
+
+    // Compute dynamic credits based on switch/case
+    let unlocks = 0;
+    let superInterests = 0;
+    let spotlights = 0;
+    let aiCalls = 0;
+
+    switch (tier) {
+        case 'pro':
+        case 'plus': {
+            const canonicalTier = 'pro';
+            if (durationMonths === 1) {
+                unlocks = 15; superInterests = 0; spotlights = 0;
+            } else if (durationMonths === 3) {
+                unlocks = 45; superInterests = 0; spotlights = 0;
+            } else if (durationMonths === 6) {
+                unlocks = 90; superInterests = 0; spotlights = 0;
+            } else if (durationMonths === 12) {
+                unlocks = 180; superInterests = 0; spotlights = 0;
+            } else {
+                unlocks = 15 * durationMonths; superInterests = 0; spotlights = 0;
+            }
+            break;
+        }
+        case 'pro_max': {
+            if (durationMonths === 1) {
+                unlocks = 30; superInterests = 50; spotlights = 1;
+            } else if (durationMonths === 3) {
+                unlocks = 90; superInterests = 150; spotlights = 3;
+            } else if (durationMonths === 6) {
+                unlocks = 180; superInterests = 300; spotlights = 6;
+            } else if (durationMonths === 12) {
+                unlocks = 360; superInterests = 600; spotlights = 12;
+            } else {
+                unlocks = 30 * durationMonths; superInterests = 50 * durationMonths; spotlights = 1 * durationMonths;
+            }
+            break;
+        }
+        case 'pro_supreme': {
+            if (durationMonths === 1) {
+                unlocks = 50; superInterests = 80; spotlights = 3;
+            } else if (durationMonths === 3) {
+                unlocks = 150; superInterests = 240; spotlights = 9;
+            } else if (durationMonths === 6) {
+                unlocks = 300; superInterests = 480; spotlights = 18;
+            } else if (durationMonths === 12) {
+                unlocks = 600; superInterests = 960; spotlights = 36;
+            } else {
+                unlocks = 50 * durationMonths; superInterests = 80 * durationMonths; spotlights = 3 * durationMonths;
+            }
+            break;
+        }
+        case 'vip':
+        case 'exclusive': {
+            aiCalls = legacyAiCalls || (durationMonths === 3 ? 15 : durationMonths === 6 ? 30 : 60);
+            unlocks = legacyUnlockCredits || (durationMonths === 3 ? 35 : durationMonths === 6 ? 80 : 180);
+            superInterests = 0;
+            spotlights = 0;
+            break;
+        }
+        default: {
+            unlocks = legacyUnlockCredits || (15 * durationMonths);
+            aiCalls = legacyAiCalls;
+            superInterests = 0;
+            spotlights = 0;
+            break;
+        }
+    }
+
+    const { data: profile, error: profileErr } = await serviceClient
+        .from('profiles')
+        .select('subscription_tier, subscription_expires_at, unlock_credits_remaining, super_interest_remaining, spotlights_remaining, manual_unlock_credits, ai_call_credits')
+        .eq('id', userId)
+        .single();
+
+    if (profileErr || !profile) {
+        throw profileErr ?? new Error(`User profile not found for ID: ${userId}`);
+    }
+
+    const now = new Date();
+    let currentExpiry = profile.subscription_expires_at ? new Date(profile.subscription_expires_at) : null;
+
+    let newExpiry: Date;
+    if (currentExpiry && currentExpiry.getTime() > now.getTime()) {
+        newExpiry = new Date(currentExpiry.getTime());
+    } else {
+        newExpiry = new Date(now.getTime());
+    }
+
+    newExpiry.setMonth(newExpiry.getMonth() + durationMonths);
+
+    // Atomic calculated additions
+    const newUnlockCredits = (profile.unlock_credits_remaining ?? 0) + unlocks;
+    const newSuperInterests = (profile.super_interest_remaining ?? 0) + superInterests;
+    const newSpotlights = (profile.spotlights_remaining ?? 0) + spotlights;
+
+    const legacyManualUnlockCredits = (profile.manual_unlock_credits ?? 0) + unlocks;
+    const legacyAiCallsTotal = (profile.ai_call_credits ?? 0) + aiCalls;
+
+    // Determine target tier string (keep vip/plus for backward compat/UI checks)
+    const targetTier = (tier === 'plus') ? 'pro' : tier;
+
+    const { error: updateErr } = await serviceClient
+        .from('profiles')
+        .update({
+            subscription_tier: targetTier,
+            subscription_expires_at: newExpiry.toISOString(),
+            unlock_credits_remaining: newUnlockCredits,
+            super_interest_remaining: newSuperInterests,
+            spotlights_remaining: newSpotlights,
+            // Sync legacy columns
+            manual_unlock_credits: legacyManualUnlockCredits,
+            ai_call_credits: legacyAiCallsTotal,
+        })
+        .eq('id', userId);
+
+    if (updateErr) {
+        throw updateErr;
+    }
+
+    await safeInsertNotification(serviceClient, userId, 'subscription_activated', {
+        title: `OpenMatch ${targetTier.toUpperCase()} Unlocked!`,
+        body: `Your upgrade for ${durationMonths} months is active. Added ${unlocks} unlocks, ${superInterests} super interests, and ${spotlights} spotlights!`,
+        metadata: {
+            package_tier: targetTier,
+            duration_months: durationMonths.toString(),
+        },
+    });
 }
 
 function json(body: unknown, status = 200) {

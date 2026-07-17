@@ -744,6 +744,12 @@ export async function extendSlaDeadline(requestId: string): Promise<MatchInteres
     return mapInterestRequest(payload.updatedRequest);
 }
 
+export async function consumeUnlockCredit(matchId: string): Promise<{ success: boolean; unlocked: boolean; already_unlocked?: boolean }> {
+    const { data, error } = await supabase.rpc('consume_unlock_credit', { p_match_id: matchId });
+    if (error) throw new Error(error.message);
+    return data as { success: boolean; unlocked: boolean; already_unlocked?: boolean };
+}
+
 export async function createUnlockPaymentIntent(
     matchId: string,
     options?: { isWeb?: boolean; successUrl?: string; cancelUrl?: string }

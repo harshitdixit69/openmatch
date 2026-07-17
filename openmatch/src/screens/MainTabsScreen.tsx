@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, BackHandler, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,7 +27,6 @@ import { SettingsScreen } from './SettingsScreen';
 import { ShortlistScreen } from './ShortlistScreen';
 import { WhoViewedMeScreen } from './WhoViewedMeScreen';
 import { MatchProfileScreen } from './MatchProfileScreen';
-import { PremiumUpgradeScreen } from './PremiumUpgradeScreen';
 
 
 // Base height of the tab bar content (padding + tab button minHeight) before the
@@ -69,7 +68,6 @@ export function MainTabsScreen() {
     const [showProfileEdit, setShowProfileEdit] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
-    const [showPremiumUpgrade, setShowPremiumUpgrade] = useState(false);
     const [viewerProfile, setViewerProfile] = useState<ProfileRecord | null>(null);
     const [showShortlist, setShowShortlist] = useState(false);
     const [showMyMatches, setShowMyMatches] = useState(false);
@@ -82,7 +80,7 @@ export function MainTabsScreen() {
     // Debounce ref: track the last time loadShellData was triggered by a tab
     // switch so rapid tab changes don't fire multiple heavy fetchChatMatches calls.
     const lastTabLoadAt = useRef<number>(0);
-
+ 
     // Android back button: dismiss the topmost open modal instead of exiting the app.
     useEffect(() => {
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -93,14 +91,13 @@ export function MainTabsScreen() {
             if (showMyMatches) { setShowMyMatches(false); return true; }
             if (showShortlist) { setShowShortlist(false); return true; }
             if (showSearch) { setShowSearch(false); return true; }
-            if (showPremiumUpgrade) { setShowPremiumUpgrade(false); return true; }
             if (showSettings) { setShowSettings(false); return true; }
             if (showProfileEdit) { setShowProfileEdit(false); return true; }
             if (showPartnerPrefs) { setShowPartnerPrefs(false); return true; }
             return false;
         });
         return () => handler.remove();
-    }, [selectedProfileId, showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs, showPremiumUpgrade]);
+    }, [selectedProfileId, showDashboard, showNotifications, showWhoViewedMe, showMyMatches, showShortlist, showSearch, showSettings, showProfileEdit, showPartnerPrefs]);
 
     // Keep the home-indicator clear on notched devices while still leaving a
     // comfortable tap area on phones without a bottom inset.
@@ -399,7 +396,7 @@ export function MainTabsScreen() {
             );
         }
 
-        return <PremiumTab onOpenMatches={() => openTab('matches')} onOpenInbox={() => openTab('inbox')} onOpenUpgrade={() => setShowPremiumUpgrade(true)} viewerProfile={viewerProfile} />;
+        return <PremiumTab onOpenMatches={() => openTab('matches')} onOpenInbox={() => openTab('inbox')} viewerProfile={viewerProfile} />;
     }
 
     if (showPartnerPrefs) {
@@ -410,9 +407,6 @@ export function MainTabsScreen() {
         return <ProfileEditScreen onBack={() => setShowProfileEdit(false)} />;
     }
 
-    if (showPremiumUpgrade) {
-        return <PremiumUpgradeScreen onBack={() => setShowPremiumUpgrade(false)} />;
-    }
 
     if (showSettings) {
         return <SettingsScreen onBack={() => setShowSettings(false)} onSignedOut={() => { }} />;
@@ -696,50 +690,225 @@ function HomeHubTab({
     );
 }
 
-function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade, viewerProfile }: { onOpenMatches: () => void; onOpenInbox: () => void; onOpenUpgrade: () => void; viewerProfile: ProfileRecord | null }) {
-    const [loadingSummary, setLoadingSummary] = useState(true);
-    const [analyticsSummary, setAnalyticsSummary] = useState<PremiumAnalyticsSummary | null>(null);
+interface SubscriptionPackage {
+    id: string;
+    months: number;
+    priceINR: number;
+    originalPriceINR?: number;
+    unlockCredits: number;
+    aiCalls: number;
+}
 
-    const isPremium = viewerProfile?.subscription_tier === 'plus' || viewerProfile?.subscription_tier === 'vip';
+interface SubscriptionPackage {
+    id: string;
+    months: number;
+    priceINR: number;
+    originalPriceINR?: number;
+    unlockCredits: number;
+    aiCalls: number;
+    pricePerMonth: number;
+}
+
+const PRO_PACKAGES: SubscriptionPackage[] = [
+    { id: 'pro_1m', months: 1, priceINR: 299, originalPriceINR: 499, unlockCredits: 15, aiCalls: 0, pricePerMonth: 299 },
+    { id: 'pro_3m', months: 3, priceINR: 749, originalPriceINR: 1199, unlockCredits: 45, aiCalls: 0, pricePerMonth: 249 },
+    { id: 'pro_6m', months: 6, priceINR: 1199, originalPriceINR: 1999, unlockCredits: 90, aiCalls: 0, pricePerMonth: 199 },
+    { id: 'pro_12m', months: 12, priceINR: 1799, originalPriceINR: 2999, unlockCredits: 180, aiCalls: 0, pricePerMonth: 149 },
+];
+
+const PRO_MAX_PACKAGES: SubscriptionPackage[] = [
+    { id: 'pro_max_1m', months: 1, priceINR: 499, originalPriceINR: 799, unlockCredits: 30, aiCalls: 0, pricePerMonth: 499 },
+    { id: 'pro_max_3m', months: 3, priceINR: 1249, originalPriceINR: 1999, unlockCredits: 90, aiCalls: 0, pricePerMonth: 416 },
+    { id: 'pro_max_6m', months: 6, priceINR: 1999, originalPriceINR: 2999, unlockCredits: 180, aiCalls: 0, pricePerMonth: 333 },
+    { id: 'pro_max_12m', months: 12, priceINR: 2999, originalPriceINR: 4999, unlockCredits: 360, aiCalls: 0, pricePerMonth: 249 },
+];
+
+const PRO_SUPREME_PACKAGES: SubscriptionPackage[] = [
+    { id: 'pro_supreme_1m', months: 1, priceINR: 799, originalPriceINR: 1299, unlockCredits: 50, aiCalls: 0, pricePerMonth: 799 },
+    { id: 'pro_supreme_3m', months: 3, priceINR: 1999, originalPriceINR: 3299, unlockCredits: 150, aiCalls: 0, pricePerMonth: 666 },
+    { id: 'pro_supreme_6m', months: 6, priceINR: 3299, originalPriceINR: 4999, unlockCredits: 300, aiCalls: 0, pricePerMonth: 550 },
+    { id: 'pro_supreme_12m', months: 12, priceINR: 4999, originalPriceINR: 7999, unlockCredits: 600, aiCalls: 0, pricePerMonth: 416 },
+];
+
+const EXCLUSIVE_PACKAGES: SubscriptionPackage[] = [
+    { id: 'exclusive_3m', months: 3, priceINR: 2499, originalPriceINR: 3999, unlockCredits: 35, aiCalls: 15, pricePerMonth: 833 },
+    { id: 'exclusive_6m', months: 6, priceINR: 4499, originalPriceINR: 6999, unlockCredits: 80, aiCalls: 30, pricePerMonth: 749 },
+    { id: 'exclusive_12m', months: 12, priceINR: 7499, originalPriceINR: 11999, unlockCredits: 180, aiCalls: 60, pricePerMonth: 624 },
+];
+
+function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatches: () => void; onOpenInbox: () => void; viewerProfile: ProfileRecord | null }) {
+    const isPremium = 
+        viewerProfile?.subscription_tier === 'plus' || 
+        viewerProfile?.subscription_tier === 'vip' || 
+        viewerProfile?.subscription_tier === 'pro' || 
+        viewerProfile?.subscription_tier === 'pro_max' || 
+        viewerProfile?.subscription_tier === 'pro_supreme';
     const isExpired = viewerProfile?.subscription_expires_at ? new Date(viewerProfile.subscription_expires_at).getTime() < Date.now() : true;
     const isActivePremium = isPremium && !isExpired;
 
-    useEffect(() => {
-        let isMounted = true;
+    const [activeTab, setActiveTab] = useState<'self-service' | 'assisted'>('self-service');
+    const [selfServiceSubTier, setSelfServiceSubTier] = useState<'pro' | 'pro_max' | 'pro_supreme'>('pro');
+    const [activeDuration, setActiveDuration] = useState<'1_month' | '3_months' | '6_months' | 'till_marriage'>('1_month');
+    const [selectedPackageId, setSelectedPackageId] = useState<string>('pro_1m');
+    const [checkoutLoading, setCheckoutLoading] = useState(false);
 
+    useEffect(() => {
         void trackPremiumEvent({
             eventName: 'premium_promo_impression',
             surface: 'premium_tab',
             context: 'tab_open',
         });
-
-        void (async () => {
-            const summary = await fetchPremiumAnalyticsSummary(14);
-            if (!isMounted) {
-                return;
-            }
-
-            setAnalyticsSummary(summary);
-            setLoadingSummary(false);
-        })();
-
-        return () => {
-            isMounted = false;
-        };
     }, []);
+
+    const syncSelection = (subTier: 'pro' | 'pro_max' | 'pro_supreme', duration: '1_month' | '3_months' | '6_months' | 'till_marriage') => {
+        setActiveDuration(duration);
+        const monthsMap = {
+            '1_month': '1m',
+            '3_months': '3m',
+            '6_months': '6m',
+            'till_marriage': '12m'
+        };
+        setSelectedPackageId(`${subTier}_${monthsMap[duration]}`);
+    };
+
+    const handleTabChange = (tab: 'self-service' | 'assisted') => {
+        setActiveTab(tab);
+        if (tab === 'self-service') {
+            syncSelection(selfServiceSubTier, activeDuration);
+        } else {
+            setSelectedPackageId('exclusive_3m');
+        }
+    };
+
+    const handleSubTierChange = (subTier: 'pro' | 'pro_max' | 'pro_supreme') => {
+        setSelfServiceSubTier(subTier);
+        syncSelection(subTier, activeDuration);
+    };
+
+    const getPackages = () => {
+        if (activeTab === 'assisted') {
+            return EXCLUSIVE_PACKAGES;
+        }
+        return selfServiceSubTier === 'pro' 
+            ? PRO_PACKAGES 
+            : selfServiceSubTier === 'pro_max' 
+            ? PRO_MAX_PACKAGES 
+            : PRO_SUPREME_PACKAGES;
+    };
+
+    const packages = getPackages();
+    const selectedPackage = packages.find(pkg => pkg.id === selectedPackageId) || packages[0];
+
+    const handleCheckout = async () => {
+        setCheckoutLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-subscription-checkout', {
+                body: {
+                    packageTier: activeTab === 'self-service' ? 'plus' : 'vip',
+                    subTier: activeTab === 'self-service' ? selfServiceSubTier : undefined,
+                    durationMonths: selectedPackage.months,
+                    successUrl: Platform.OS === 'web' ? window.location.origin : undefined,
+                    cancelUrl: Platform.OS === 'web' ? window.location.origin : undefined,
+                },
+            });
+
+            if (error) throw error;
+            if (data?.checkoutUrl) {
+                if (Platform.OS === 'web') {
+                    window.location.href = data.checkoutUrl;
+                } else {
+                    const supported = await Linking.canOpenURL(data.checkoutUrl);
+                    if (supported) {
+                        await Linking.openURL(data.checkoutUrl);
+                    } else {
+                        Alert.alert('Checkout Unavailable', 'Could not open Checkout page on this device.');
+                    }
+                }
+            } else {
+                throw new Error('No checkout URL returned from server.');
+            }
+        } catch (err: any) {
+            Alert.alert('Payment Failed', err.message || 'Unable to start Stripe checkout session.');
+        } finally {
+            setCheckoutLoading(false);
+        }
+    };
+
+    const handleRequestCallBack = () => {
+        Alert.alert('Call Back Requested', 'Our Dedicated Relationship Manager will contact you shortly to guide you.');
+    };
+
+    const handleNeedHelp = () => {
+        Alert.alert('Need Help?', 'Contact us at premium-support@openmatch.co or call 1800-OPEN-MATCH.');
+    };
 
     const expiryDateStr = viewerProfile?.subscription_expires_at 
         ? new Date(viewerProfile.subscription_expires_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
         : '';
 
+    const TableRow = ({ label, valPro, valMax, valSupreme, hasInfo }: { label: string; valPro: string; valMax: string; valSupreme: string; hasInfo?: boolean }) => {
+        return (
+            <View style={styles.tableRow}>
+                <View style={styles.rowLabelCell}>
+                    <Text style={styles.rowLabelText}>{label}</Text>
+                    {hasInfo && <Text style={styles.infoIcon}>ⓘ</Text>}
+                </View>
+                <Pressable style={[styles.rowValCell, selfServiceSubTier === 'pro' && styles.activeValCell]} onPress={() => handleSubTierChange('pro')}>
+                    <Text style={styles.rowValText}>{valPro}</Text>
+                </Pressable>
+                <Pressable style={[styles.rowValCell, selfServiceSubTier === 'pro_max' && styles.activeValCell]} onPress={() => handleSubTierChange('pro_max')}>
+                    <Text style={styles.rowValText}>{valMax}</Text>
+                </Pressable>
+                <Pressable style={[styles.rowValCell, selfServiceSubTier === 'pro_supreme' && styles.activeValCell]} onPress={() => handleSubTierChange('pro_supreme')}>
+                    <Text style={styles.rowValText}>{valSupreme}</Text>
+                </Pressable>
+            </View>
+        );
+    };
+
+    // Retrieve duration multiplier from currently selected package card
+    const durationMonths = 
+        activeDuration === '1_month' ? 1 : 
+        activeDuration === '3_months' ? 3 : 
+        activeDuration === '6_months' ? 6 : 12;
+
+    // Dynamic 'Contact Details' values
+    const contactPro = 15 * durationMonths;
+    const contactMax = 30 * durationMonths;
+    const contactSupreme = 50 * durationMonths;
+
+    // Dynamic 'Super Interest' values
+    const interestPro = 0 * durationMonths;
+    const interestMax = 50 * durationMonths;
+    const interestSupreme = 80 * durationMonths;
+
+    // Dynamic 'Spotlights' values
+    const spotlightPro = 0 * durationMonths;
+    const spotlightMax = 1 * durationMonths;
+    const spotlightSupreme = 3 * durationMonths;
+
     return (
         <SafeAreaView style={styles.panelSafeArea} edges={['top', 'left', 'right']}>
             <ScrollView contentContainerStyle={styles.panelScrollContent} showsVerticalScrollIndicator={false}>
-                {isActivePremium ? (
+                
+                {/* Header Row */}
+                <View style={styles.headerRow}>
+                    <Text style={styles.pageHeaderTitle}>Upgrade Membership</Text>
+                    <Pressable onPress={handleNeedHelp}>
+                        <Text style={styles.needHelpText}>Need Help?</Text>
+                    </Pressable>
+                </View>
+
+                {isActivePremium && (
                     /* Subscribed Premium Member View */
-                    <View style={[styles.heroCard, { backgroundColor: '#14313a', borderColor: '#d9643d', borderWidth: 2 }]}>
+                    <View style={[styles.heroCard, { backgroundColor: '#14313a', borderColor: '#d9643d', borderWidth: 2, marginBottom: 16 }]}>
                         <Text style={[styles.heroEyebrow, { color: '#f9a159' }]}>
-                            👑 OpenMatch {viewerProfile?.subscription_tier === 'vip' ? 'VIP' : 'Plus'} Active
+                            👑 OpenMatch {
+                                viewerProfile?.subscription_tier === 'vip' ? 'VIP' :
+                                viewerProfile?.subscription_tier === 'pro' ? 'Pro' :
+                                viewerProfile?.subscription_tier === 'pro_max' ? 'Pro Max' :
+                                viewerProfile?.subscription_tier === 'pro_supreme' ? 'Pro Supreme' : 'Plus'
+                            } Active
                         </Text>
                         <Text style={styles.heroTitle}>Premium status is unlocked</Text>
                         <Text style={styles.heroBody}>
@@ -749,13 +918,13 @@ function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade, viewerProfile }
                         <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
                             <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, alignItems: 'center' }}>
                                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#f9a159' }}>
-                                    🔑 {viewerProfile?.manual_unlock_credits ?? 0}
+                                    🔑 {viewerProfile?.unlock_credits_remaining ?? viewerProfile?.manual_unlock_credits ?? 0}
                                 </Text>
                                 <Text style={{ fontSize: 10, fontWeight: '700', color: '#c7d6d8', textTransform: 'uppercase', marginTop: 4 }}>
                                     Unlock Credits
                                 </Text>
                             </View>
-                            {viewerProfile?.subscription_tier === 'vip' && (
+                            {(viewerProfile?.subscription_tier === 'vip' || (viewerProfile?.ai_call_credits ?? 0) > 0) && (
                                 <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, alignItems: 'center' }}>
                                     <Text style={{ fontSize: 24, fontWeight: '900', color: '#f9a159' }}>
                                         📞 {viewerProfile?.ai_call_credits ?? 0}
@@ -767,108 +936,220 @@ function PremiumTab({ onOpenMatches, onOpenInbox, onOpenUpgrade, viewerProfile }
                             )}
                         </View>
                     </View>
-                ) : (
-                    /* Free Promo Member View */
-                    <View style={[styles.heroCard, styles.premiumHeroCard]}>
-                        <Text style={styles.heroEyebrow}>Premium</Text>
-                        <Text style={styles.heroTitle}>Fair-pay upgrades, not lockouts</Text>
-                        <Text style={styles.heroBody}>
-                            Premium upgrades add upfront convenience like batch unlock credits and AI-assisted matching support, keeping direct matching free.
-                        </Text>
-                    </View>
                 )}
 
-                {/* Subscription Action Segment */}
-                {isActivePremium ? (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>Subscription Management</Text>
-                        <Text style={[styles.featureBody, { marginBottom: 12 }]}>
-                            Extend your active period or upgrade to a higher tier to add additional unlock credits and concierge outreach features.
+                {/* Segmented Controller Toggle */}
+                <View style={styles.upgradeToggleContainer}>
+                    <Pressable
+                        style={[
+                            styles.upgradeToggleSegment,
+                            activeTab === 'self-service' && styles.upgradeToggleSegmentActive,
+                        ]}
+                        onPress={() => handleTabChange('self-service')}
+                    >
+                        <Text
+                            style={[
+                                styles.upgradeToggleText,
+                                activeTab === 'self-service' && styles.upgradeToggleTextActive,
+                            ]}
+                        >
+                            Self-service
                         </Text>
-                        <QuickActionButton
-                            label="Extend or Upgrade Subscription"
-                            subtitle="View Plus / VIP package grids"
-                            tone="accent"
-                            onPress={onOpenUpgrade}
-                        />
-                    </View>
-                ) : (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>Unlock premium benefits</Text>
-                        <Text style={[styles.featureBody, { marginBottom: 12 }]}>
-                            Subscribe to get upfront unlock credits, priority verification, or concierge AI broker outreach matching options.
+                    </Pressable>
+                    <Pressable
+                        style={[
+                            styles.upgradeToggleSegment,
+                            activeTab === 'assisted' && styles.upgradeToggleSegmentActive,
+                        ]}
+                        onPress={() => handleTabChange('assisted')}
+                    >
+                        <Text
+                            style={[
+                                styles.upgradeToggleText,
+                                activeTab === 'assisted' && styles.upgradeToggleTextActive,
+                            ]}
+                        >
+                            Assisted
                         </Text>
-                        <QuickActionButton
-                            label="Upgrade subscription"
-                            subtitle="Choose Plus or VIP tier"
-                            tone="accent"
-                            onPress={onOpenUpgrade}
-                        />
-                    </View>
-                )}
+                    </Pressable>
+                </View>
 
-                <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>Premium analytics snapshot</Text>
+                {activeTab === 'self-service' ? (
+                    /* Self-service view comparison grid */
+                    <View style={{ width: '100%' }}>
+                        <View style={styles.tableContainer}>
+                            {/* Table Headers */}
+                            <View style={styles.tableHeaderRow}>
+                                <View style={styles.tableHeaderCellLeft} />
+                                <Pressable 
+                                    style={[styles.tableHeaderCell, selfServiceSubTier === 'pro' && styles.selectedHeaderCell]} 
+                                    onPress={() => handleSubTierChange('pro')}
+                                >
+                                    <Text style={styles.columnTitle}>Pro</Text>
+                                    <View style={[styles.radioButtonOuter, selfServiceSubTier === 'pro' && styles.radioButtonOuterActive]}>
+                                        {selfServiceSubTier === 'pro' && <View style={styles.radioButtonInner} />}
+                                    </View>
+                                </Pressable>
+                                <Pressable 
+                                    style={[styles.tableHeaderCell, selfServiceSubTier === 'pro_max' && styles.selectedHeaderCell]} 
+                                    onPress={() => handleSubTierChange('pro_max')}
+                                >
+                                    <Text style={styles.columnTitle}>Pro Max</Text>
+                                    <View style={[styles.radioButtonOuter, selfServiceSubTier === 'pro_max' && styles.radioButtonOuterActive]}>
+                                        {selfServiceSubTier === 'pro_max' && <View style={styles.radioButtonInner} />}
+                                    </View>
+                                </Pressable>
+                                <Pressable 
+                                    style={[styles.tableHeaderCell, selfServiceSubTier === 'pro_supreme' && styles.selectedHeaderCell, { overflow: 'visible' }]} 
+                                    onPress={() => handleSubTierChange('pro_supreme')}
+                                >
+                                    <View style={styles.topSellerBadge}>
+                                        <Text style={styles.topSellerBadgeText}>Top Seller</Text>
+                                    </View>
+                                    <Text style={styles.columnTitle}>Pro Supreme</Text>
+                                    <View style={[styles.radioButtonOuter, selfServiceSubTier === 'pro_supreme' && styles.radioButtonOuterActive]}>
+                                        {selfServiceSubTier === 'pro_supreme' && <View style={styles.radioButtonInner} />}
+                                    </View>
+                                </Pressable>
+                            </View>
 
-                    {loadingSummary ? (
-                        <View style={styles.summaryLoadingCard}>
-                            <ActivityIndicator size="small" color="#123340" />
-                            <Text style={styles.summaryLoadingText}>Loading recent premium events...</Text>
+                            {/* Table Rows */}
+                            <TableRow label="Contact sharing" valPro="✓" valMax="✓" valSupreme="✓" />
+                            <TableRow label="Engage+" valPro="✓" valMax="✓" valSupreme="✓" hasInfo />
+                            <TableRow label="Contact Details" valPro={`${contactPro} Unlocks`} valMax={`${contactMax} Unlocks`} valSupreme={`${contactSupreme} Unlocks`} />
+                            <TableRow label="Super Interest" valPro={`${interestPro}`} valMax={`${interestMax}`} valSupreme={`${interestSupreme}`} hasInfo />
+                            <TableRow label="Spotlights" valPro={`${spotlightPro}`} valMax={`${spotlightMax}`} valSupreme={`${spotlightSupreme}`} hasInfo />
+                            <TableRow label="Gold Badge" valPro="✓" valMax="✓" valSupreme="✓" />
                         </View>
-                    ) : analyticsSummary ? (
-                        <>
-                            <View style={styles.summaryGrid}>
-                                <SummaryCard label="Impressions" value={analyticsSummary.totalImpressions} tone="neutral" />
-                                <SummaryCard label="CTA taps" value={analyticsSummary.totalCtaTaps} tone="accent" />
-                                <SummaryCard label="CTR %" value={Number(analyticsSummary.totalCtrPercent.toFixed(1))} tone="primary" />
-                                <SummaryCard label="Highlight opens" value={analyticsSummary.highlightOpens} tone="neutral" />
-                            </View>
 
-                            <View style={styles.featureRow}>
-                                <View style={styles.featureDot} />
-                                <View style={styles.featureCopy}>
-                                    <Text style={styles.featureTitle}>Top variant</Text>
-                                    <Text style={styles.featureBody}>{analyticsSummary.topVariant ?? 'No variant data yet'}</Text>
+                        {/* Discount Banner line */}
+                        <View style={styles.discountBannerContainer}>
+                            <View style={styles.bannerLine} />
+                            <Text style={styles.discountBannerText}>GET UPTO 40% OFF ON ALL PLANS</Text>
+                            <View style={styles.bannerLine} />
+                        </View>
+                    </View>
+                ) : (
+                    /* Assisted View (Exclusive) */
+                    <View style={{ width: '100%' }}>
+                        <Text style={styles.exclusiveTitle}>Exclusive</Text>
+                        
+                        <View style={styles.exclusiveFeatureList}>
+                            <View style={styles.exclusiveFeatureItem}>
+                                <View style={styles.exclusiveIconContainer}>
+                                    <Text style={styles.exclusiveIconText}>🏅</Text>
                                 </View>
-                            </View>
-
-                            <View style={styles.featureRow}>
-                                <View style={styles.featureDot} />
-                                <View style={styles.featureCopy}>
-                                    <Text style={styles.featureTitle}>By surface</Text>
-                                    <Text style={styles.featureBody}>
-                                        Home: {analyticsSummary.bySurface.home_feed.impressions} imp / {analyticsSummary.bySurface.home_feed.ctaTaps} taps ({analyticsSummary.bySurface.home_feed.ctrPercent}%)
-                                    </Text>
-                                    <Text style={styles.featureBody}>
-                                        Inbox: {analyticsSummary.bySurface.chat_inbox.impressions} imp / {analyticsSummary.bySurface.chat_inbox.ctaTaps} taps ({analyticsSummary.bySurface.chat_inbox.ctrPercent}%)
+                                <View style={styles.exclusiveFeatureTextContainer}>
+                                    <Text style={styles.exclusiveFeatureTitle}>
+                                        Benefits of Top Seller + unlimited matches daily
                                     </Text>
                                 </View>
                             </View>
 
-                            <View style={styles.featureRow}>
-                                <View style={styles.featureDot} />
-                                <View style={styles.featureCopy}>
-                                    <Text style={styles.featureTitle}>A/B arm CTR</Text>
-                                    <Text style={styles.featureBody}>
-                                        Arm A: {analyticsSummary.byExperimentArm.A.impressions} imp / {analyticsSummary.byExperimentArm.A.ctaTaps} taps ({analyticsSummary.byExperimentArm.A.ctrPercent}%)
+                            <View style={styles.exclusiveFeatureItem}>
+                                <View style={styles.exclusiveIconContainer}>
+                                    <Text style={styles.exclusiveIconText}>👥</Text>
+                                </View>
+                                <View style={styles.exclusiveFeatureTextContainer}>
+                                    <Text style={styles.exclusiveFeatureTitle}>
+                                        Dedicated AI Matchmaker Concierge to help you
                                     </Text>
-                                    <Text style={styles.featureBody}>
-                                        Arm B: {analyticsSummary.byExperimentArm.B.impressions} imp / {analyticsSummary.byExperimentArm.B.ctaTaps} taps ({analyticsSummary.byExperimentArm.B.ctrPercent}%)
-                                    </Text>
+                                    <View style={styles.exclusiveFeatureSubBullets}>
+                                        <Text style={styles.exclusiveFeatureSubBullet}>• AI Profile Ghostwriter optimizations</Text>
+                                        <Text style={styles.exclusiveFeatureSubBullet}>• Find most relevant & serious matches</Text>
+                                        <Text style={styles.exclusiveFeatureSubBullet}>• Get additional info of the bride & her family</Text>
+                                        <Text style={styles.exclusiveFeatureSubBullet}>• With 3 times faster matching</Text>
+                                        <Text style={styles.exclusiveFeatureSubBullet}>• Automated outbound call pitches via AI Broker</Text>
+                                    </View>
                                 </View>
                             </View>
-                        </>
+                        </View>
+
+                        {/* Exclusive Actions Sub-Row */}
+                        <View style={styles.exclusiveActionsRow}>
+                            <Pressable style={styles.requestCallBackBtn} onPress={handleRequestCallBack}>
+                                <Text style={styles.requestCallBackText}>Request Call Back</Text>
+                            </Pressable>
+                            <Pressable onPress={handleRequestCallBack}>
+                                <Text style={styles.knowMoreText}>Know more &gt;</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                )}
+
+                {/* Choose a Plan Duration Grid */}
+                <View style={styles.durationSection}>
+                    <View style={styles.discountBannerContainer}>
+                        <View style={styles.bannerLine} />
+                        <Text style={styles.durationSectionTitle}>CHOOSE A PLAN DURATION</Text>
+                        <View style={styles.bannerLine} />
+                    </View>
+
+                    <View style={styles.choosePlansGrid}>
+                        {packages.map((pkg) => {
+                            const isSelected = pkg.id === selectedPackageId;
+                            const priceText = `₹${pkg.priceINR.toLocaleString('en-IN')}`;
+                            const origPriceText = pkg.originalPriceINR ? `₹${pkg.originalPriceINR.toLocaleString('en-IN')}` : null;
+                            const durationLabel = pkg.months === 12 && activeTab === 'self-service' ? 'Till Marriage' : `${pkg.months} ${pkg.months === 1 ? 'month' : 'months'}`;
+
+                            return (
+                                <Pressable
+                                    key={pkg.id}
+                                    style={[
+                                        styles.newPackageCard,
+                                        isSelected && styles.newPackageCardSelected,
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedPackageId(pkg.id);
+                                        const durMap: Record<number, '1_month' | '3_months' | '6_months' | 'till_marriage'> = {
+                                            1: '1_month',
+                                            3: '3_months',
+                                            6: '6_months',
+                                            12: 'till_marriage'
+                                        };
+                                        if (durMap[pkg.months]) {
+                                            setActiveDuration(durMap[pkg.months]);
+                                        }
+                                    }}
+                                >
+                                    <View style={styles.newPackageCardHeader}>
+                                        <Text style={[styles.newPackageDuration, isSelected && styles.newPackageDurationSelected]}>
+                                            {durationLabel}
+                                        </Text>
+                                        <View style={[styles.radioButtonOuter, isSelected && styles.radioButtonOuterActive, { marginTop: -2 }]}>
+                                            {isSelected && <View style={styles.radioButtonInner} />}
+                                        </View>
+                                    </View>
+                                    <View style={{ marginTop: 8 }}>
+                                        {origPriceText && (
+                                            <Text style={styles.newPackageOriginalPrice}>{origPriceText}</Text>
+                                        )}
+                                        <Text style={styles.newPackagePrice}>{priceText}</Text>
+                                    </View>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                {/* Checkout CTA */}
+                <Pressable
+                    style={[styles.crimsonBtn, checkoutLoading && { opacity: 0.6 }]}
+                    onPress={handleCheckout}
+                    disabled={checkoutLoading}
+                >
+                    {checkoutLoading ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
-                        <Text style={styles.featureBody}>Premium analytics will appear here once events are generated.</Text>
+                        <Text style={styles.crimsonBtnText}>
+                            {activeTab === 'self-service'
+                                ? `Get ${selfServiceSubTier === 'pro' ? 'Pro' : selfServiceSubTier === 'pro_max' ? 'Pro Max' : 'Pro Supreme'} now`
+                                : 'Get Exclusive now'}
+                        </Text>
                     )}
-                </View>
-
-                <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>What this tab can grow into</Text>
-                    <FeatureRow title="VIP profile styling" body="Highlighted profile treatments that improve visibility without forcing contact access." />
-                    <FeatureRow title="Priority discovery" body="Editorially surfaced suggestions and premium presentation cards, not coercive paywalls." />
-                    <FeatureRow title="Conversion moments" body="Contextual premium placements that sit beside the fair unlock model instead of replacing it." />
-                </View>
+                </Pressable>
+                
+                <Text style={styles.billingSubtext}>Recurring payment, cancel anytime</Text>
 
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionTitle}>Keep the core flow moving</Text>
@@ -1434,6 +1715,337 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 14,
         fontWeight: '700',
+    },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        paddingHorizontal: 4,
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    pageHeaderTitle: {
+        fontSize: 22,
+        fontWeight: '900',
+        color: '#14313a',
+    },
+    needHelpText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#d1354c',
+        textDecorationLine: 'underline',
+    },
+    upgradeToggleContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#f7f6f5',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#e8e6e4',
+        padding: 4,
+        marginTop: 8,
+        marginBottom: 16,
+    },
+    upgradeToggleSegment: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 16,
+    },
+    upgradeToggleSegmentActive: {
+        backgroundColor: '#ffffff',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    upgradeToggleText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#9e9c9a',
+    },
+    upgradeToggleTextActive: {
+        color: '#14313a',
+    },
+    exclusiveTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#394d54',
+        marginTop: 8,
+        marginBottom: 16,
+    },
+    exclusiveFeatureList: {
+        gap: 16,
+        marginBottom: 20,
+    },
+    exclusiveFeatureItem: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    exclusiveIconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#f2f0fc',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    exclusiveIconText: {
+        fontSize: 16,
+        color: '#6558f5',
+    },
+    exclusiveFeatureTextContainer: {
+        flex: 1,
+        gap: 4,
+    },
+    exclusiveFeatureTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#1d2a30',
+        lineHeight: 20,
+    },
+    exclusiveFeatureSubBullets: {
+        marginTop: 6,
+        gap: 6,
+        paddingLeft: 8,
+    },
+    exclusiveFeatureSubBullet: {
+        fontSize: 13,
+        color: '#55666c',
+        lineHeight: 18,
+    },
+    exclusiveActionsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+        marginBottom: 24,
+        paddingHorizontal: 4,
+    },
+    requestCallBackBtn: {
+        borderWidth: 1.5,
+        borderColor: '#d1354c',
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    requestCallBackText: {
+        color: '#d1354c',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    knowMoreText: {
+        color: '#d1354c',
+        fontSize: 14,
+        fontWeight: '700',
+        textDecorationLine: 'underline',
+    },
+    tableContainer: {
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#f0eefc',
+        overflow: 'hidden',
+        marginBottom: 20,
+    },
+    tableHeaderRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0eefc',
+        backgroundColor: '#fcfbfe',
+    },
+    tableHeaderCellLeft: {
+        width: '31%',
+        paddingVertical: 14,
+        paddingHorizontal: 10,
+        justifyContent: 'center',
+    },
+    tableHeaderCell: {
+        width: '23%',
+        paddingVertical: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        gap: 6,
+        borderLeftWidth: 1,
+        borderLeftColor: '#f0eefc',
+    },
+    selectedHeaderCell: {
+        backgroundColor: '#fef5f6',
+    },
+    topSellerBadge: {
+        position: 'absolute',
+        top: -8,
+        backgroundColor: '#10cc9f',
+        paddingHorizontal: 5,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    topSellerBadgeText: {
+        color: '#ffffff',
+        fontSize: 8,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+    },
+    columnTitle: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#1d2a30',
+        textAlign: 'center',
+    },
+    radioButtonOuter: {
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        borderWidth: 2,
+        borderColor: '#c8c6c4',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    radioButtonOuterActive: {
+        borderColor: '#d1354c',
+    },
+    radioButtonInner: {
+        width: 9,
+        height: 9,
+        borderRadius: 4.5,
+        backgroundColor: '#d1354c',
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0eefc',
+    },
+    rowLabelCell: {
+        width: '31%',
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    rowLabelText: {
+        fontSize: 10.5,
+        fontWeight: '700',
+        color: '#6c7d84',
+    },
+    infoIcon: {
+        fontSize: 10,
+        color: '#a0b0b6',
+        fontWeight: 'bold',
+    },
+    rowValCell: {
+        width: '23%',
+        paddingVertical: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderLeftWidth: 1,
+        borderLeftColor: '#f0eefc',
+    },
+    activeValCell: {
+        backgroundColor: '#fef5f6',
+    },
+    rowValText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1d2a30',
+    },
+    discountBannerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        marginVertical: 16,
+        width: '100%',
+    },
+    bannerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#edf0f2',
+    },
+    discountBannerText: {
+        fontSize: 10.5,
+        fontWeight: '800',
+        color: '#d1354c',
+        letterSpacing: 0.5,
+    },
+    durationSection: {
+        width: '100%',
+        marginBottom: 12,
+    },
+    durationSectionTitle: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#6c7d84',
+        letterSpacing: 0.8,
+    },
+    choosePlansGrid: {
+        flexDirection: 'row',
+        gap: 10,
+        width: '100%',
+    },
+    newPackageCard: {
+        flex: 1,
+        backgroundColor: '#ffffff',
+        borderWidth: 1.5,
+        borderColor: '#e8e6e4',
+        borderRadius: 12,
+        padding: 12,
+        position: 'relative',
+        minHeight: 84,
+        justifyContent: 'space-between',
+    },
+    newPackageCardSelected: {
+        borderColor: '#d1354c',
+        backgroundColor: '#fffafb',
+    },
+    newPackageCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        width: '100%',
+    },
+    newPackageDuration: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#6c7d84',
+    },
+    newPackageDurationSelected: {
+        color: '#d1354c',
+    },
+    newPackageOriginalPrice: {
+        fontSize: 11,
+        color: '#a0a0a0',
+        textDecorationLine: 'line-through',
+        marginBottom: 2,
+    },
+    newPackagePrice: {
+        fontSize: 16,
+        fontWeight: '900',
+        color: '#1d2a30',
+    },
+    crimsonBtn: {
+        backgroundColor: '#d1354c',
+        borderRadius: 8,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    crimsonBtnText: {
+        color: '#ffffff',
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    billingSubtext: {
+        fontSize: 11,
+        color: '#8a9a9f',
+        textAlign: 'center',
+        marginBottom: 16,
     },
 });
 
