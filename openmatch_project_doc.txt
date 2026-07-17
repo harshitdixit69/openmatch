@@ -1,7 +1,7 @@
 # OpenMatch: System Architecture, Product Specification & Engineering Report
 Author: Principal System Architect & Technical Writer  
-Version: 1.4.0 (Phase 8 Closeout)  
-Date: July 10, 2026  
+Version: 1.5.0 (Phase 9 Closeout)  
+Date: July 18, 2026  
 Status: Architecture Validated & Production Core Live  
 
 ---
@@ -183,6 +183,7 @@ The technical implementation has successfully achieved all core features, moving
 [Phase 6: Reference UI Match/Inbox Polish] ─────────────── 100% COMPLETE
 [Phase 7: Intent Escrow, Trust & Reliability Drawer] ───── 100% COMPLETE
 [Phase 8: AI Broker Automated Voice Engagement Calls] ──── 100% COMPLETE
+[Phase 9: Bulk Upfront Credits & Premium Subscription] ─── 100% COMPLETE
 ```
 
 Among the prominent shipping achievements in this build cycle:
@@ -286,19 +287,131 @@ To capture high-value users (VIPs, parents seeking fast-tracked verification), O
 
 ---
 
+## 5.3 Phase 9: Bulk Upfront Credit & Premium Subscription Engine
+
+OpenMatch moved beyond the single ₹45 micro-transaction model to a fully-featured "Bulk Upfront Credit" and "Premium Credit Bypass" subscription engine, giving power-users a bundle deal and a frictionless unlock experience.
+
+### 5.3.1 Subscription Tiers & Bulk Credit Multipliers
+
+Three premium tiers are offered, each with a monthly base quota. Users who pay upfront for longer durations receive bulk credits deposited directly:
+
+```
+┌─────────────────┬─────────────────┬──────────────────┬──────────────────┐
+│ Feature         │ Pro             │ Pro Max          │ Pro Supreme      │
+├─────────────────┼─────────────────┼──────────────────┼──────────────────┤
+│ Contact Unlocks │ 15 / month      │ 30 / month       │ 50 / month       │
+│ Super Interests │ 10 / month      │ 25 / month       │ 50 / month       │
+│ Spotlights      │ 1 / month       │ 2 / month        │ 3 / month        │
+│ AI Chat Copilot │ Unlimited       │ Unlimited        │ Unlimited        │
+└─────────────────┴─────────────────┴──────────────────┴──────────────────┘
+
+Duration multipliers (bulk upfront deposit at checkout):
+  1 Month  → 1x base
+  3 Months → 3x base (deposited immediately)
+  6 Months → 6x base (deposited immediately)
+  Till Marriage (12 months) → 12x base (deposited immediately)
+```
+
+### 5.3.2 Database Schema Changes (Migration: 20260717210900)
+
+New integer columns added to `public.profiles`:
+* `unlock_credits_remaining` — Contact detail unlock credits available
+* `super_interest_remaining` — Super Interest sends available
+* `spotlights_remaining` — Profile spotlight boosts available
+* `subscription_tier` — Active plan identifier (pro / pro_max / pro_supreme)
+* `subscription_expires_at` — UTC timestamp for plan expiry
+
+### 5.3.3 Stripe Webhook Credit Depositor (Edge Function: stripe-webhook)
+
+On every successful `payment_intent.succeeded` or `checkout.session.completed` webhook from Stripe:
+1. Metadata parsing extracts `userId`, `planTier`, and `durationMonths`.
+2. The webhook computes exact upfront credit amounts using the tier×duration multiplier matrix.
+3. A single atomic `profiles` update sets all three credit columns and rolls the `subscription_expires_at` forward.
+4. The function is deployed with `--no-verify-jwt` to allow Stripe's anonymous callbacks to bypass Supabase's auth gateway.
+
+### 5.3.4 Checkout Session Creator (Edge Function: create-subscription-checkout)
+
+A dedicated Edge Function builds a Stripe Checkout Session for subscription purchases:
+* Accepts `userId`, `planTier`, and `durationMonths` from the client.
+* Embeds them in Stripe metadata so the webhook depositor can read them reliably.
+* Returns a `sessionUrl` for web or a `paymentIntentClientSecret` for native Stripe Sheet.
+
+### 5.3.5 consume_unlock_credit RPC (Migration: 20260718000600)
+
+A server-side PL/pgSQL function (`consume_unlock_credit(p_match_id uuid)`) handles the credit bypass:
+1. Verifies the calling user is a participant in the specified match.
+2. Checks that the user has an active subscription OR at least one `unlock_credits_remaining`.
+3. Decrements the credit atomically.
+4. Registers the user's consent in `match_unlocks` with timestamps.
+5. If both users have consented, auto-transitions the match to `is_unlocked = true` without any Stripe payment required.
+
+**Bug fixed**: The original parameter was named `match_id`, causing a PostgreSQL 42702 ambiguous-column error when the same name appeared in the `match_unlocks` table. Renamed to `p_match_id`.
+
+### 5.3.6 Dynamic Feature Table UI (MainTabsScreen)
+
+The Premium Upgrade screen now renders a live-updating feature table. Selecting a duration card (1m / 3m / 6m / 12m) instantly recalculates all quota rows (Contact Details, Super Interest, Spotlights) by multiplying the base tier values against the selected duration multiplier, giving the user a clear visual of their bulk credit purchase.
+
+---
+
+## 5.4 Phase 9: Chat UX — Share Contact Button & AI Icon
+
+### 5.4.1 Share Contact Header Button
+
+A contextual action button was added to the left of the ⋮ (More) button in every active chat header. Its label and behavior change dynamically based on the current unlock state:
+
+```
+State                    Label               Action
+─────────────────────────────────────────────────────────────────────────
+No request sent yet      🔑 Share Contact    → Sends unlock request
+Request received         🔑 Accept Share     → Accepts the request
+Both accepted, I pay     🔑 Use Credit       → Consumes 1 credit (bypass)
+  (credits available)
+Both accepted, I pay     🔑 Pay ₹45          → Opens Stripe Sheet
+  (no credits)
+I sent, awaiting them    ⏳ Pending           → Alert with Cancel Request
+  (amber styling)                               option (calls decline)
+They still need to pay   ⏳ They Pay          → Informational alert
+Already unlocked         (button hidden)
+```
+
+### 5.4.2 AI Help Icon in Composer Row
+
+The `✨ Help` text pill button was removed from the chat navigation header. In its place, a compact circular ✨ icon button (40×40, teal border) was added inside the message composer row, sitting between the text input and the Send button. Behavior is identical: tap to load AI prompt suggestions; tap again to dismiss.
+
+---
+
+## 5.5 Phase 9: Discovery Feed Filter Fix
+
+### Bug: Null Candidate Attributes Incorrectly Filtered (Migration: 20260718003000)
+
+* **Symptom**: Users with partially-filled profiles (null `religion`, `marital_status`, or `diet`) were invisible in other users' match feeds, even when no explicit preference clash existed.
+* **Root Cause**: The `match_profiles` SQL function fell through to a text `LIKE` check on the `preferences` column when a candidate's structured field was `null`. Since most users leave `preferences` blank (`''`), the LIKE check always failed, silently excluding them.
+* **Fix**: Updated all three filter branches to treat `null` on the candidate side as a wildcard pass-through:
+  ```sql
+  -- Before (broken): null → checked preferences text → failed for blank profiles
+  or (c.religion is null and lower(coalesce(c.preferences, '')) like '%hindu%')
+
+  -- After (correct): null = not filled in yet = show the candidate
+  or c.religion is null
+  ```
+  Same pattern applied to `diet` and `marital_status`.
+
+---
+
 ## 6. Conclusions & Architectural Roadmap
 
 ### 6.1 Architectural Strengths
 1. Low Operating Costs: By routing conversational parsing through lightweight serverless edge functions and utilizing optimized semantic payloads, OpenMatch operates at a fraction of the cost of legacy matrimonial backends.
 2. Self-Balancing Trust Pools: By using dynamic trust limitations and SLA counters, the platform naturally discourages low-effort spam profiles, fostering a high-quality pool of responsive users.
 3. Frictionless Onboarding: A streamlined onboarding flow, combined with beautiful matches, compatibility snapshots, and a fair pay-as-you-go system, dramatically improves registration-to-active conversion rates compared to legacy apps.
+4. Bulk Credit Economy: The Phase 9 upfront credit model gives committed users a tangible discount incentive while front-loading revenue, improving cash flow predictability without raising per-unlock pricing.
 
 ### 6.2 Forward Post-Launch Roadmap
 To prepare OpenMatch for a successful App Store launch, future feature additions will focus on two key areas:
 
-[ Phase 9: Media Guard & Verification ]
+[ Phase 10: Media Guard & Verification ]
   ├── AWS Rekognition Face Liveness (Integrate video liveness checks to eliminate fake profiles)
   └── Deepgram Segment Analysis (Auto-tag dynamic language-accents & voice tone signals)
 
-[ Phase 10: Global Enterprise Expansion ]
+[ Phase 11: Global Enterprise Expansion ]
   └── Multi-Region Deployment (Replicate serverless endpoints to Dublin & Mumbai DB nodes to maintain latency <150ms globally)
