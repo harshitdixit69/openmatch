@@ -42,7 +42,8 @@
     "check:phase4": "node ./scripts/phase4EscrowCheck.mjs",
     "check:phase4:cleanup": "node ./scripts/phase4EscrowCheck.mjs --cleanup",
     "check:phase8:broker": "node ./scripts/phase8BrokerCheck.mjs",
-    "check:phase8:broker:cleanup": "node ./scripts/phase8BrokerCheck.mjs --cleanup"
+    "check:phase8:broker:cleanup": "node ./scripts/phase8BrokerCheck.mjs --cleanup",
+    "check:idempotency": "node ./scripts/verifyIdempotency.mjs"
   },
   "private": true
 }

@@ -71,12 +71,15 @@ Deno.serve(async (request) => {
 
         // 1. Simulate first purchase: Plus 3 Months
         console.log('Sending webhook request for Plus 3 Months purchase...');
+        const session1Id = 'cs_test_pro_max_3m_' + Math.random().toString(36).slice(2, 9);
+        const paymentIntent1Id = 'pi_test_pro_max_3m_' + Math.random().toString(36).slice(2, 9);
         const session1 = {
             id: 'evt_test_pro_max_3m_' + Math.random().toString(36).slice(2, 9),
             type: 'checkout.session.completed',
             data: {
                 object: {
-                    id: 'cs_test_pro_max_3m',
+                    id: session1Id,
+                    payment_intent: paymentIntent1Id,
                     metadata: {
                         type: 'subscription_package',
                         user_id: userId,
@@ -172,14 +175,51 @@ Deno.serve(async (request) => {
 
         console.log('Webhook idempotency check passed successfully!');
 
+        // 1.7 Test Correlated Idempotency: Send the payment intent succeeded webhook for session1 (same payment intent ID)
+        console.log('Testing correlated idempotency: sending payment_intent succeeded webhook for session1...');
+        const session1Intent = {
+            id: 'evt_test_intent_idemp_' + Math.random().toString(36).slice(2, 9),
+            type: 'payment_intent.succeeded',
+            data: {
+                object: {
+                    id: paymentIntent1Id,
+                    metadata: {}
+                }
+            }
+        };
+
+        const responseIntentIdempotency = await fetch(`${supabaseUrl}/functions/v1/stripe-webhook`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify(session1Intent),
+        });
+
+        if (!responseIntentIdempotency.ok) {
+            throw new Error(`Webhook payment intent idempotency call failed with status ${responseIntentIdempotency.status}`);
+        }
+
+        const resIntentJson = await responseIntentIdempotency.json();
+        console.log('Payment intent idempotency response payload:', resIntentJson);
+        if (!resIntentJson.already_processed && !resIntentJson.ignored) {
+            throw new Error('Expected already_processed: true or ignored: true for correlated payment intent event.');
+        }
+
+        console.log('Webhook payment intent idempotency check passed successfully!');
+
         // 2. Simulate second purchase: Pro Supreme 12 Months (should roll forward expiry & add credits)
         console.log('Sending webhook request for Pro Supreme 12 Months purchase...');
+        const session2Id = 'cs_test_pro_supreme_12m_' + Math.random().toString(36).slice(2, 9);
+        const paymentIntent2Id = 'pi_test_pro_supreme_12m_' + Math.random().toString(36).slice(2, 9);
         const session2 = {
             id: 'evt_test_pro_supreme_12m_' + Math.random().toString(36).slice(2, 9),
             type: 'checkout.session.completed',
             data: {
                 object: {
-                    id: 'cs_test_pro_supreme_12m',
+                    id: session2Id,
+                    payment_intent: paymentIntent2Id,
                     metadata: {
                         type: 'subscription_package',
                         user_id: userId,
