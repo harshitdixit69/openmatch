@@ -134,6 +134,44 @@ Deno.serve(async (request) => {
 
         console.log('Plus 3 Months purchase verified successfully!');
 
+        // 1.5 Test Idempotency: Send the exact same session1 webhook again
+        console.log('Testing idempotency: sending session1 webhook again...');
+        const responseIdempotency = await fetch(`${supabaseUrl}/functions/v1/stripe-webhook`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify(session1),
+        });
+
+        if (!responseIdempotency.ok) {
+            throw new Error(`Webhook idempotency call failed with status ${responseIdempotency.status}`);
+        }
+
+        const resJson = await responseIdempotency.json();
+        console.log('Idempotency response payload:', resJson);
+        if (!resJson.already_processed) {
+            throw new Error('Expected already_processed: true for duplicate webhook payload event.');
+        }
+
+        // Verify profile state has NOT changed (credits should still be 90)
+        const { data: profileIdemp, error: profileIdempErr } = await client
+            .from('profiles')
+            .select('unlock_credits_remaining')
+            .eq('id', userId)
+            .single();
+
+        if (profileIdempErr || !profileIdemp) {
+            throw profileIdempErr ?? new Error('Failed to fetch profile for idempotency check.');
+        }
+
+        if (profileIdemp.unlock_credits_remaining !== 90) {
+            throw new Error(`Expected unlock credits to remain 90, but it changed to ${profileIdemp.unlock_credits_remaining}`);
+        }
+
+        console.log('Webhook idempotency check passed successfully!');
+
         // 2. Simulate second purchase: Pro Supreme 12 Months (should roll forward expiry & add credits)
         console.log('Sending webhook request for Pro Supreme 12 Months purchase...');
         const session2 = {

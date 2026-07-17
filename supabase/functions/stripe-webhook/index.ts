@@ -43,6 +43,31 @@ Deno.serve(async (request) => {
             auth: { persistSession: false },
         });
 
+        // Helper to record payment event details to prevent race conditions
+        async function recordAndCheckIdempotency(
+            eventId: string,
+            checkoutSessionId: string | null,
+            paymentIntentId: string | null
+        ): Promise<boolean> {
+            const { error } = await serviceClient
+                .from('fulfilled_payments')
+                .insert({
+                    stripe_event_id: eventId,
+                    checkout_session_id: checkoutSessionId || null,
+                    payment_intent_id: paymentIntentId || null
+                });
+
+            if (error) {
+                if (error.code === '23505') {
+                    console.log(`Idempotency block: Event ${eventId} (Session: ${checkoutSessionId}, Intent: ${paymentIntentId}) already processed.`);
+                    return false;
+                }
+                console.error('Error inserting idempotency record:', error);
+                throw error;
+            }
+            return true;
+        }
+
         if (event.type.startsWith('payment_intent.')) {
             const intent = event.data.object as Stripe.PaymentIntent;
             const matchId = typeof intent.metadata.match_id === 'string' ? intent.metadata.match_id.trim() : '';
@@ -58,6 +83,16 @@ Deno.serve(async (request) => {
                     const session = sessions.data?.[0];
                     if (session && session.metadata?.type === 'subscription_package') {
                         console.log(`Found subscription checkout session: ${session.id}. Running fulfillment...`);
+                        
+                        const proceed = await recordAndCheckIdempotency(
+                            event.id,
+                            session.id,
+                            intent.id
+                        );
+                        if (!proceed) {
+                            return json({ received: true, already_processed: true });
+                        }
+
                         await handleSubscriptionCheckoutCompleted(serviceClient, session);
                         return json({ received: true, subscription_fulfilled: true });
                     }
@@ -68,6 +103,15 @@ Deno.serve(async (request) => {
             }
 
             if (event.type === 'payment_intent.succeeded') {
+                const proceed = await recordAndCheckIdempotency(
+                    event.id,
+                    null,
+                    intent.id
+                );
+                if (!proceed) {
+                    return json({ received: true, already_processed: true });
+                }
+
                 await handleSucceededPayment(serviceClient, matchId, payerUserId, intent);
             } else {
                 await serviceClient
@@ -82,6 +126,15 @@ Deno.serve(async (request) => {
         } else if (event.type === 'checkout.session.completed') {
             const session = event.data.object as Stripe.Checkout.Session;
             if (session.metadata?.type === 'subscription_package') {
+                const proceed = await recordAndCheckIdempotency(
+                    event.id,
+                    session.id,
+                    typeof session.payment_intent === 'string' ? session.payment_intent : null
+                );
+                if (!proceed) {
+                    return json({ received: true, already_processed: true });
+                }
+
                 await handleSubscriptionCheckoutCompleted(serviceClient, session);
             }
         }
