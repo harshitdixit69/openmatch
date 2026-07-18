@@ -61,6 +61,7 @@ type ProfileRow = {
     preferences: string | null;
     profile_owner: ChatMatch['otherUserProfileOwner'];
     verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
+    subscription_tier?: string | null;
 };
 
 type ProfileContactRow = {
@@ -499,7 +500,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
     ] = await Promise.all([
         supabase
             .from('profiles')
-            .select('id, full_name, photo_urls, location, bio, preferences, profile_owner, verification_status')
+            .select('id, full_name, photo_urls, location, bio, preferences, profile_owner, verification_status, subscription_tier')
             .in('id', otherUserIds)
             .returns<ProfileRow[]>(),
         supabase
@@ -682,9 +683,10 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
                 unlockState: buildUnlockState(match, unlocksByMatchId.get(match.id) ?? null, user.id),
                 createdAt: match.created_at,
                 otherUserVerificationStatus: profile.verification_status || 'unverified',
+                otherUserSubscriptionTier: profile.subscription_tier || null,
             } satisfies ChatMatch;
         })
-        .filter((match): match is ChatMatch => Boolean(match));
+        .filter((match): match is ChatMatch => match !== null);
 
     cachedChatMatches = result;
     return result;

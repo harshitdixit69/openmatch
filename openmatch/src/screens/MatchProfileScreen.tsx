@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { RequestTrustDrawer } from '../components/RequestTrustDrawer';
 import { ProfileReliabilitySummary } from '../lib/intentEscrow';
-import { getRequestTrustSummary } from '../lib/intentEscrowApi';
+import { getRequestTrustSummary, generateRequestReasons, submitInterestRequest } from '../lib/intentEscrowApi';
 import { MatchCandidate } from '../lib/matchmaking';
 import { trackPremiumEvent } from '../lib/premiumAnalytics';
 import { getDisplayFirstName, matchesPartnerGenderPreference, ProfileRecord, ProfileContactDetails } from '../lib/profile';
@@ -166,6 +166,52 @@ export function MatchProfileScreen({
             Alert.alert('Request Declined', 'Request declined successfully.');
         } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to decline request.');
+        } finally {
+            setActionLoading(false);
+        }
+    }
+
+    async function handleSuperInterest() {
+        if (!viewerProfile || !candidate) return;
+
+        const remaining = viewerProfile.super_interest_remaining ?? 0;
+        if (remaining <= 0) {
+            Alert.alert(
+                'No Super Interests Remaining',
+                'You do not have any Super Interests left. Upgrade your tier to get more!'
+            );
+            return;
+        }
+
+        setActionLoading(true);
+        try {
+            const reasonsResult = await generateRequestReasons(candidate.id, {
+                candidate,
+                viewerProfile,
+            });
+
+            const firstReason = reasonsResult.reasons?.[0];
+            const selectedReasonId = firstReason?.id ?? 'fallback_reason';
+            const personalizedReason = firstReason?.text ?? "I'm interested in connecting with you!";
+            const requestQualityScore = reasonsResult.requestQualityScore ?? 60;
+
+            const result = await submitInterestRequest({
+                candidateProfileId: candidate.id,
+                selectedReasonId,
+                personalizedReason,
+                mediaType: 'none',
+                mediaUrl: null,
+                voiceTranscript: null,
+                requestQualityScore,
+                isSuper: true,
+            });
+
+            viewerProfile.super_interest_remaining = remaining - 1;
+
+            setRelationshipStatus('sent');
+            Alert.alert('Super Interest Sent!', result.notice ?? 'Your Super Interest was successfully sent!');
+        } catch (err: any) {
+            Alert.alert('Send Failed', err.message || 'Failed to send Super Interest.');
         } finally {
             setActionLoading(false);
         }
@@ -571,6 +617,9 @@ export function MatchProfileScreen({
                             {candidate.verification_status === 'verified' ? (
                                 <Text style={{ fontSize: 16, marginLeft: 6, color: '#1a7a5e' }}>✅</Text>
                             ) : null}
+                            {candidate.subscription_tier === 'premium' || candidate.subscription_tier === 'vip' ? (
+                                <Text style={{ fontSize: 16, marginLeft: 6, color: '#c8a261' }}>👑</Text>
+                            ) : null}
                         </View>
                         <Text style={styles.subtitle}>Review photos, profile details, family context, and your AI compatibility view.</Text>
                     </View>
@@ -780,10 +829,19 @@ export function MatchProfileScreen({
                         <ActivityIndicator size="small" color="#123340" style={{ flex: 1 }} />
                     ) : relationshipStatus === 'none' ? (
                         <>
-                            <Pressable style={styles.passButton} onPress={onPass}>
+                            <Pressable style={styles.passButton} onPress={onPass} disabled={actionLoading}>
                                 <Text style={styles.passButtonText}>Pass</Text>
                             </Pressable>
-                            <Pressable style={styles.connectButton} onPress={onConnect}>
+                            {viewerProfile?.subscription_tier && viewerProfile.subscription_tier !== 'free' && (
+                                <Pressable 
+                                    style={[styles.connectButton, { backgroundColor: '#c8a261', flex: 1.8 }, actionLoading && { opacity: 0.7 }]} 
+                                    onPress={handleSuperInterest}
+                                    disabled={actionLoading}
+                                >
+                                    <Text style={styles.connectButtonText}>✨ Super Interest</Text>
+                                </Pressable>
+                            )}
+                            <Pressable style={styles.connectButton} onPress={onConnect} disabled={actionLoading}>
                                 <Text style={styles.connectButtonText}>Connect now</Text>
                             </Pressable>
                         </>

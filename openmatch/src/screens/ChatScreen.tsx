@@ -1360,6 +1360,9 @@ export function ChatScreen({
                                             {activeMatch.otherUserVerificationStatus === 'verified' ? (
                                                 <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
                                             ) : null}
+                                            {activeMatch.otherUserSubscriptionTier === 'premium' || activeMatch.otherUserSubscriptionTier === 'vip' ? (
+                                                <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
+                                            ) : null}
                                         </View>
                                         <Text
                                             style={[
@@ -2615,9 +2618,14 @@ function ChatListItemCard({ item, onPress }: { item: ChatMatch; onPress: () => v
 
             <View style={styles.chatCardBody}>
                 <View style={styles.chatCardHeader}>
-                    <Text style={styles.chatCardName} numberOfLines={1}>
-                        {item.otherUserName}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                        <Text style={[styles.chatCardName, { flexShrink: 1 }]} numberOfLines={1}>
+                            {item.otherUserName}
+                        </Text>
+                        {item.otherUserSubscriptionTier === 'premium' || item.otherUserSubscriptionTier === 'vip' ? (
+                            <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
+                        ) : null}
+                    </View>
                     <Text style={styles.chatCardTime}>
                         {formatChatListTime(item.createdAt)}
                     </Text>

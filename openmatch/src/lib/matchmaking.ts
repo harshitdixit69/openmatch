@@ -16,6 +16,7 @@ export type MatchCandidate = {
     verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
     distance_km?: number | null;
     matchStatus?: string;
+    subscription_tier?: string | null;
 };
 
 export type ViewerEmbeddingStatus = 'ready' | 'pending' | 'delayed';

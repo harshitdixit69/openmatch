@@ -10,7 +10,7 @@ import { ChatMatch } from '../lib/chat';
 import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel, updateUserPresence } from '../lib/chatApi';
 import { fetchPremiumAnalyticsSummary, PremiumAnalyticsSummary, trackPremiumEvent } from '../lib/premiumAnalytics';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
-import { fetchCurrentProfile } from '../lib/profileApi';
+import { fetchCurrentProfile, activateSpotlight } from '../lib/profileApi';
 import { MatchCandidate } from '../lib/matchmaking';
 import { fetchCompatibilitySnapshot } from '../lib/matchmakingApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
@@ -335,6 +335,7 @@ export function MainTabsScreen() {
                     viewerFirstName={viewerFirstName}
                     viewerPhotoUrl={viewerPhotoUrl}
                     viewerProfileId={viewerProfileId}
+                    viewerProfile={viewerProfile}
                     counts={shellCounts}
                     onOpenSettings={() => setShowSettings(true)}
                     onOpenSearch={() => setShowSearch(true)}
@@ -345,6 +346,7 @@ export function MainTabsScreen() {
                     onOpenNotifications={() => setShowNotifications(true)}
                     onViewSelfProfile={(id) => setSelectedProfileId(id)}
                     onSignOut={handleSignOut}
+                    onRefreshProfile={loadShellData}
                 />
             );
         }
@@ -556,6 +558,7 @@ export function MainTabsScreen() {
                         </View>
                     </View>
                 </Modal>
+
             </View>
         </TabBarSpacingContext.Provider>
     );
@@ -600,6 +603,7 @@ function HomeHubTab({
     viewerFirstName,
     viewerPhotoUrl,
     viewerProfileId,
+    viewerProfile,
     counts,
     onOpenSettings,
     onOpenSearch,
@@ -610,11 +614,13 @@ function HomeHubTab({
     onOpenNotifications,
     onViewSelfProfile,
     onSignOut,
+    onRefreshProfile,
 }: {
     loading: boolean;
     viewerFirstName: string;
     viewerPhotoUrl: string | null;
     viewerProfileId: string | null;
+    viewerProfile: ProfileRecord | null;
     counts: ShellCounts;
     onOpenSettings: () => void;
     onOpenSearch: () => void;
@@ -625,7 +631,59 @@ function HomeHubTab({
     onOpenNotifications: () => void;
     onViewSelfProfile: (profileId: string) => void;
     onSignOut: () => void;
+    onRefreshProfile: () => Promise<void>;
 }) {
+    const [secondsRemaining, setSecondsRemaining] = useState(0);
+    const [activatingSpotlight, setActivatingSpotlight] = useState(false);
+    const [showSpotlightConfirm, setShowSpotlightConfirm] = useState(false);
+
+    const isSpotlightActive = useMemo(() => {
+        if (!viewerProfile?.spotlight_active_until) return false;
+        return new Date(viewerProfile.spotlight_active_until).getTime() > Date.now();
+    }, [viewerProfile?.spotlight_active_until]);
+
+    useEffect(() => {
+        if (!isSpotlightActive || !viewerProfile?.spotlight_active_until) {
+            setSecondsRemaining(0);
+            return;
+        }
+
+        const expiry = new Date(viewerProfile.spotlight_active_until).getTime();
+        
+        function updateTimer() {
+            const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+            setSecondsRemaining(diff);
+        }
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [isSpotlightActive, viewerProfile?.spotlight_active_until]);
+
+    const formatTimer = (totalSeconds: number) => {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+    function handleActivateSpotlight() {
+        setShowSpotlightConfirm(true);
+    }
+
+    async function handleExecuteSpotlight() {
+        setShowSpotlightConfirm(false);
+        setActivatingSpotlight(true);
+        try {
+            const result = await activateSpotlight();
+            if (result.success) {
+                Alert.alert('Spotlight Active!', 'Your profile is now featured at the top of other users matching feeds for the next 30 minutes!');
+                await onRefreshProfile();
+            }
+        } catch (err: any) {
+            Alert.alert('Activation Failed', err.message || 'Failed to activate Spotlight.');
+        } finally {
+            setActivatingSpotlight(false);
+        }
+    }
     return (
         <SafeAreaView style={styles.panelSafeArea} edges={['top', 'left', 'right']}>
             <ScrollView contentContainerStyle={styles.panelScrollContent} showsVerticalScrollIndicator={false}>
@@ -657,7 +715,7 @@ function HomeHubTab({
                     </View>
                     <Text style={styles.heroBody}>
                         Keep track of your match requests and unlocked conversations.
-                    </Text>
+                     </Text>
                 </View>
 
                 {loading ? (
@@ -674,6 +732,47 @@ function HomeHubTab({
                     </View>
                 )}
 
+                {/* Spotlight Card */}
+                {(isSpotlightActive || (viewerProfile && (viewerProfile.spotlights_remaining ?? 0) > 0)) && (
+                    <View style={[styles.sectionCard, { borderLeftWidth: 4, borderLeftColor: '#c8a261', backgroundColor: '#fffdf9', paddingVertical: 16 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flex: 1, gap: 4, paddingRight: 12 }}>
+                                <Text style={{ fontSize: 16, fontWeight: '800', color: '#8a6b39' }}>
+                                    {isSpotlightActive ? '✨ Spotlight is Active!' : '✨ Boost Your Visibility'}
+                                </Text>
+                                <Text style={{ fontSize: 14, color: '#4d6268', lineHeight: 20 }}>
+                                    {isSpotlightActive 
+                                        ? 'Your profile is highlighted at the top of feeds for matching candidates.' 
+                                        : `You have ${viewerProfile?.spotlights_remaining} Spotlight credit${(viewerProfile?.spotlights_remaining ?? 0) === 1 ? '' : 's'} remaining.`}
+                                </Text>
+                            </View>
+                            {isSpotlightActive ? (
+                                <View style={{ backgroundColor: '#fdf3e7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#edd3b2' }}>
+                                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#a7702a', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
+                                        {formatTimer(secondsRemaining)}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <Pressable 
+                                    style={({ pressed }) => [
+                                        { backgroundColor: '#c8a261', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+                                        pressed && { opacity: 0.8 },
+                                        activatingSpotlight && { opacity: 0.5 }
+                                    ]}
+                                    onPress={handleActivateSpotlight}
+                                    disabled={activatingSpotlight}
+                                >
+                                    {activatingSpotlight ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>Activate</Text>
+                                    )}
+                                </Pressable>
+                            )}
+                        </View>
+                    </View>
+                )}
+
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionTitle}>Jump back in</Text>
                     <View style={styles.quickActionGrid}>
@@ -686,6 +785,31 @@ function HomeHubTab({
                     </View>
                 </View>
             </ScrollView>
+
+            <Modal
+                transparent
+                animationType="fade"
+                visible={showSpotlightConfirm}
+                onRequestClose={() => setShowSpotlightConfirm(false)}
+            >
+                <View style={styles.confirmModalOverlay}>
+                    <View style={styles.confirmModalContent}>
+                        <Text style={styles.confirmModalTitle}>✨ Activate Spotlight</Text>
+                        <Text style={styles.confirmModalBody}>Are you sure you want to activate your Spotlight for 30 minutes? This will feature your profile at the top of other users matching feeds.</Text>
+                        <View style={styles.confirmModalButtons}>
+                            <Pressable style={styles.confirmCancelBtn} onPress={() => setShowSpotlightConfirm(false)}>
+                                <Text style={styles.confirmCancelText}>Cancel</Text>
+                            </Pressable>
+                            <Pressable
+                                style={[styles.confirmActionBtn, { backgroundColor: '#c8a261' }]}
+                                onPress={handleExecuteSpotlight}
+                            >
+                                <Text style={styles.confirmActionText}>Activate</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -2135,6 +2259,7 @@ function MatchProfileScreenModal({
                         similarity: 0.8,
                         distance_km,
                         verification_status: pData.verification_status,
+                        subscription_tier: pData.subscription_tier,
                     });
                 }
 

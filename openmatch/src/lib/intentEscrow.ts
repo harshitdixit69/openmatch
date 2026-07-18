@@ -29,6 +29,7 @@ export type SubmitInterestRequestInput = {
     mediaUrl: string | null;
     voiceTranscript: string | null;
     requestQualityScore?: number | null;
+    isSuper?: boolean;
 };
 
 export type SubmitInterestRequestMessage = {

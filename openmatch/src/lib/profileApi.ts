@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { ProfileContactDetails, ProfileContactInput, ProfileInput, ProfileRecord } from './profile';
 
 const baseProfileSelect = 'id, full_name, gender, dob, location, bio, preferences, height_cm, profile_owner, onboarding_completed_at';
-const profileSelect = `${baseProfileSelect}, partner_gender_preference, photo_urls, religion, marital_status, education, diet, mother_tongue, income_band, occupation, company, complexion, family_type, family_status, num_siblings, drinks_alcohol, smokes, busy_mode, busy_mode_changed_at, subscription_tier, subscription_expires_at, manual_unlock_credits, ai_call_credits, unlock_credits_remaining, super_interest_remaining, spotlights_remaining`;
+const profileSelect = `${baseProfileSelect}, partner_gender_preference, photo_urls, religion, marital_status, education, diet, mother_tongue, income_band, occupation, company, complexion, family_type, family_status, num_siblings, drinks_alcohol, smokes, busy_mode, busy_mode_changed_at, subscription_tier, subscription_expires_at, manual_unlock_credits, ai_call_credits, unlock_credits_remaining, super_interest_remaining, spotlights_remaining, spotlight_active_until`;
 const profileContactSelect = 'profile_id, phone_number, whatsapp_number';
 
 function isMissingOptionalProfileColumn(error: { message?: string } | null | undefined) {
@@ -24,16 +24,18 @@ function withFallbackOptionalProfileFields(
     };
 }
 
-async function fetchProfileByUserId(userId: string) {
-    const user = await getCurrentSessionUser();
-    if (user && user.id !== userId) {
-        const { data: block } = await supabase
-            .from('user_blocks')
-            .select('id')
-            .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${userId}),and(blocker_id.eq.${userId},blocked_id.eq.${user.id})`)
-            .maybeSingle();
-        if (block) {
-            return null;
+async function fetchProfileByUserId(userId: string, isCurrentUser = false) {
+    if (!isCurrentUser) {
+        const user = await getCurrentSessionUser();
+        if (user && user.id !== userId) {
+            const { data: block } = await supabase
+                .from('user_blocks')
+                .select('id')
+                .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${userId}),and(blocker_id.eq.${userId},blocked_id.eq.${user.id})`)
+                .maybeSingle();
+            if (block) {
+                return null;
+            }
         }
     }
 
@@ -112,7 +114,7 @@ function normalizeContactField(value: string | null | undefined) {
 
 export async function fetchCurrentProfile(userId?: string): Promise<ProfileRecord | null> {
     if (userId) {
-        return fetchProfileByUserId(userId);
+        return fetchProfileByUserId(userId, true);
     }
 
     const user = await getCurrentSessionUser();
@@ -121,7 +123,7 @@ export async function fetchCurrentProfile(userId?: string): Promise<ProfileRecor
         return null;
     }
 
-    return fetchProfileByUserId(user.id);
+    return fetchProfileByUserId(user.id, true);
 }
 
 export async function fetchCurrentProfileContactDetails(userId?: string): Promise<ProfileContactDetails | null> {
@@ -378,4 +380,12 @@ export async function saveProfileCoordinates(userId: string, city: string): Prom
     } catch (err) {
         console.warn('Failed to save profile coordinates for city:', city, err);
     }
+}
+
+export async function activateSpotlight(): Promise<{ success: boolean; spotlight_active_until: string; spotlights_remaining: number }> {
+    const { data, error } = await supabase.rpc('activate_spotlight');
+    if (error) {
+        throw error;
+    }
+    return data as { success: boolean; spotlight_active_until: string; spotlights_remaining: number };
 }

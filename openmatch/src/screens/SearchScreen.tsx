@@ -135,7 +135,12 @@ function SearchResultCard({
                 )}
             </View>
             <View style={styles.cardBody}>
-                <Text style={styles.cardName} numberOfLines={1}>{candidate.full_name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.cardName, { flexShrink: 1 }]} numberOfLines={1}>{candidate.full_name}</Text>
+                    {candidate.subscription_tier === 'premium' || candidate.subscription_tier === 'vip' ? (
+                        <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261', alignSelf: 'center' }}>👑</Text>
+                    ) : null}
+                </View>
                 <Text style={styles.cardMeta} numberOfLines={1}>
                     {age} · {candidate.location}
                 </Text>

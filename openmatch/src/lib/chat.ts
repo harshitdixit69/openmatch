@@ -62,6 +62,7 @@ export type ChatMatch = {
     unlockState: MatchUnlockState;
     createdAt: string;
     otherUserVerificationStatus: 'unverified' | 'pending' | 'verified' | 'rejected';
+    otherUserSubscriptionTier: string | null;
 };
 
 export type ChatMessage = {

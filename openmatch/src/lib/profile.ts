@@ -42,6 +42,7 @@ export type ProfileRecord = {
     unlock_credits_remaining?: number;
     super_interest_remaining?: number;
     spotlights_remaining?: number;
+    spotlight_active_until?: string | null;
 };
 
 export type ProfileContactDetails = {

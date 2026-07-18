@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+console.log('[DEBUG] App.tsx module evaluated! Bundle timestamp: 19:07:00');
+
 import { StatusBar } from 'expo-status-bar';
 import { Session } from '@supabase/supabase-js';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -20,6 +22,7 @@ export default function App() {
     let isMounted = true;
 
     async function syncSessionState(nextSession: Session | null) {
+      console.log('[DEBUG] syncSessionState called! session user ID:', nextSession?.user?.id ?? 'none');
       if (!isMounted) return;
 
       setSession(nextSession);
@@ -30,7 +33,9 @@ export default function App() {
       }
 
       try {
+        console.log('[DEBUG] Fetching current profile...');
         const profile = await fetchCurrentProfile(nextSession.user.id);
+        console.log('[DEBUG] Profile fetched:', profile ? 'exists' : 'null');
         if (!isMounted) return;
         setHasCompletedProfile(Boolean(profile?.onboarding_completed_at));
       } catch (error) {
@@ -41,20 +46,30 @@ export default function App() {
     }
 
     async function bootstrap() {
+      console.log('[DEBUG] App bootstrap started...');
       try {
-        const { data, error } = await supabase.auth.getSession();
+        console.log('[DEBUG] Requesting auth session with 1.5s timeout...');
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<any>((_, reject) =>
+          setTimeout(() => reject(new Error('Auth session request timed out')), 1500)
+        );
+
+        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        console.log('[DEBUG] Auth session request finished. Session user:', data?.session?.user?.id ?? 'none', 'Error:', error);
 
         if (error) {
           throw error;
         }
 
         await syncSessionState(data.session);
+        console.log('[DEBUG] syncSessionState finished.');
       } catch (error) {
         console.error('Failed to restore auth session.', error);
         if (!isMounted) return;
         setSession(null);
         setHasCompletedProfile(false);
       } finally {
+        console.log('[DEBUG] App bootstrap finally block. isMounted:', isMounted);
         if (isMounted) {
           setIsBootstrapping(false);
         }

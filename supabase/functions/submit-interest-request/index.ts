@@ -18,6 +18,7 @@ type SubmitInterestRequestPayload = {
     mediaUrl?: string | null;
     voiceTranscript?: string | null;
     requestQualityScore?: number | null;
+    isSuper?: boolean;
 };
 
 type MatchRow = {
@@ -101,6 +102,33 @@ Deno.serve(async (request) => {
             auth: { persistSession: false },
         });
 
+        const isSuper = payload.isSuper === true;
+        if (isSuper) {
+            const { data: profile, error: profileErr } = await serviceClient
+                .from('profiles')
+                .select('super_interest_remaining')
+                .eq('id', user.id)
+                .single();
+
+            if (profileErr || !profile) {
+                return json({ error: 'Could not retrieve your profile details.' }, 500);
+            }
+
+            const remaining = profile.super_interest_remaining ?? 0;
+            if (remaining <= 0) {
+                return json({ error: 'No super interests remaining on your profile.' }, 403);
+            }
+
+            const { error: deductErr } = await serviceClient
+                .from('profiles')
+                .update({ super_interest_remaining: remaining - 1 })
+                .eq('id', user.id);
+
+            if (deductErr) {
+                return json({ error: 'Failed to deduct super interest.' }, 500);
+            }
+        }
+
         const reliabilitySummary = await loadReliabilitySummary(serviceClient, user.id);
         if (reliabilitySummary.activeRequestCount >= reliabilitySummary.activeRequestLimit) {
             return json({ error: 'You have reached your current outgoing request limit.' }, 409);
@@ -177,6 +205,7 @@ Deno.serve(async (request) => {
             payload.mediaUrl ?? null,
             payload.requestQualityScore ?? 0,
             reliabilitySummary.ghostRiskScore,
+            isSuper,
         );
 
         if (requestRecord) {
@@ -327,6 +356,7 @@ async function safeInsertInterestRequest(
     mediaUrl: string | null,
     requestQualityScore: number,
     ghostRiskScore: number,
+    isSuper = false,
 ) {
     const existing = await serviceClient
         .from('interest_requests')
@@ -361,6 +391,7 @@ async function safeInsertInterestRequest(
             media_url: mediaUrl,
             request_quality_score: Math.max(0, Math.min(100, Math.round(requestQualityScore))),
             sender_ghost_risk_score: ghostRiskScore,
+            is_super: isSuper,
         })
         .select('id, status')
         .single<InterestRequestRow>();

@@ -1034,7 +1034,12 @@ function CandidateCard({
                 </View>
             ) : null}
 
-            <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null]}>{candidate.full_name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null]}>{candidate.full_name}</Text>
+                {(candidate as any).subscription_tier === 'premium' || (candidate as any).subscription_tier === 'vip' ? (
+                    <Text style={{ fontSize: 16, marginLeft: 6, color: '#c8a261', alignSelf: 'center' }}>👑</Text>
+                ) : null}
+            </View>
             <Text style={styles.cardMeta}>
                 {candidate.gender}
                 {formatAge(candidate.dob) ? `, ${formatAge(candidate.dob)}` : ''}
@@ -1133,6 +1138,10 @@ function formatSimilarity(similarity: number) {
 }
 
 function getPremiumHighlightForCandidate(candidate: MatchCandidate) {
+    if (candidate.subscription_tier && candidate.subscription_tier !== 'free') {
+        return 'Premium member with active subscription benefits';
+    }
+
     const hasStrongProfile = Boolean(candidate.photo_urls.length > 0 && candidate.bio && candidate.preferences);
     if (candidate.similarity >= 0.9 && hasStrongProfile) {
         return 'Top compatibility and complete profile details';
