@@ -169,8 +169,8 @@ type BrokerCallRow = {
     receiver_profile_id: string;
     target_profile_id: string;
     status: BrokerCallStatus;
-    consent_required: boolean;
-    consent_granted: boolean | null;
+    consent_required?: boolean;
+    consent_granted?: boolean | null;
     channel: 'voice' | 'sms_whatsapp';
     provider: 'retell' | 'vapi' | 'twilio';
     scheduled_for: string | null;
@@ -557,7 +557,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
             supabase
                 .from('ai_broker_calls')
                 .select(
-                    'request_id, sender_profile_id, receiver_profile_id, target_profile_id, status, consent_required, consent_granted, channel, provider, scheduled_for, ended_at, outcome, summary, created_at',
+                    'request_id, sender_profile_id, receiver_profile_id, target_profile_id, status, channel, provider, scheduled_for, ended_at, outcome, summary, created_at',
                 )
                 .in('request_id', requestIds)
                 .order('created_at', { ascending: false })
@@ -999,7 +999,7 @@ export async function fetchBrokerCallSummary(requestId: string): Promise<BrokerC
     const brokerRowsResult = await supabase
         .from('ai_broker_calls')
         .select(
-            'request_id, sender_profile_id, receiver_profile_id, target_profile_id, status, consent_required, consent_granted, channel, provider, scheduled_for, ended_at, outcome, summary, created_at',
+            'request_id, sender_profile_id, receiver_profile_id, target_profile_id, status, channel, provider, scheduled_for, ended_at, outcome, summary, created_at',
         )
         .eq('request_id', requestId)
         .order('created_at', { ascending: false })
@@ -1020,18 +1020,7 @@ function resolveConsentStatus(
     rows: BrokerCallRow[],
     targetProfileId: string,
 ): BrokerCallSummary['currentUserConsent'] {
-    const consentRow = rows.find(
-        (row) =>
-            row.target_profile_id === targetProfileId &&
-            row.consent_required === true &&
-            typeof row.consent_granted === 'boolean',
-    );
-
-    if (!consentRow) {
-        return 'unknown';
-    }
-
-    return consentRow.consent_granted ? 'granted' : 'declined';
+    return 'unknown';
 }
 
 function isAttemptStatus(status: BrokerCallStatus) {

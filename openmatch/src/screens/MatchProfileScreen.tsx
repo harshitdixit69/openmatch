@@ -617,7 +617,7 @@ export function MatchProfileScreen({
                             {candidate.verification_status === 'verified' ? (
                                 <Text style={{ fontSize: 16, marginLeft: 6, color: '#1a7a5e' }}>✅</Text>
                             ) : null}
-                            {candidate.subscription_tier === 'premium' || candidate.subscription_tier === 'vip' ? (
+                            {candidate.subscription_tier && candidate.subscription_tier !== 'free' ? (
                                 <Text style={{ fontSize: 16, marginLeft: 6, color: '#c8a261' }}>👑</Text>
                             ) : null}
                         </View>
@@ -627,9 +627,9 @@ export function MatchProfileScreen({
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {activePhotoUrl ? (
-                        <Image source={{ uri: activePhotoUrl }} style={[styles.heroPhoto, { maxHeight: heroMaxHeight }]} />
+                        <Image source={{ uri: activePhotoUrl }} style={[styles.heroPhoto, { maxHeight: heroMaxHeight }, candidate.subscription_tier && candidate.subscription_tier !== 'free' ? { borderColor: '#c8a261', borderWidth: 3.5 } : null]} />
                     ) : (
-                        <View style={[styles.heroPlaceholder, { maxHeight: heroMaxHeight }]}>
+                        <View style={[styles.heroPlaceholder, { maxHeight: heroMaxHeight }, candidate.subscription_tier && candidate.subscription_tier !== 'free' ? { borderColor: '#c8a261', borderWidth: 3.5, backgroundColor: '#fffdf6' } : null]}>
                             <Text style={styles.heroInitial}>{firstName.slice(0, 1).toUpperCase() || '?'}</Text>
                             <Text style={styles.heroHint}>No photo album yet</Text>
                         </View>

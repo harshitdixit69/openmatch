@@ -1036,7 +1036,7 @@ function CandidateCard({
 
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null]}>{candidate.full_name}</Text>
-                {(candidate as any).subscription_tier === 'premium' || (candidate as any).subscription_tier === 'vip' ? (
+                {candidate.subscription_tier && candidate.subscription_tier !== 'free' ? (
                     <Text style={{ fontSize: 16, marginLeft: 6, color: '#c8a261', alignSelf: 'center' }}>👑</Text>
                 ) : null}
             </View>
@@ -1059,15 +1059,17 @@ function CandidateCard({
         </>
     );
 
+    const isPremium = candidate.subscription_tier && candidate.subscription_tier !== 'free';
+
     if (onPress) {
         return (
-            <Pressable style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null]} onPress={onPress}>
+            <Pressable style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]} onPress={onPress}>
                 {details}
             </Pressable>
         );
     }
 
-    return <View style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null]}>{details}</View>;
+    return <View style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]}>{details}</View>;
 }
 
 function FilterChip({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) {
@@ -1583,6 +1585,11 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: 14,
         padding: 24,
+    },
+    cardPressablePremium: {
+        borderColor: '#c8a261',
+        borderWidth: 2.5,
+        backgroundColor: '#fffcf5',
     },
     cardPressableCompact: {
         gap: 12,

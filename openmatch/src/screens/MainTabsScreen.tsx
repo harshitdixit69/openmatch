@@ -18,6 +18,8 @@ import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
 import { ModerationQueueScreen } from './ModerationQueueScreen';
 import { DashboardScreen } from './DashboardScreen';
+import VipConciergeDashboard from './VipConciergeDashboard';
+import ConciergeHubScreen from './ConciergeHubScreen';
 import { MyMatchesScreen } from './MyMatchesScreen';
 import { NotificationsScreen } from './NotificationsScreen';
 import { PartnerPreferencesScreen } from './PartnerPreferencesScreen';
@@ -468,6 +470,26 @@ export function MainTabsScreen() {
         );
     }
 
+    if (viewerProfile?.subscription_tier === 'vip') {
+        return (
+            <VipConciergeDashboard
+                viewerProfile={viewerProfile}
+                onViewProfile={(id) => setSelectedProfileId(id)}
+                onSignOut={handleSignOut}
+            />
+        );
+    }
+
+    if (viewerProfile?.subscription_tier === 'assisted') {
+        return (
+            <ConciergeHubScreen
+                viewerProfile={viewerProfile}
+                onViewProfile={(id) => setSelectedProfileId(id)}
+                onSignOut={handleSignOut}
+            />
+        );
+    }
+
     return (
         <TabBarSpacingContext.Provider value={tabBarSpacing}>
             <View style={styles.shell}>
@@ -866,7 +888,8 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
         viewerProfile?.subscription_tier === 'vip' || 
         viewerProfile?.subscription_tier === 'pro' || 
         viewerProfile?.subscription_tier === 'pro_max' || 
-        viewerProfile?.subscription_tier === 'pro_supreme';
+        viewerProfile?.subscription_tier === 'pro_supreme' ||
+        viewerProfile?.subscription_tier === 'assisted';
     const isExpired = viewerProfile?.subscription_expires_at ? new Date(viewerProfile.subscription_expires_at).getTime() < Date.now() : true;
     const isActivePremium = isPremium && !isExpired;
 
@@ -900,6 +923,7 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
         if (tab === 'self-service') {
             syncSelection(selfServiceSubTier, activeDuration);
         } else {
+            setActiveDuration('3_months');
             setSelectedPackageId('exclusive_3m');
         }
     };

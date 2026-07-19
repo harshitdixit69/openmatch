@@ -428,10 +428,22 @@ async function handleSubscriptionCheckoutCompleted(
     // Determine target tier string (keep vip/plus for backward compat/UI checks)
     const targetTier = (tier === 'plus') ? 'pro' : tier;
 
+    let userTier = 'BASIC';
+    if (targetTier === 'vip' || targetTier === 'exclusive') {
+        userTier = 'VIP';
+    } else if (targetTier === 'pro_supreme') {
+        userTier = 'PRO_SUPREME';
+    } else if (targetTier === 'pro_max') {
+        userTier = 'PRO_MAX';
+    } else if (targetTier === 'pro') {
+        userTier = 'PRO';
+    }
+
     const { error: updateErr } = await serviceClient
         .from('profiles')
         .update({
             subscription_tier: targetTier,
+            user_tier: userTier,
             subscription_expires_at: newExpiry.toISOString(),
             unlock_credits_remaining: newUnlockCredits,
             super_interest_remaining: newSuperInterests,
@@ -444,6 +456,19 @@ async function handleSubscriptionCheckoutCompleted(
 
     if (updateErr) {
         throw updateErr;
+    }
+
+    if (userTier === 'VIP') {
+        const { error: sessionErr } = await serviceClient
+            .from('vip_bot_sessions')
+            .upsert({
+                vip_id: userId,
+                status: 'sourcing',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'vip_id' });
+        if (sessionErr) {
+            console.error('Error initializing vip_bot_session:', sessionErr);
+        }
     }
 
     await safeInsertNotification(serviceClient, userId, 'subscription_activated', {

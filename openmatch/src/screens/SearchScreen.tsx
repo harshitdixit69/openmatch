@@ -118,9 +118,11 @@ function SearchResultCard({
     const age = calcAge(candidate.dob);
     const photo = candidate.photo_urls?.[0];
 
+    const isPremium = candidate.subscription_tier && candidate.subscription_tier !== 'free';
+
     return (
         <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+            style={({ pressed }) => [styles.card, pressed && styles.cardPressed, isPremium ? styles.cardPremium : null]}
             onPress={() => onPress(candidate)}
         >
             <View style={styles.cardPhoto}>
@@ -137,7 +139,7 @@ function SearchResultCard({
             <View style={styles.cardBody}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={[styles.cardName, { flexShrink: 1 }]} numberOfLines={1}>{candidate.full_name}</Text>
-                    {candidate.subscription_tier === 'premium' || candidate.subscription_tier === 'vip' ? (
+                    {isPremium ? (
                         <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261', alignSelf: 'center' }}>👑</Text>
                     ) : null}
                 </View>
@@ -675,6 +677,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.04,
         shadowRadius: 6,
         elevation: 2,
+    },
+    cardPremium: {
+        borderColor: '#c8a261',
+        borderWidth: 2,
+        backgroundColor: '#fffdf6',
     },
     cardPressed: { opacity: 0.85 },
     cardPhoto: { marginRight: 12 },

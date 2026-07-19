@@ -1,0 +1,7 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/vip/trigger-pitch/route": "app/api/vip/trigger-pitch/route.js",
+  "/api/vip/retell-webhook/route": "app/api/vip/retell-webhook/route.js",
+  "/(vip)/dashboard/vip/page": "app/(vip)/dashboard/vip/page.js",
+  "/(standard)/dashboard/page": "app/(standard)/dashboard/page.js"
+}

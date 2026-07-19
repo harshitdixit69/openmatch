@@ -38,6 +38,11 @@ OpenMatch is a full-stack mobile app that helps users find compatible matches th
 - **AI Compatibility Snapshots**: Dynamic match summaries comparing sender bios and preferences against receiver attributes to show immediate fit/friction points.
 - **Stripe Mutual Unlock (Escrow Payments)**: Fair-pay micro-transaction flow where matched users must mutually agree to share contact details and execute Stripe payment intents to enable unmasked communication.
 
+### Phase 9: VIP Concierge Sourcing Engine
+- **Manual Sourcing Dashboard**: Interactive candidate selection layout on mobile Concierge screen and synced Next.js Web Dashboard for VIP users to manage outreach pipelines (Ready to Pitch, Call Active, Awaiting Handshake, Connected).
+- **Atomic Credit Transaction Gate**: Created `consume_vip_outreach_credit()` RPC preventing double-escrowing or concurrency leaks, paired with active call guards.
+- **Automated Outbox Telemetry & Refunds**: Logs outreach attempts and triggers database-level credit restoration (`refund_vip_outreach_trigger`) upon failed or declined pitches.
+
 ## Key Features Implemented
 
 ### F1–F9: Core Functionality
@@ -63,29 +68,29 @@ OpenMatch is a full-stack mobile app that helps users find compatible matches th
 - **Followup Jobs**: Automated ghosting detection + reminder messages
 - **Call Summaries**: AI-generated meeting notes
 
-## Recent Audit & Fixes (2026-07-13)
+## Recent Audit & Fixes (2026-07-19)
 
-### Security
-- **get_activity_stats**: Removed `p_user_id` param → uses `auth.uid()` internally (prevents reading other users' stats)
-- **upsert_profile_view**: Removed `p_viewer_id` param → uses `auth.uid()` internally (prevents spoofed viewer IDs)
-- **markNotificationRead**: Added `.eq('user_id', user.id)` guard (prevents cross-user notification tampering)
-- **notifications table**: Added service-role insert policies to `respond-interest-request`, `send-escrow-message`, `update-match-unlock` Edge Functions
+### Security & RLS
+- **RLS Scoping Resolution**: Fixed scoping ambiguities in the `profiles` table select policy by qualifying references to `profiles.id` in `matches` and `interest_requests` subqueries, allowing standard users to view matched VIP profiles.
+- **get_activity_stats**: Removed `p_user_id` param → uses `auth.uid()` internally (prevents reading other users' stats).
+- **upsert_profile_view**: Removed `p_viewer_id` param → uses `auth.uid()` internally (prevents spoofed viewer IDs).
+- **markNotificationRead**: Added `.eq('user_id', user.id)` guard (prevents cross-user tampered alerts).
+- **notifications table**: Added service-role insert policies to `respond-interest-request`, `send-escrow-message`, `update-match-unlock` Edge Functions.
 
-### Performance
-- **HNSW Index**: Replaced sequential scan on `profiles.embedding` with `USING hnsw (embedding vector_cosine_ops)`
-- **Message Pagination**: Added `.limit(500)` to `fetchChatMatches` messages sub-query
-- **Feed Auto-Fetch**: Triggers silent reload when user is 5 cards from end of candidate list (limit raised 20→50)
-- **Tab Switch Debounce**: 5-second debounce on tab changes; poll interval increased 20s→45s (Realtime subscriptions handle urgency)
-
-### Code Quality
-- Removed 4 debug `console.log` statements from `matchmakingApi.ts`
-- Removed dead `filterCandidatesByGenderPreferences` (DB already filters)
-- Removed dead `shouldUseLegacyMatchFunction` fallback branch
-- Removed hardcoded FK hint in `fetchShortlist`
-- Added BackHandler for all modal screens (Android back button support)
-- Dashboard stats refresh on app focus (AppState listener)
-- `recordProfileView` wired into `MatchProfileScreen`
-- In-flight request deduplication for `fetchChatMatches`
+### Performance & Cleanups
+- **ai_broker_calls Column Cleanup**: Cleaned up deprecated `consent_required` and `consent_granted` select fields from frontend queries in `chatApi.ts` to prevent database 400 Bad Request errors.
+- **HNSW Index**: Replaced sequential scan on `profiles.embedding` with `USING hnsw (embedding vector_cosine_ops)`.
+- **Message Pagination**: Added `.limit(500)` to `fetchChatMatches` messages sub-query.
+- **Feed Auto-Fetch**: Triggers silent reload when user is 5 cards from end of candidate list (limit raised 20→50).
+- **Tab Switch Debounce**: 5-second debounce on tab changes; poll interval increased 20s→45s (Realtime subscriptions handle urgency).
+- Removed 4 debug `console.log` statements from `matchmakingApi.ts`.
+- Removed dead `filterCandidatesByGenderPreferences` (DB already filters).
+- Removed dead `shouldUseLegacyMatchFunction` fallback branch.
+- Removed hardcoded FK hint in `fetchShortlist`.
+- Added BackHandler for all modal screens (Android back button support).
+- Dashboard stats refresh on app focus (AppState listener).
+- `recordProfileView` wired into `MatchProfileScreen`.
+- In-flight request deduplication for `fetchChatMatches`.
 
 ## Project Structure
 
@@ -216,5 +221,5 @@ Proprietary — OpenMatch Inc.
 
 ---
 
-**Last Updated**: 2026-07-13  
+**Last Updated**: 2026-07-19  
 **Build Commit**: `d9fa201`

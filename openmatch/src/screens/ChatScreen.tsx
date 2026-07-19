@@ -1360,7 +1360,7 @@ export function ChatScreen({
                                             {activeMatch.otherUserVerificationStatus === 'verified' ? (
                                                 <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
                                             ) : null}
-                                            {activeMatch.otherUserSubscriptionTier === 'premium' || activeMatch.otherUserSubscriptionTier === 'vip' ? (
+                                            {activeMatch.otherUserSubscriptionTier && activeMatch.otherUserSubscriptionTier !== 'free' ? (
                                                 <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
                                             ) : null}
                                         </View>
@@ -2622,7 +2622,7 @@ function ChatListItemCard({ item, onPress }: { item: ChatMatch; onPress: () => v
                         <Text style={[styles.chatCardName, { flexShrink: 1 }]} numberOfLines={1}>
                             {item.otherUserName}
                         </Text>
-                        {item.otherUserSubscriptionTier === 'premium' || item.otherUserSubscriptionTier === 'vip' ? (
+                        {item.otherUserSubscriptionTier && item.otherUserSubscriptionTier !== 'free' ? (
                             <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
                         ) : null}
                     </View>
