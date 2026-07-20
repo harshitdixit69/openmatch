@@ -8,8 +8,30 @@ import { updateShortlistFeedback } from '../lib/conciergeApi';
 jest.mock('../lib/supabase', () => {
   const mockSingle = jest.fn();
   const mockEq = jest.fn(() => ({ single: mockSingle }));
-  const mockFrom = jest.fn(() => ({ select: jest.fn(() => ({ eq: mockEq })) }));
-  const mockInvoke = jest.fn().mockResolvedValue({ data: { reply: 'AI RM reply about compatibility.' }, error: null });
+  const mockFrom = jest.fn(() => {
+    return {
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          single: mockSingle,
+        })),
+      })),
+      update: jest.fn(() => ({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+    };
+  });
+  
+  const mockInvoke = jest.fn().mockImplementation((fnName) => {
+    if (fnName === 'submit-interest-request') {
+      return Promise.resolve({ data: { requestId: 'req-123' }, error: null });
+    }
+    if (fnName === 'discuss-candidate-chat') {
+      return Promise.resolve({ data: { reply: 'AI RM reply about compatibility.' }, error: null });
+    }
+    return Promise.resolve({ data: { success: true }, error: null });
+  });
+
+  const mockRpc = jest.fn().mockResolvedValue({ data: true, error: null });
 
   return {
     supabase: {
@@ -20,6 +42,7 @@ jest.mock('../lib/supabase', () => {
       functions: {
         invoke: mockInvoke,
       },
+      rpc: mockRpc,
     },
   };
 });
@@ -61,7 +84,7 @@ describe('PremiumAssistedProfileViewer tests', () => {
 
   it('should render loading state initially', () => {
     const mockFrom = supabase.from as jest.Mock;
-    mockFrom.mockReturnValue({
+    mockFrom.mockReturnValueOnce({
       select: jest.fn(() => ({
         eq: jest.fn(() => ({
           single: jest.fn(() => new Promise(() => {})),
@@ -151,17 +174,17 @@ describe('PremiumAssistedProfileViewer tests', () => {
     );
 
     await waitFor(() => {
-      expect(getByText('💖 Accept Match')).toBeTruthy();
+      expect(getByText('💖 Approve & Pitch')).toBeTruthy();
     });
 
-    const acceptBtn = getByText('💖 Accept Match');
+    const acceptBtn = getByText('💖 Approve & Pitch');
     await act(async () => {
       fireEvent.press(acceptBtn);
     });
 
     await waitFor(() => {
       expect(updateShortlistFeedback).toHaveBeenCalledWith('item-123', 'liked');
-      expect(getByText('Curated Match Accepted 💖')).toBeTruthy();
+      expect(getByText('Outreach Initiated 💖')).toBeTruthy();
     });
   });
 

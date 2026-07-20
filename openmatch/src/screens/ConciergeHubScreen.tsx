@@ -32,11 +32,13 @@ export default function ConciergeHubScreen({
     viewerProfile,
     onViewProfile,
     onSignOut,
+    onOpenChat,
     refreshCounter = 0,
 }: {
     viewerProfile: ProfileRecord | null;
     onViewProfile: (profileId: string) => void;
     onSignOut: () => void;
+    onOpenChat?: () => void;
     refreshCounter?: number;
 }) {
     const firstName = viewerProfile?.full_name?.split(' ')[0] || 'Member';
@@ -52,6 +54,7 @@ export default function ConciergeHubScreen({
     const [shortlistItems, setShortlistItems] = useState<AssistedShortlistItem[]>([]);
     const [loadingShortlist, setLoadingShortlist] = useState(false);
     const [generatingShortlist, setGeneratingShortlist] = useState(false);
+    const [unlockedContact, setUnlockedContact] = useState<{ full_name: string; phone_number: string | null; whatsapp_number: string | null } | null>(null);
 
     const scrollViewRef = useRef<ScrollView>(null);
     const typingAnim = useRef(new Animated.Value(0)).current;
@@ -65,6 +68,36 @@ export default function ConciergeHubScreen({
             triggerShortlistGeneration();
         }
     }, [session]);
+
+    useEffect(() => {
+        if (session?.status !== 'OUTREACH_IN_PROGRESS') {
+            return;
+        }
+
+        const interval = setInterval(async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data: sess } = await supabase
+                        .from('assisted_concierge_sessions')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .maybeSingle();
+
+                    if (sess) {
+                        setSession(sess);
+                        if (sess.status !== 'OUTREACH_IN_PROGRESS') {
+                            loadSession();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error polling concierge session status:', err);
+            }
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [session?.status]);
 
     async function triggerShortlistGeneration() {
         try {
@@ -392,6 +425,283 @@ function dateToAge(dobString: string): number {
     const diff = Date.now() - dob.getTime();
     return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 }
+
+    if (session?.status === 'OUTREACH_IN_PROGRESS') {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerTitle}>Broker Outreach Active</Text>
+                        <Text style={styles.headerSubtitle}>Personal Concierge Pitching Candidate</Text>
+                    </View>
+                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                        <Text style={styles.signOutText}>Sign Out</Text>
+                    </Pressable>
+                </View>
+                <View style={styles.completeContent}>
+                    <View style={styles.statusCard}>
+                        <Text style={styles.checkmarkIcon}>📞</Text>
+                        <Text style={styles.statusTitle}>Outreach Call In Progress</Text>
+                        <Text style={styles.statusSubtitle}>
+                            Your dedicated OpenMatch broker is calling the candidate to pitch your profile and gauge their interest.
+                        </Text>
+                        
+                        <View style={styles.divider} />
+                        
+                        <Text style={styles.statusBanner}>Status: Call Initiated</Text>
+                        <Text style={styles.statusDesc}>
+                            Please wait while we establish contact. If they accept, we will open a direct connection!
+                        </Text>
+
+                        <ActivityIndicator size="small" color="#d4b373" style={{ marginTop: 24 }} />
+                    </View>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (session?.status === 'AWAITING_HANDSHAKE') {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerTitle}>Introduction Successful</Text>
+                        <Text style={styles.headerSubtitle}>Outcome: Mutual Match Connected</Text>
+                    </View>
+                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                        <Text style={styles.signOutText}>Sign Out</Text>
+                    </Pressable>
+                </View>
+                <View style={styles.completeContent}>
+                    <View style={styles.statusCard}>
+                        <Text style={[styles.checkmarkIcon, { color: '#d4b373' }]}>🎉</Text>
+                        <Text style={styles.statusTitle}>It's a Mutual Match!</Text>
+                        <Text style={styles.statusSubtitle}>
+                            The candidate accepted your RM's pitch curation and approved the introduction.
+                        </Text>
+                        
+                        <View style={styles.divider} />
+                        
+                        <Text style={styles.statusBanner}>Direct Chat Opened 💬</Text>
+                        <Text style={styles.statusDesc}>
+                            You are now connected! Tap below to start talking.
+                        </Text>
+
+                        {onOpenChat ? (
+                            <Pressable
+                                style={[styles.continueBtn, { backgroundColor: '#d4b373', marginBottom: 12 }]}
+                                onPress={onOpenChat}
+                            >
+                                <Text style={[styles.continueBtnText, { color: '#0d0c0f' }]}>💬 Open Chat</Text>
+                            </Pressable>
+                        ) : null}
+
+                        <Pressable 
+                            style={styles.continueBtn} 
+                            onPress={async () => {
+                                try {
+                                    setLoadingSession(true);
+                                    const { data: { user } } = await supabase.auth.getUser();
+                                    if (user) {
+                                        await supabase
+                                            .from('assisted_concierge_sessions')
+                                            .update({ status: 'SHORTLIST_READY', updated_at: new Date().toISOString() })
+                                            .eq('user_id', user.id);
+                                    }
+                                    await loadSession();
+                                } catch (error) {
+                                    console.error('Failed to reset status:', error);
+                                } finally {
+                                    setLoadingSession(false);
+                                }
+                            }}
+                        >
+                            <Text style={styles.continueBtnText}>Return to Shortlist</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (session?.status === 'MUTUAL_UNLOCKED') {
+        // Lazily load the unmasked contact on first render of this screen
+        if (!unlockedContact) {
+            (async () => {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+                    // Find the unlocked match where this user is a participant
+                    const { data: match } = await supabase
+                        .from('matches')
+                        .select('id, user_1_id, user_2_id')
+                        .eq('is_unlocked', true)
+                        .or(`user_1_id.eq.${user.id},user_2_id.eq.${user.id}`)
+                        .maybeSingle();
+                    if (match) {
+                        const otherUserId = match.user_1_id === user.id ? match.user_2_id : match.user_1_id;
+                        const [profileResult, contactResult] = await Promise.all([
+                            supabase.from('profiles').select('full_name').eq('id', otherUserId).maybeSingle(),
+                            supabase.from('profile_contact_details').select('phone_number, whatsapp_number').eq('profile_id', otherUserId).maybeSingle(),
+                        ]);
+                        setUnlockedContact({
+                            full_name: profileResult.data?.full_name ?? 'Your Match',
+                            phone_number: contactResult.data?.phone_number ?? null,
+                            whatsapp_number: contactResult.data?.whatsapp_number ?? null,
+                        });
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch unlocked contact details:', err);
+                }
+            })();
+        }
+
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerTitle}>Connection Unlocked</Text>
+                        <Text style={styles.headerSubtitle}>Mutual Handshake Complete 💖</Text>
+                    </View>
+                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                        <Text style={styles.signOutText}>Sign Out</Text>
+                    </Pressable>
+                </View>
+                <View style={styles.completeContent}>
+                    <View style={styles.unlockCard}>
+                        <View style={styles.unlockIconRing}>
+                            <Text style={styles.unlockIcon}>💖</Text>
+                        </View>
+                        <Text style={styles.unlockTitle}>Connection Unlocked!</Text>
+                        <Text style={styles.unlockSubtitle}>
+                            Both of you have completed the mutual handshake.{unlockedContact?.full_name ? ` You are now connected with ${unlockedContact.full_name}.` : ''}
+                        </Text>
+
+                        <View style={styles.divider} />
+
+                        {unlockedContact ? (
+                            <View style={styles.contactSection}>
+                                <Text style={styles.contactSectionLabel}>📱 Contact Details Revealed</Text>
+                                {unlockedContact.phone_number ? (
+                                    <View style={styles.contactRow}>
+                                        <Text style={styles.contactLabel}>Phone</Text>
+                                        <Text style={styles.contactValue}>{unlockedContact.phone_number}</Text>
+                                    </View>
+                                ) : null}
+                                {unlockedContact.whatsapp_number ? (
+                                    <View style={styles.contactRow}>
+                                        <Text style={styles.contactLabel}>WhatsApp</Text>
+                                        <Text style={styles.contactValue}>{unlockedContact.whatsapp_number}</Text>
+                                    </View>
+                                ) : null}
+                                {!unlockedContact.phone_number && !unlockedContact.whatsapp_number ? (
+                                    <Text style={styles.contactMissing}>
+                                        Your match hasn't added contact details yet. You can still chat via the Chat tab.
+                                    </Text>
+                                ) : null}
+                            </View>
+                        ) : (
+                            <ActivityIndicator size="small" color="#d4b373" style={{ marginTop: 20 }} />
+                        )}
+
+                        <View style={styles.divider} />
+
+                        <Text style={styles.statusDesc}>
+                            Head to the Chat tab to continue the conversation. Your RM has facilitated a private introduction.
+                        </Text>
+
+                        {onOpenChat ? (
+                            <Pressable
+                                style={[styles.continueBtn, { backgroundColor: '#d4b373', marginBottom: 12 }]}
+                                onPress={onOpenChat}
+                            >
+                                <Text style={[styles.continueBtnText, { color: '#0d0c0f' }]}>💬 Open Chat</Text>
+                            </Pressable>
+                        ) : null}
+
+                        <Pressable
+                            style={styles.continueBtn}
+                            onPress={async () => {
+                                try {
+                                    setLoadingSession(true);
+                                    setUnlockedContact(null);
+                                    const { data: { user } } = await supabase.auth.getUser();
+                                    if (user) {
+                                        await supabase
+                                            .from('assisted_concierge_sessions')
+                                            .update({ status: 'SHORTLIST_READY', updated_at: new Date().toISOString() })
+                                            .eq('user_id', user.id);
+                                    }
+                                    await loadSession();
+                                } catch (error) {
+                                    console.error('Failed to reset status:', error);
+                                } finally {
+                                    setLoadingSession(false);
+                                }
+                            }}
+                        >
+                            <Text style={styles.continueBtnText}>Return to Shortlist</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (session?.status === 'CREDIT_REFUNDED') {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerTitle}>Outreach Completed</Text>
+                        <Text style={styles.headerSubtitle}>Outcome processed by Concierge</Text>
+                    </View>
+                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                        <Text style={styles.signOutText}>Sign Out</Text>
+                    </Pressable>
+                </View>
+                <View style={styles.completeContent}>
+                    <View style={styles.statusCard}>
+                        <Text style={[styles.checkmarkIcon, { color: '#ff5252' }]}>✕</Text>
+                        <Text style={styles.statusTitle}>Outreach Declined or Unreachable</Text>
+                        <Text style={styles.statusSubtitle}>
+                            The candidate declined the match or could not be reached. To ensure fairness, we have fully refunded your outreach credit.
+                        </Text>
+                        
+                        <View style={styles.divider} />
+                        
+                        <Text style={styles.statusBanner}>Credit Restored 🪙</Text>
+                        <Text style={styles.statusDesc}>
+                            1 Outreach credit has been returned to your balance.
+                        </Text>
+
+                        <Pressable 
+                            style={styles.continueBtn} 
+                            onPress={async () => {
+                                try {
+                                    setLoadingSession(true);
+                                    const { data: { user } } = await supabase.auth.getUser();
+                                    if (user) {
+                                        await supabase
+                                            .from('assisted_concierge_sessions')
+                                            .update({ status: 'SHORTLIST_READY', updated_at: new Date().toISOString() })
+                                            .eq('user_id', user.id);
+                                    }
+                                    await loadSession();
+                                } catch (error) {
+                                    console.error('Failed to reset status:', error);
+                                } finally {
+                                    setLoadingSession(false);
+                                }
+                            }}
+                        >
+                            <Text style={styles.continueBtnText}>Return to Shortlist</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     if (session?.status === 'SHORTLIST_READY') {
         return (
@@ -1026,5 +1336,90 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         fontSize: 13,
         textDecorationLine: 'underline',
+    },
+    // ─── Mutual Unlock / Connection styles ────────────────────────────────────
+    unlockCard: {
+        backgroundColor: '#1a1714',
+        borderRadius: 24,
+        padding: 28,
+        borderWidth: 1,
+        borderColor: '#d4b373',
+        alignItems: 'center',
+        shadowColor: '#d4b373',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 8,
+    },
+    unlockIconRing: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#2a1f0d',
+        borderWidth: 2,
+        borderColor: '#d4b373',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    unlockIcon: {
+        fontSize: 36,
+    },
+    unlockTitle: {
+        fontSize: 26,
+        fontWeight: '800',
+        color: '#d4b373',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    unlockSubtitle: {
+        fontSize: 15,
+        color: '#c8c4d0',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 4,
+    },
+    contactSection: {
+        width: '100%',
+        backgroundColor: '#0f1a12',
+        borderRadius: 14,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#2e5c35',
+        marginBottom: 4,
+    },
+    contactSectionLabel: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#81c784',
+        marginBottom: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    contactRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#1f3a22',
+    },
+    contactLabel: {
+        fontSize: 13,
+        color: '#a19fb0',
+        fontWeight: '600',
+    },
+    contactValue: {
+        fontSize: 15,
+        color: '#ffffff',
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    contactMissing: {
+        fontSize: 13,
+        color: '#a19fb0',
+        textAlign: 'center',
+        lineHeight: 20,
+        fontStyle: 'italic',
     },
 });

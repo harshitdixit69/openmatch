@@ -1146,6 +1146,23 @@ export function subscribeToAllFollowupJobs(onChange: () => void) {
         .subscribe();
 }
 
+export function subscribeToMatches(onChange: () => void) {
+    return supabase
+        .channel(createRealtimeChannelName('matches:all'))
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'matches',
+            },
+            () => {
+                onChange();
+            },
+        )
+        .subscribe();
+}
+
 export async function unsubscribeFromChannel(channel: RealtimeChannel) {
     await supabase.removeChannel(channel);
 }

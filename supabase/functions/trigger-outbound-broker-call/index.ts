@@ -118,8 +118,21 @@ Deno.serve(async (request) => {
             return json({ error: 'Request not found.' }, 404);
         }
 
+        // Fetch sender's user_tier from profiles to support upfront broker pitches for VIP/ASSISTED users
+        const { data: senderProfile } = await serviceClient
+            .from('profiles')
+            .select('user_tier')
+            .eq('id', interestRequest.sender_id)
+            .maybeSingle();
+
+        const senderTier = senderProfile?.user_tier ?? 'FREE';
+        const isPremiumConcierge = senderTier === 'VIP' || senderTier === 'ASSISTED';
+
         if (interestRequest.status !== 'accepted') {
-            return json({ error: 'Request already resolved for outbound broker calls.' }, 409);
+            const isInitialBrokerPitch = isPremiumConcierge && interestRequest.status === 'sent';
+            if (!isInitialBrokerPitch) {
+                return json({ error: 'Request already resolved for outbound broker calls.' }, 409);
+            }
         }
 
         if (targetProfileId !== interestRequest.sender_id && targetProfileId !== interestRequest.receiver_id) {

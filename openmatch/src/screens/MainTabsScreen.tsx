@@ -79,6 +79,7 @@ export function MainTabsScreen() {
     const [showDashboard, setShowDashboard] = useState(false);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const [conciergeRefreshCounter, setConciergeRefreshCounter] = useState(0);
+    const [showAssistedChat, setShowAssistedChat] = useState(false);
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
     const insets = useSafeAreaInsets();
     // Debounce ref: track the last time loadShellData was triggered by a tab
@@ -487,12 +488,28 @@ export function MainTabsScreen() {
     }
 
     if (viewerProfile?.subscription_tier === 'assisted' || (viewerProfile as any)?.membership_tier === 'assisted') {
+        if (showAssistedChat) {
+            return (
+                <ChatScreen
+                    key="assisted-chat-tab"
+                    onClose={() => setShowAssistedChat(false)}
+                    initialMatchListFilter="accepted"
+                    initialVisibilityFilter="all"
+                    isChatScreen={true}
+                    onViewProfile={(profileId) => setSelectedProfileId(profileId)}
+                    onOpenNotifications={() => {}}
+                    unreadNotificationsCount={0}
+                />
+            );
+        }
+
         return (
             <>
                 <ConciergeHubScreen
                     viewerProfile={viewerProfile}
                     onViewProfile={(id) => setSelectedProfileId(id)}
                     onSignOut={handleSignOut}
+                    onOpenChat={() => setShowAssistedChat(true)}
                     refreshCounter={conciergeRefreshCounter}
                 />
                 <Modal

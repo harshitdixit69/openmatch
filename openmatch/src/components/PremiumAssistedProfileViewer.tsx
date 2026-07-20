@@ -120,8 +120,91 @@ export default function PremiumAssistedProfileViewer({
         if (!itemId) return;
         try {
             setActionLoading(true);
-            await updateShortlistFeedback(itemId, status === 'pending' ? 'pending' : status);
-            setFeedbackStatus(status === 'pending' ? 'pending' : status);
+            if (status === 'liked') {
+                // 1. Consume VIP Outreach Credit atomically
+                const { data: creditSuccess, error: creditErr } = await supabase.rpc('consume_vip_outreach_credit');
+                if (creditErr || !creditSuccess) {
+                    Alert.alert(
+                        'Outreach Limit Reached',
+                        'You do not have enough VIP Outreach credits remaining. Please contact your Relationship Manager to top up your credits.'
+                    );
+                    return;
+                }
+
+                // 2. Submit Interest Request
+                const { data: requestData, error: requestErr } = await supabase.functions.invoke('submit-interest-request', {
+                    body: {
+                        candidateProfileId: profileId,
+                        selectedReasonId: 'custom',
+                        personalizedReason: matchRationale || 'Pitched by your Relationship Manager.',
+                    }
+                });
+
+                if (requestErr || !requestData) {
+                    console.error('Failed to submit interest request:', requestErr);
+                    Alert.alert('Error', 'Unable to initiate outreach request. Please try again.');
+                    return;
+                }
+
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    Alert.alert('Error', 'Session expired. Please log in again.');
+                    return;
+                }
+
+                console.log('--- SUBMIT INTEREST RESPONSE ---', JSON.stringify(requestData));
+                let requestId = requestData.requestId || requestData.id;
+
+                if (!requestId) {
+                    // Fallback: Query for existing interest request between Seeker and Candidate
+                    const { data: existingReq } = await supabase
+                        .from('interest_requests')
+                        .select('id')
+                        .eq('sender_id', user.id)
+                        .eq('receiver_id', profileId)
+                        .maybeSingle();
+                    
+                    if (existingReq?.id) {
+                        requestId = existingReq.id;
+                    }
+                }
+
+                if (!requestId) {
+                    Alert.alert('Error', 'Could not locate matchmaking interest request.');
+                    return;
+                }
+
+                // 3. Update Shortlist Item feedback status
+                await updateShortlistFeedback(itemId, 'liked');
+                setFeedbackStatus('liked');
+
+                // 4. Update session status to 'OUTREACH_IN_PROGRESS'
+                await supabase
+                    .from('assisted_concierge_sessions')
+                    .update({ status: 'OUTREACH_IN_PROGRESS', updated_at: new Date().toISOString() })
+                    .eq('user_id', user.id);
+
+                // 5. Trigger outbound Retell AI broker call
+                const { error: callErr } = await supabase.functions.invoke('trigger-outbound-broker-call', {
+                    body: {
+                        requestId,
+                        targetProfileId: profileId,
+                        mode: 'manual',
+                        channel: 'voice',
+                        provider: 'retell',
+                    }
+                });
+
+                if (callErr) {
+                    console.error('Failed to trigger outbound broker call:', callErr);
+                    Alert.alert('Outreach Error', 'Outreach call request failed to dispatch.');
+                } else {
+                    onClose();
+                }
+            } else {
+                await updateShortlistFeedback(itemId, status === 'pending' ? 'pending' : status);
+                setFeedbackStatus(status === 'pending' ? 'pending' : status);
+            }
         } catch (error) {
             console.error('Failed to update feedback:', error);
             Alert.alert('Error', 'Unable to submit your feedback.');
@@ -330,13 +413,13 @@ export default function PremiumAssistedProfileViewer({
                             onPress={() => handleFeedbackAction('liked')}
                             style={[styles.footerBtn, styles.likeFooterBtn]}
                         >
-                            <Text style={styles.likeFooterBtnText}>💖 Accept Match</Text>
+                            <Text style={styles.likeFooterBtnText}>💖 Approve & Pitch</Text>
                         </Pressable>
                     </>
                 ) : (
                     <View style={styles.feedbackBannerContainer}>
                         <Text style={styles.feedbackBannerText}>
-                            {feedbackStatus === 'liked' ? 'Curated Match Accepted 💖' : 'Curation Passed ✕'}
+                            {feedbackStatus === 'liked' ? 'Outreach Initiated 💖' : 'Curation Passed ✕'}
                         </Text>
                         <Pressable onPress={() => handleFeedbackAction('pending')} style={styles.undoBtn}>
                             <Text style={styles.undoText}>Undo Choice</Text>

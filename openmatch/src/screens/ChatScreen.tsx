@@ -46,6 +46,7 @@ import {
     subscribeToAllFollowupJobs,
     subscribeToBrokerCalls,
     subscribeToInterestRequests,
+    subscribeToMatches,
     subscribeToMatchMessages,
     triggerOutboundBrokerCall,
     triggerIntentCallback,
@@ -228,6 +229,22 @@ export function ChatScreen({
     useEffect(() => {
         let isMounted = true;
         const channel = subscribeToAllFollowupJobs(() => {
+            if (!isMounted) {
+                return;
+            }
+
+            void loadMatches(false);
+        });
+
+        return () => {
+            isMounted = false;
+            void unsubscribeFromChannel(channel as RealtimeChannel);
+        };
+    }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+        const channel = subscribeToMatches(() => {
             if (!isMounted) {
                 return;
             }
