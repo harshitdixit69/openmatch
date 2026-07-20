@@ -20,6 +20,7 @@ import { ModerationQueueScreen } from './ModerationQueueScreen';
 import { DashboardScreen } from './DashboardScreen';
 import VipConciergeDashboard from './VipConciergeDashboard';
 import ConciergeHubScreen from './ConciergeHubScreen';
+import PremiumAssistedProfileViewer from '../components/PremiumAssistedProfileViewer';
 import { MyMatchesScreen } from './MyMatchesScreen';
 import { NotificationsScreen } from './NotificationsScreen';
 import { PartnerPreferencesScreen } from './PartnerPreferencesScreen';
@@ -77,6 +78,7 @@ export function MainTabsScreen() {
     const [showNotifications, setShowNotifications] = useState(false);
     const [showDashboard, setShowDashboard] = useState(false);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [conciergeRefreshCounter, setConciergeRefreshCounter] = useState(0);
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
     const insets = useSafeAreaInsets();
     // Debounce ref: track the last time loadShellData was triggered by a tab
@@ -86,7 +88,11 @@ export function MainTabsScreen() {
     // Android back button: dismiss the topmost open modal instead of exiting the app.
     useEffect(() => {
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-            if (selectedProfileId) { setSelectedProfileId(null); return true; }
+            if (selectedProfileId) { 
+                setSelectedProfileId(null); 
+                setConciergeRefreshCounter(prev => prev + 1);
+                return true; 
+            }
             if (showDashboard) { setShowDashboard(false); return true; }
             if (showNotifications) { setShowNotifications(false); return true; }
             if (showWhoViewedMe) { setShowWhoViewedMe(false); return true; }
@@ -480,13 +486,35 @@ export function MainTabsScreen() {
         );
     }
 
-    if (viewerProfile?.subscription_tier === 'assisted') {
+    if (viewerProfile?.subscription_tier === 'assisted' || (viewerProfile as any)?.membership_tier === 'assisted') {
         return (
-            <ConciergeHubScreen
-                viewerProfile={viewerProfile}
-                onViewProfile={(id) => setSelectedProfileId(id)}
-                onSignOut={handleSignOut}
-            />
+            <>
+                <ConciergeHubScreen
+                    viewerProfile={viewerProfile}
+                    onViewProfile={(id) => setSelectedProfileId(id)}
+                    onSignOut={handleSignOut}
+                    refreshCounter={conciergeRefreshCounter}
+                />
+                <Modal
+                    transparent={false}
+                    animationType="slide"
+                    visible={Boolean(selectedProfileId)}
+                    onRequestClose={() => {
+                        setSelectedProfileId(null);
+                        setConciergeRefreshCounter((prev) => prev + 1);
+                    }}
+                >
+                    {selectedProfileId ? (
+                        <PremiumAssistedProfileViewer
+                            profileId={selectedProfileId}
+                            onClose={() => {
+                                setSelectedProfileId(null);
+                                setConciergeRefreshCounter((prev) => prev + 1);
+                            }}
+                        />
+                    ) : null}
+                </Modal>
+            </>
         );
     }
 

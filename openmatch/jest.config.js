@@ -14,6 +14,7 @@ module.exports = {
     'src/lib/partnerPreferencesApi.ts',
     'src/lib/notificationsApi.ts',
     'src/screens/ConciergeHubScreen.tsx',
+    'src/components/PremiumAssistedProfileViewer.tsx',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

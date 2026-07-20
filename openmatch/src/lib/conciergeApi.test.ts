@@ -1,21 +1,32 @@
-import { fetchConciergeSession, sendIntakeMessage } from './conciergeApi';
+import { fetchConciergeSession, sendIntakeMessage, submitRawIntakeTranscript, fetchAssistedShortlist, updateShortlistFeedback } from './conciergeApi';
 import { supabase } from './supabase';
 
 // Mock Supabase Client
 jest.mock('./supabase', () => {
   const mockSingle = jest.fn();
   const mockMaybeSingle = jest.fn();
-  const mockEq = jest.fn(() => ({ maybeSingle: mockMaybeSingle }));
-  const mockSelect = jest.fn(() => ({ eq: mockEq }));
-  const mockFrom = jest.fn(() => ({ select: mockSelect }));
+  const mockEq = jest.fn();
+  const mockSelect = jest.fn();
+  const mockFrom = jest.fn();
   const mockInvoke = jest.fn();
+
+  const mockBuilder = {
+    select: mockSelect,
+    update: jest.fn(() => mockBuilder),
+    eq: mockEq,
+    single: mockSingle,
+    maybeSingle: mockMaybeSingle,
+  };
+
+  mockSelect.mockReturnValue(mockBuilder);
+  mockEq.mockReturnValue(mockBuilder);
 
   return {
     supabase: {
       auth: {
         getUser: jest.fn(),
       },
-      from: mockFrom,
+      from: mockFrom.mockReturnValue(mockBuilder),
       functions: {
         invoke: mockInvoke,
       },
@@ -114,6 +125,127 @@ describe('conciergeApi unit tests', () => {
       });
 
       await expect(sendIntakeMessage([])).rejects.toThrow('Invalid response from concierge intake.');
+    });
+  });
+
+  describe('submitRawIntakeTranscript', () => {
+    it('should invoke process-concierge-intake Edge Function', async () => {
+      const mockResponse = { success: true, status: 'AWAITING_SHORTLIST' };
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: mockResponse,
+        error: null,
+      });
+
+      const result = await submitRawIntakeTranscript('User: Hi\nAI RM: Hello');
+
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('process-concierge-intake', {
+        body: { transcript: 'User: Hi\nAI RM: Hello' },
+      });
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should throw error if invocation fails', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: null,
+        error: new Error('Invocation failed'),
+      });
+
+      await expect(submitRawIntakeTranscript('test')).rejects.toThrow('Invocation failed');
+    });
+  });
+
+  describe('fetchAssistedShortlist', () => {
+    it('should query assisted_shortlists and assisted_shortlist_items and map profiles', async () => {
+      const mockShortlist = { id: 'shortlist-123' };
+      const mockItems = [
+        {
+          id: 'item-1',
+          shortlist_id: 'shortlist-123',
+          candidate_id: 'candidate-1',
+          match_score: 0.95,
+          match_rationale: 'Great match!',
+          feedback_status: 'pending',
+          created_at: '2026-07-20T00:00:00Z',
+          profiles: {
+            id: 'candidate-1',
+            full_name: 'Candidate A',
+          },
+        },
+      ];
+
+      const mockBuilderShortlist: any = {
+        select: jest.fn(() => mockBuilderShortlist),
+        eq: jest.fn(() => mockBuilderShortlist),
+        maybeSingle: jest.fn().mockResolvedValue({ data: mockShortlist, error: null }),
+      };
+
+      const mockBuilderItems: any = {
+        select: jest.fn(() => mockBuilderItems),
+        eq: jest.fn().mockResolvedValue({ data: mockItems, error: null }),
+      };
+
+      (supabase.from as jest.Mock)
+        .mockReturnValueOnce(mockBuilderShortlist)
+        .mockReturnValueOnce(mockBuilderItems);
+
+      const result = await fetchAssistedShortlist('session-123');
+
+      expect(supabase.from).toHaveBeenNthCalledWith(1, 'assisted_shortlists');
+      expect(supabase.from).toHaveBeenNthCalledWith(2, 'assisted_shortlist_items');
+      expect(result).toEqual([
+        {
+          id: 'item-1',
+          shortlist_id: 'shortlist-123',
+          candidate_id: 'candidate-1',
+          match_score: 0.95,
+          match_rationale: 'Great match!',
+          feedback_status: 'pending',
+          created_at: '2026-07-20T00:00:00Z',
+          candidate_profile: {
+            id: 'candidate-1',
+            full_name: 'Candidate A',
+          },
+        },
+      ]);
+    });
+
+    it('should return empty array if no active shortlist exists', async () => {
+      const mockBuilderShortlist: any = {
+        select: jest.fn(() => mockBuilderShortlist),
+        eq: jest.fn(() => mockBuilderShortlist),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+      };
+
+      (supabase.from as jest.Mock).mockReturnValue(mockBuilderShortlist);
+
+      const result = await fetchAssistedShortlist('session-123');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('updateShortlistFeedback', () => {
+    it('should update assisted_shortlist_items status', async () => {
+      const mockBuilderUpdate: any = {
+        update: jest.fn(() => mockBuilderUpdate),
+        eq: jest.fn().mockResolvedValue({ error: null }),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockBuilderUpdate);
+
+      await updateShortlistFeedback('item-123', 'liked');
+
+      expect(supabase.from).toHaveBeenCalledWith('assisted_shortlist_items');
+      expect(mockBuilderUpdate.update).toHaveBeenCalledWith({ feedback_status: 'liked' });
+      expect(mockBuilderUpdate.eq).toHaveBeenCalledWith('id', 'item-123');
+    });
+
+    it('should throw error if update fails', async () => {
+      const mockBuilderUpdate: any = {
+        update: jest.fn(() => mockBuilderUpdate),
+        eq: jest.fn().mockResolvedValue({ error: new Error('Update failed') }),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockBuilderUpdate);
+
+      await expect(updateShortlistFeedback('item-123', 'liked')).rejects.toThrow('Update failed');
     });
   });
 });
