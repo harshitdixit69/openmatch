@@ -478,17 +478,12 @@ export function MainTabsScreen() {
         );
     }
 
-    if (viewerProfile?.subscription_tier === 'vip') {
-        return (
-            <VipConciergeDashboard
-                viewerProfile={viewerProfile}
-                onViewProfile={(id) => setSelectedProfileId(id)}
-                onSignOut={handleSignOut}
-            />
-        );
-    }
-
-    if (viewerProfile?.subscription_tier === 'assisted' || (viewerProfile as any)?.membership_tier === 'assisted') {
+    if (
+        viewerProfile?.subscription_tier === 'vip' ||
+        viewerProfile?.subscription_tier === 'assisted' ||
+        (viewerProfile as any)?.membership_tier === 'assisted' ||
+        (viewerProfile as any)?.membership_tier === 'vip'
+    ) {
         return (
             <PremiumHubScreen
                 viewerProfile={viewerProfile}
