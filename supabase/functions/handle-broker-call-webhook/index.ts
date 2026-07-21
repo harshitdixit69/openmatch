@@ -392,9 +392,9 @@ async function handleNextAction(
     if (nextAction === 'close_request') {
         await serviceClient
             .from('interest_requests')
-            .update({ status: 'closed' })
+            .update({ status: 'declined', updated_at: new Date().toISOString() })
             .eq('id', requestId)
-            .in('status', ['accepted', 'ghosted']);
+            .in('status', ['sent', 'accepted', 'ghosted']);
 
         if (matchId) {
             await serviceClient
@@ -492,10 +492,23 @@ function deriveNextAction(payload: HandleBrokerCallWebhookPayload) {
         return 'none' as const;
     }
 
+    const rawCall = isRecord(payload.rawPayload?.call) ? payload.rawPayload.call : (payload.rawPayload || {});
+    const callAnalysis = isRecord(rawCall.call_analysis) ? rawCall.call_analysis : {};
+    const customAnalysis = isRecord(callAnalysis.custom_analysis_data) ? callAnalysis.custom_analysis_data : {};
+
+    const callSummaryText = (typeof callAnalysis.call_summary === 'string' ? callAnalysis.call_summary : Array.isArray(callAnalysis.call_summary) ? callAnalysis.call_summary.join(' ') : '') || (typeof payload.summary?.callSummary === 'string' ? payload.summary.callSummary : '');
+    const sentiment = String(callAnalysis.user_sentiment || payload.summary?.userSentiment || '').toLowerCase();
+    const isSuccessful = Boolean(callAnalysis.call_successful || customAnalysis.accepted_pitch || customAnalysis.requested_unlock);
+
     const intent = normalizeIntentValue(payload.summary?.intent, payload.outcome ?? null);
     const preferredContactMode = normalizeIntentValue(payload.summary?.preferredContactMode, null);
 
-    if (intent && /decline|closed|stop|not[_\s-]?interested|pause/.test(intent)) {
+    if (
+        (intent && /decline|closed|stop|not[_\s-]?interested|pause|user_hangup|agent_hangup/.test(intent)) ||
+        sentiment === 'negative' ||
+        /declined|refusal|not interested|refused/.test(callSummaryText.toLowerCase()) ||
+        (!isSuccessful && (payload.outcome === 'user_hangup' || payload.outcome === 'agent_hangup' || payload.outcome === 'no_answer' || payload.status === 'declined' || payload.status === 'failed'))
+    ) {
         return 'close_request' as const;
     }
 
@@ -511,9 +524,11 @@ function deriveNextAction(payload: HandleBrokerCallWebhookPayload) {
         return 'notify_counterparty' as const;
     }
 
-    // Default: any completed call that wasn't an explicit decline is treated as
-    // positive intent so User A always receives a broker update message.
-    return 'notify_counterparty' as const;
+    if (isSuccessful) {
+        return 'notify_counterparty' as const;
+    }
+
+    return 'close_request' as const;
 }
 
 function normalizeIntentValue(summaryValue: unknown, fallback: string | null) {
