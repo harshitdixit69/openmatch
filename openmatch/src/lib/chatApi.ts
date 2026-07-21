@@ -644,7 +644,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
             }
 
             let matchRequestState: MatchRequestState = 'none';
-            if (interestRequest?.status === 'sent') {
+            if (interestRequest) {
                 if (interestRequest.senderId === user.id) {
                     matchRequestState = 'sent';
                 } else if (interestRequest.receiverId === user.id) {

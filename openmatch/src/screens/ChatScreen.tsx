@@ -1231,12 +1231,12 @@ export function ChatScreen({
 
     const inboxTabCounts = useMemo(
         () => ({
-            received: matches.filter((match) => matchesChatListFilter(match, 'received')).length,
-            accepted: matches.filter((match) => matchesChatListFilter(match, 'accepted')).length,
-            contacts: matches.filter((match) => matchesChatListFilter(match, 'contacts')).length,
-            sent: matches.filter((match) => matchesChatListFilter(match, 'sent')).length,
+            received: matches.filter((match) => matchesChatListFilter(match, 'received', currentUserId)).length,
+            accepted: matches.filter((match) => matchesChatListFilter(match, 'accepted', currentUserId)).length,
+            contacts: matches.filter((match) => matchesChatListFilter(match, 'contacts', currentUserId)).length,
+            sent: matches.filter((match) => matchesChatListFilter(match, 'sent', currentUserId)).length,
         }),
-        [matches],
+        [currentUserId, matches],
     );
 
     const unreadMatchCount = useMemo(
@@ -1272,7 +1272,7 @@ export function ChatScreen({
                 return false;
             }
 
-            return matchesChatListFilter(match, matchListFilter);
+            return matchesChatListFilter(match, matchListFilter, currentUserId);
         });
     }, [currentUserId, matchListFilter, matchSearchQuery, matches, messageVisibilityFilter]);
 
@@ -2995,8 +2995,11 @@ function getMatchStatusLabel(match: ChatMatch) {
     return 'Escrow';
 }
 
-function matchesChatListFilter(match: ChatMatch, filter: ChatListFilter) {
+function matchesChatListFilter(match: ChatMatch, filter: ChatListFilter, currentUserId: string | null) {
+    const isDeclined = match.interestRequest?.status === 'declined' || match.status === 'rejected';
+
     if (filter === 'received') {
+        if (isDeclined) return false;
         return match.matchRequestState === 'received' || match.unlockState.canAccept;
     }
 
@@ -3013,9 +3016,11 @@ function matchesChatListFilter(match: ChatMatch, filter: ChatListFilter) {
     }
 
     if (filter === 'sent') {
+        if (isDeclined) {
+            return match.interestRequest?.senderId === currentUserId;
+        }
         return (
             match.matchRequestState === 'sent' ||
-            match.interestRequest?.status === 'declined' ||
             match.unlockState.waitingOn === 'other_acceptance' ||
             match.unlockState.waitingOn === 'other_payment'
         );
