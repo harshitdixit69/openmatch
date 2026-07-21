@@ -14,16 +14,23 @@ jest.mock('../lib/supabase', () => {
         eq: jest.fn(() => ({
           single: mockSingle,
         })),
+        or: jest.fn(() => ({
+          maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'req-123' }, error: null }),
+        })),
       })),
       update: jest.fn(() => ({
         eq: jest.fn().mockResolvedValue({ data: null, error: null }),
       })),
+      insert: jest.fn().mockResolvedValue({ data: null, error: null }),
     };
   });
   
   const mockInvoke = jest.fn().mockImplementation((fnName) => {
     if (fnName === 'submit-interest-request') {
       return Promise.resolve({ data: { requestId: 'req-123' }, error: null });
+    }
+    if (fnName === 'trigger-outbound-broker-call') {
+      return Promise.resolve({ data: { call_id: 'call-123', call_status: 'completed_accepted', candidate_sentiment: 'Positive & Enthusiastic' }, error: null });
     }
     if (fnName === 'discuss-candidate-chat') {
       return Promise.resolve({ data: { reply: 'AI RM reply about compatibility.' }, error: null });
@@ -32,6 +39,10 @@ jest.mock('../lib/supabase', () => {
   });
 
   const mockRpc = jest.fn().mockResolvedValue({ data: true, error: null });
+  const mockChannel = jest.fn(() => ({
+    on: jest.fn().mockReturnThis(),
+    subscribe: jest.fn().mockReturnThis(),
+  }));
 
   return {
     supabase: {
@@ -43,6 +54,8 @@ jest.mock('../lib/supabase', () => {
         invoke: mockInvoke,
       },
       rpc: mockRpc,
+      channel: mockChannel,
+      removeChannel: jest.fn(),
     },
   };
 });

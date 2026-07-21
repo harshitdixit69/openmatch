@@ -278,6 +278,21 @@ Deno.serve(async (request) => {
 
         await updateBrokerDispatchState(serviceClient, brokerCallId, mode, windowKey, dispatchResult);
 
+        if (dispatchResult.providerCallId) {
+            if ((payload as any).retellCallId) {
+                await serviceClient
+                    .from('ai_outreach_logs')
+                    .update({ retell_call_id: dispatchResult.providerCallId, call_status: 'calling' })
+                    .eq('retell_call_id', (payload as any).retellCallId);
+            } else {
+                await serviceClient
+                    .from('ai_outreach_logs')
+                    .update({ retell_call_id: dispatchResult.providerCallId, call_status: 'calling' })
+                    .eq('candidate_id', targetProfileId)
+                    .eq('call_status', 'queued');
+            }
+        }
+
         await safeInsertInterestRequestEvent(serviceClient, interestRequest.id, authResult.userId, 'broker_call_dispatched', {
             brokerCallId,
             provider,
@@ -293,6 +308,7 @@ Deno.serve(async (request) => {
         return json({
             brokerCallId,
             requestId,
+            providerCallId: dispatchResult.providerCallId ?? null,
             status: dispatchResult.status,
             provider,
             channel,

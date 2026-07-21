@@ -34,12 +34,14 @@ export default function ConciergeHubScreen({
     onSignOut,
     onOpenChat,
     refreshCounter = 0,
+    hideTabBar = false,
 }: {
     viewerProfile: ProfileRecord | null;
     onViewProfile: (profileId: string) => void;
     onSignOut: () => void;
     onOpenChat?: () => void;
     refreshCounter?: number;
+    hideTabBar?: boolean;
 }) {
     const firstName = viewerProfile?.full_name?.split(' ')[0] || 'Member';
 
@@ -55,6 +57,7 @@ export default function ConciergeHubScreen({
     const [loadingShortlist, setLoadingShortlist] = useState(false);
     const [generatingShortlist, setGeneratingShortlist] = useState(false);
     const [unlockedContact, setUnlockedContact] = useState<{ full_name: string; phone_number: string | null; whatsapp_number: string | null } | null>(null);
+    const [conciergeTab, setConciergeTab] = useState<'shortlist' | 'activity' | 'profile'>('shortlist');
 
     const scrollViewRef = useRef<ScrollView>(null);
     const typingAnim = useRef(new Animated.Value(0)).current;
@@ -704,112 +707,256 @@ function dateToAge(dobString: string): number {
     }
 
     if (session?.status === 'SHORTLIST_READY') {
+        // ── Tab content ───────────────────────────────────────────────────────
+        const renderTabContent = () => {
+            if (conciergeTab === 'profile') {
+                return (
+                    <View style={styles.tabContent}>
+                        <View style={styles.profileTabCard}>
+                            <View style={styles.profileTabAvatar}>
+                                {viewerProfile?.photo_urls?.[0] ? (
+                                    <Image source={{ uri: viewerProfile.photo_urls[0] }} style={styles.profileTabAvatarImg} />
+                                ) : (
+                                    <Text style={styles.profileTabAvatarInitial}>
+                                        {viewerProfile?.full_name?.charAt(0) ?? '?'}
+                                    </Text>
+                                )}
+                            </View>
+                            <Text style={styles.profileTabName}>{viewerProfile?.full_name ?? 'Your Profile'}</Text>
+                            <Text style={styles.profileTabSub}>{viewerProfile?.location ?? ''}</Text>
+                            <View style={styles.profileTabDivider} />
+                            <View style={styles.profileTabRow}>
+                                <Text style={styles.profileTabLabel}>Tier</Text>
+                                <Text style={styles.profileTabValue}>⭐ Assisted Concierge</Text>
+                            </View>
+                            {viewerProfile?.occupation ? (
+                                <View style={styles.profileTabRow}>
+                                    <Text style={styles.profileTabLabel}>Occupation</Text>
+                                    <Text style={styles.profileTabValue}>{viewerProfile.occupation}</Text>
+                                </View>
+                            ) : null}
+                            {viewerProfile?.education ? (
+                                <View style={styles.profileTabRow}>
+                                    <Text style={styles.profileTabLabel}>Education</Text>
+                                    <Text style={styles.profileTabValue}>{viewerProfile.education}</Text>
+                                </View>
+                            ) : null}
+                            <Pressable
+                                style={styles.viewFullProfileBtn}
+                                onPress={() => viewerProfile?.id && onViewProfile(viewerProfile.id)}
+                            >
+                                <Text style={styles.viewFullProfileBtnText}>View Full Profile</Text>
+                            </Pressable>
+                            <Pressable style={styles.signOutFullBtn} onPress={onSignOut}>
+                                <Text style={styles.signOutFullBtnText}>Sign Out</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                );
+            }
+
+            if (conciergeTab === 'activity') {
+                return (
+                    <View style={styles.tabContent}>
+                        <View style={styles.activityCard}>
+                            <Text style={styles.activityTitle}>🔔 Activity Feed</Text>
+                            <Text style={styles.activitySub}>Recent updates from your concierge journey</Text>
+                            <View style={styles.activityDivider} />
+                            <View style={styles.activityItem}>
+                                <View style={styles.activityDot} />
+                                <View>
+                                    <Text style={styles.activityItemTitle}>Shortlist Ready</Text>
+                                    <Text style={styles.activityItemDesc}>Your RM has curated matches for you</Text>
+                                </View>
+                            </View>
+                            <View style={styles.activityItem}>
+                                <View style={[styles.activityDot, { backgroundColor: '#d4b373' }]} />
+                                <View>
+                                    <Text style={styles.activityItemTitle}>Intake Complete</Text>
+                                    <Text style={styles.activityItemDesc}>Your preferences blueprint is saved</Text>
+                                </View>
+                            </View>
+                            <View style={styles.activityItem}>
+                                <View style={[styles.activityDot, { backgroundColor: '#6c757d' }]} />
+                                <View>
+                                    <Text style={styles.activityItemTitle}>Profile Verified</Text>
+                                    <Text style={styles.activityItemDesc}>Your Assisted tier profile is active</Text>
+                                </View>
+                            </View>
+                            <View style={styles.activityDivider} />
+                            <Text style={styles.activityHint}>
+                                💡 Tip: Review your shortlist and like the profiles you're interested in. Your RM will initiate the pitch call.
+                            </Text>
+                        </View>
+                    </View>
+                );
+            }
+
+            // Default: shortlist tab
+            if (loadingShortlist) {
+                return (
+                    <View style={styles.loadingShortlistContainer}>
+                        <ActivityIndicator size="large" color="#11313c" />
+                        <Text style={styles.loadingShortlistText}>Loading your curated matches...</Text>
+                    </View>
+                );
+            }
+
+            if (shortlistItems.length === 0) {
+                return (
+                    <View style={styles.emptyShortlistContainer}>
+                        <Text style={styles.emptyEmoji}>🔍</Text>
+                        <Text style={styles.emptyText}>Your Relationship Manager is curating matches for you.</Text>
+                    </View>
+                );
+            }
+
+            return (
+                <ScrollView contentContainerStyle={styles.shortlistScroll}>
+                    {shortlistItems.map((item) => {
+                        const profile = item.candidate_profile;
+                        if (!profile) return null;
+                        const age = profile.dob ? dateToAge(profile.dob) : '30';
+
+                        return (
+                            <View key={item.id} style={styles.matchCard}>
+                                <Pressable onPress={() => onViewProfile(profile.id)}>
+                                    {profile.photo_urls && profile.photo_urls[0] ? (
+                                        <Image
+                                            source={{ uri: profile.photo_urls[0] }}
+                                            style={styles.candidateImage}
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <View style={styles.imagePlaceholder}>
+                                            <Text style={styles.imagePlaceholderText}>
+                                                {profile.full_name?.charAt(0) || 'M'}
+                                            </Text>
+                                        </View>
+                                    )}
+
+                                    <View style={[styles.cardInfo, { paddingBottom: 0 }]}>
+                                        <Text style={styles.candidateName}>
+                                            {profile.full_name}, {age}
+                                        </Text>
+                                        <Text style={styles.candidateLoc}>{profile.location}</Text>
+
+                                        <View style={styles.attributeRow}>
+                                            {profile.occupation && (
+                                                <Text style={styles.attributeTag}>💼 {profile.occupation}</Text>
+                                            )}
+                                            {profile.education && (
+                                                <Text style={styles.attributeTag}>🎓 {profile.education}</Text>
+                                            )}
+                                            {profile.diet && (
+                                                <Text style={styles.attributeTag}>🥦 {profile.diet}</Text>
+                                            )}
+                                        </View>
+                                    </View>
+                                </Pressable>
+
+                                <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+                                    <View style={styles.pitchBox}>
+                                        <Text style={styles.pitchLabel}>💝 Dedicated RM Pitch</Text>
+                                        <Text style={styles.pitchText}>{item.match_rationale}</Text>
+                                    </View>
+
+                                    {item.feedback_status === 'pending' ? (
+                                        <View style={styles.actionRow}>
+                                            <Pressable
+                                                onPress={() => handleFeedback(item.id, 'disliked')}
+                                                style={[styles.actionBtn, styles.passBtn]}
+                                            >
+                                                <Text style={styles.passBtnText}>✕ Pass</Text>
+                                            </Pressable>
+                                            <Pressable
+                                                onPress={() => handleFeedback(item.id, 'liked')}
+                                                style={[styles.actionBtn, styles.likeBtn]}
+                                            >
+                                                <Text style={styles.likeBtnText}>💖 Like</Text>
+                                            </Pressable>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.feedbackBanner}>
+                                            <Text style={styles.feedbackBannerText}>
+                                                {item.feedback_status === 'liked' ? 'Liked 💖' : 'Passed ✕'}
+                                            </Text>
+                                            <Pressable onPress={() => handleFeedback(item.id, 'pending')}>
+                                                <Text style={styles.undoText}>Undo</Text>
+                                            </Pressable>
+                                        </View>
+                                    )}
+                                </View>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
+            );
+        };
+
+        // ── Bottom tab definitions ────────────────────────────────────────────
+        const tabs = [
+            { key: 'shortlist', label: 'Shortlist', icon: '💝' },
+            { key: 'chat',      label: 'Chats',     icon: '💬' },
+            { key: 'activity',  label: 'Activity',  icon: '🔔' },
+            { key: 'profile',   label: 'Profile',   icon: '👤' },
+        ] as const;
+
         return (
             <SafeAreaView style={styles.container}>
+                {/* Header */}
                 <View style={styles.header}>
                     <View>
-                        <Text style={styles.headerTitle}>Curated Shortlist</Text>
-                        <Text style={styles.headerSubtitle}>Handselected by your Relationship Manager</Text>
+                        <Text style={styles.headerTitle}>
+                            {conciergeTab === 'shortlist' ? 'Curated Shortlist'
+                                : conciergeTab === 'activity' ? 'Activity'
+                                : conciergeTab === 'profile' ? 'My Profile'
+                                : 'Curated Shortlist'}
+                        </Text>
+                        <Text style={styles.headerSubtitle}>
+                            {conciergeTab === 'shortlist' ? 'Handselected by your Relationship Manager'
+                                : conciergeTab === 'activity' ? 'Your concierge journey updates'
+                                : conciergeTab === 'profile' ? 'Your Assisted tier account'
+                                : ''}
+                        </Text>
                     </View>
                     <Pressable onPress={onSignOut} style={styles.signOutBtn}>
                         <Text style={styles.signOutText}>Sign Out</Text>
                     </Pressable>
                 </View>
 
-                {loadingShortlist ? (
-                    <View style={styles.loadingShortlistContainer}>
-                        <ActivityIndicator size="large" color="#11313c" />
-                        <Text style={styles.loadingShortlistText}>Loading your curated matches...</Text>
-                    </View>
-                ) : shortlistItems.length === 0 ? (
-                    <View style={styles.emptyShortlistContainer}>
-                        <Text style={styles.emptyEmoji}>🔍</Text>
-                        <Text style={styles.emptyText}>Your Relationship Manager is curating matches for you.</Text>
-                    </View>
-                ) : (
-                    <ScrollView contentContainerStyle={styles.shortlistScroll}>
-                        {shortlistItems.map((item) => {
-                            const profile = item.candidate_profile;
-                            if (!profile) return null;
-                            const age = profile.dob ? dateToAge(profile.dob) : '30';
+                {/* Content area */}
+                {renderTabContent()}
 
+                {/* Bottom Tab Bar */}
+                {!hideTabBar && (
+                    <View style={styles.conciergeTabBar}>
+                        {tabs.map((tab) => {
+                            const isActive = tab.key === 'chat'
+                                ? false   // chat never "stays" active — it's a modal
+                                : conciergeTab === tab.key;
                             return (
-                                <View key={item.id} style={styles.matchCard}>
-                                    <Pressable onPress={() => onViewProfile(profile.id)}>
-                                        {/* Gallery / Image */}
-                                        {profile.photo_urls && profile.photo_urls[0] ? (
-                                            <Image
-                                                source={{ uri: profile.photo_urls[0] }}
-                                                style={styles.candidateImage}
-                                                resizeMode="cover"
-                                            />
-                                        ) : (
-                                            <View style={styles.imagePlaceholder}>
-                                                <Text style={styles.imagePlaceholderText}>
-                                                    {profile.full_name?.charAt(0) || 'M'}
-                                                </Text>
-                                            </View>
-                                        )}
-
-                                        {/* Candidate Info */}
-                                        <View style={[styles.cardInfo, { paddingBottom: 0 }]}>
-                                            <Text style={styles.candidateName}>
-                                                {profile.full_name}, {age}
-                                            </Text>
-                                            <Text style={styles.candidateLoc}>{profile.location}</Text>
-
-                                            <View style={styles.attributeRow}>
-                                                {profile.occupation && (
-                                                    <Text style={styles.attributeTag}>💼 {profile.occupation}</Text>
-                                                )}
-                                                {profile.education && (
-                                                    <Text style={styles.attributeTag}>🎓 {profile.education}</Text>
-                                                )}
-                                                {profile.diet && (
-                                                    <Text style={styles.attributeTag}>🥦 {profile.diet}</Text>
-                                                )}
-                                            </View>
-                                        </View>
-                                    </Pressable>
-
-                                    <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-                                        {/* RM Pitch Rationale */}
-                                        <View style={styles.pitchBox}>
-                                            <Text style={styles.pitchLabel}>💝 Dedicated RM Pitch</Text>
-                                            <Text style={styles.pitchText}>{item.match_rationale}</Text>
-                                        </View>
-
-                                        {/* Actions */}
-                                        {item.feedback_status === 'pending' ? (
-                                            <View style={styles.actionRow}>
-                                                <Pressable
-                                                    onPress={() => handleFeedback(item.id, 'disliked')}
-                                                    style={[styles.actionBtn, styles.passBtn]}
-                                                >
-                                                    <Text style={styles.passBtnText}>✕ Pass</Text>
-                                                </Pressable>
-                                                <Pressable
-                                                    onPress={() => handleFeedback(item.id, 'liked')}
-                                                    style={[styles.actionBtn, styles.likeBtn]}
-                                                >
-                                                    <Text style={styles.likeBtnText}>💖 Like</Text>
-                                                </Pressable>
-                                            </View>
-                                        ) : (
-                                            <View style={styles.feedbackBanner}>
-                                                <Text style={styles.feedbackBannerText}>
-                                                    {item.feedback_status === 'liked' ? 'Liked 💖' : 'Passed ✕'}
-                                                </Text>
-                                                <Pressable onPress={() => handleFeedback(item.id, 'pending')}>
-                                                    <Text style={styles.undoText}>Undo</Text>
-                                                </Pressable>
-                                            </View>
-                                        )}
+                                <Pressable
+                                    key={tab.key}
+                                    style={styles.conciergeTabItem}
+                                    onPress={() => {
+                                        if (tab.key === 'chat') {
+                                            onOpenChat?.();
+                                        } else {
+                                            setConciergeTab(tab.key as typeof conciergeTab);
+                                        }
+                                    }}
+                                >
+                                    <View style={[styles.conciergeTabIconWrap, isActive && styles.conciergeTabIconWrapActive]}>
+                                        <Text style={styles.conciergeTabIcon}>{tab.icon}</Text>
                                     </View>
-                                </View>
+                                    <Text style={[styles.conciergeTabLabel, isActive && styles.conciergeTabLabelActive]}>
+                                        {tab.label}
+                                    </Text>
+                                </Pressable>
                             );
                         })}
-                    </ScrollView>
+                    </View>
                 )}
             </SafeAreaView>
         );
@@ -1422,4 +1569,204 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         fontStyle: 'italic',
     },
+    // ─── Bottom tab bar ────────────────────────────────────────────────────────
+    conciergeTabBar: {
+        flexDirection: 'row',
+        backgroundColor: '#12101a',
+        borderTopWidth: 1,
+        borderTopColor: '#2a2640',
+        paddingBottom: 6,
+        paddingTop: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 12,
+    },
+    conciergeTabItem: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 4,
+    },
+    conciergeTabIconWrap: {
+        width: 40,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 2,
+    },
+    conciergeTabIconWrapActive: {
+        backgroundColor: 'rgba(212,179,115,0.18)',
+    },
+    conciergeTabIcon: {
+        fontSize: 20,
+    },
+    conciergeTabLabel: {
+        fontSize: 10,
+        fontWeight: '500',
+        color: '#6c6880',
+        letterSpacing: 0.3,
+    },
+    conciergeTabLabelActive: {
+        color: '#d4b373',
+        fontWeight: '700',
+    },
+    // ─── Tab content wrapper ───────────────────────────────────────────────────
+    tabContent: {
+        flex: 1,
+        padding: 16,
+    },
+    // ─── Profile tab ──────────────────────────────────────────────────────────
+    profileTabCard: {
+        backgroundColor: '#1a1828',
+        borderRadius: 20,
+        padding: 24,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#2a2640',
+    },
+    profileTabAvatar: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        backgroundColor: '#2a2640',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14,
+        borderWidth: 3,
+        borderColor: '#d4b373',
+        overflow: 'hidden',
+    },
+    profileTabAvatarImg: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+    },
+    profileTabAvatarInitial: {
+        fontSize: 34,
+        color: '#d4b373',
+        fontWeight: '700',
+    },
+    profileTabName: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#f0ece8',
+        marginBottom: 4,
+    },
+    profileTabSub: {
+        fontSize: 13,
+        color: '#8e8aa0',
+        marginBottom: 16,
+    },
+    profileTabDivider: {
+        width: '100%',
+        height: 1,
+        backgroundColor: '#2a2640',
+        marginBottom: 16,
+    },
+    profileTabRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginBottom: 10,
+        paddingHorizontal: 4,
+    },
+    profileTabLabel: {
+        fontSize: 13,
+        color: '#6c6880',
+        fontWeight: '500',
+    },
+    profileTabValue: {
+        fontSize: 13,
+        color: '#d4b373',
+        fontWeight: '600',
+        flexShrink: 1,
+        textAlign: 'right',
+    },
+    viewFullProfileBtn: {
+        marginTop: 20,
+        width: '100%',
+        backgroundColor: '#d4b373',
+        borderRadius: 12,
+        paddingVertical: 13,
+        alignItems: 'center',
+    },
+    viewFullProfileBtnText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#0d0c0f',
+        letterSpacing: 0.4,
+    },
+    signOutFullBtn: {
+        marginTop: 10,
+        width: '100%',
+        backgroundColor: 'transparent',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#2a2640',
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    signOutFullBtnText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#6c6880',
+    },
+    // ─── Activity tab ─────────────────────────────────────────────────────────
+    activityCard: {
+        backgroundColor: '#1a1828',
+        borderRadius: 20,
+        padding: 22,
+        borderWidth: 1,
+        borderColor: '#2a2640',
+    },
+    activityTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#f0ece8',
+        marginBottom: 4,
+    },
+    activitySub: {
+        fontSize: 13,
+        color: '#8e8aa0',
+        marginBottom: 6,
+    },
+    activityDivider: {
+        height: 1,
+        backgroundColor: '#2a2640',
+        marginVertical: 14,
+    },
+    activityItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        marginBottom: 16,
+    },
+    activityDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#11d182',
+        marginTop: 4,
+    },
+    activityItemTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#d8d4e8',
+        marginBottom: 2,
+    },
+    activityItemDesc: {
+        fontSize: 12,
+        color: '#6c6880',
+        lineHeight: 17,
+    },
+    activityHint: {
+        fontSize: 12,
+        color: '#d4b373',
+        lineHeight: 18,
+        fontStyle: 'italic',
+    },
 });
+

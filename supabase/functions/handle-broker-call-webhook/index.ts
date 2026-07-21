@@ -101,6 +101,8 @@ Deno.serve(async (request) => {
             throw updateResult.error;
         }
 
+        await syncToAiOutreachLogs(serviceClient, payload);
+
         await safeInsertInterestRequestEvent(serviceClient, brokerCall.request_id, null, 'broker_webhook_processed', {
             brokerCallId: brokerCall.id,
             provider: payload.provider,
@@ -130,6 +132,80 @@ Deno.serve(async (request) => {
         return json({ error: message }, 500);
     }
 });
+
+async function syncToAiOutreachLogs(
+    serviceClient: ReturnType<typeof createClient>,
+    payload: HandleBrokerCallWebhookPayload
+) {
+    const providerCallId = payload.providerCallId;
+    const rawCall = isRecord(payload.rawPayload?.call) ? payload.rawPayload.call : (payload.rawPayload || {});
+    const callAnalysis = isRecord(rawCall.call_analysis) ? rawCall.call_analysis : {};
+    const customAnalysis = isRecord(callAnalysis.custom_analysis_data) ? callAnalysis.custom_analysis_data : {};
+
+    const disconnectionReason = payload.outcome || asNonEmptyString(rawCall.disconnection_reason);
+    const rawSummary = callAnalysis.call_summary || payload.summary?.callSummary;
+
+    let summaryBullets: string[] = [];
+    if (Array.isArray(rawSummary)) {
+        summaryBullets = rawSummary.map((s) => String(s).trim());
+    } else if (typeof rawSummary === 'string') {
+        summaryBullets = rawSummary
+            .split(/\.\s+|\n+/)
+            .map((s) => s.replace(/^[•\-\*]\s*/, '').trim())
+            .filter(Boolean);
+    }
+
+    const sentiment = (callAnalysis.user_sentiment as string) || (payload.summary?.userSentiment as string) || 'Neutral';
+
+    let outreachStatus: 'calling' | 'completed_accepted' | 'completed_declined' | 'voicemail' | 'failed' = 'completed_declined';
+
+    const eventLower = (payload.eventType || '').toLowerCase();
+    if (eventLower.includes('started') || payload.status === 'in_progress' || payload.status === 'dialing') {
+        outreachStatus = 'calling';
+    } else if (disconnectionReason === 'voicemail_reached' || customAnalysis.voicemail_detected || payload.status === 'no_answer') {
+        outreachStatus = 'voicemail';
+    } else if (payload.status === 'failed' || disconnectionReason === 'dial_failed') {
+        outreachStatus = 'failed';
+    } else if (callAnalysis.call_successful || customAnalysis.accepted_pitch || customAnalysis.requested_unlock) {
+        outreachStatus = 'completed_accepted';
+    } else {
+        outreachStatus = 'completed_declined';
+    }
+
+    const updateFields: Record<string, any> = {
+        call_status: outreachStatus,
+        disconnection_reason: disconnectionReason || null,
+        call_duration_ms: payload.durationSeconds ? payload.durationSeconds * 1000 : (asPositiveNumber(rawCall.duration_ms) ?? null),
+        transcript: payload.transcript || asNonEmptyString(rawCall.transcript) || null,
+        recording_url: asNonEmptyString(rawCall.recording_url) || null,
+        updated_at: new Date().toISOString(),
+    };
+
+    if (summaryBullets.length > 0) {
+        updateFields.call_summary = summaryBullets;
+    }
+    if (sentiment) {
+        updateFields.candidate_sentiment = sentiment;
+    }
+    if (callAnalysis && Object.keys(callAnalysis).length > 0) {
+        updateFields.call_analysis_data = callAnalysis;
+    }
+
+    if (providerCallId) {
+        await serviceClient
+            .from('ai_outreach_logs')
+            .update(updateFields)
+            .eq('retell_call_id', providerCallId);
+    }
+
+    if (payload.targetProfileId) {
+        await serviceClient
+            .from('ai_outreach_logs')
+            .update(updateFields)
+            .eq('candidate_id', payload.targetProfileId)
+            .in('call_status', ['queued', 'initiated', 'calling']);
+    }
+}
 
 async function findBrokerCall(serviceClient: ReturnType<typeof createClient>, payload: HandleBrokerCallWebhookPayload) {
     if (payload.providerCallId) {

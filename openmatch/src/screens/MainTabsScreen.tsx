@@ -19,7 +19,8 @@ import { HomeScreen } from './HomeScreen';
 import { ModerationQueueScreen } from './ModerationQueueScreen';
 import { DashboardScreen } from './DashboardScreen';
 import VipConciergeDashboard from './VipConciergeDashboard';
-import ConciergeHubScreen from './ConciergeHubScreen';
+import PremiumChatScreen from './PremiumChatScreen';
+import PremiumHubScreen from './PremiumHubScreen';
 import PremiumAssistedProfileViewer from '../components/PremiumAssistedProfileViewer';
 import { MyMatchesScreen } from './MyMatchesScreen';
 import { NotificationsScreen } from './NotificationsScreen';
@@ -488,50 +489,11 @@ export function MainTabsScreen() {
     }
 
     if (viewerProfile?.subscription_tier === 'assisted' || (viewerProfile as any)?.membership_tier === 'assisted') {
-        if (showAssistedChat) {
-            return (
-                <ChatScreen
-                    key="assisted-chat-tab"
-                    onClose={() => setShowAssistedChat(false)}
-                    initialMatchListFilter="accepted"
-                    initialVisibilityFilter="all"
-                    isChatScreen={true}
-                    onViewProfile={(profileId) => setSelectedProfileId(profileId)}
-                    onOpenNotifications={() => {}}
-                    unreadNotificationsCount={0}
-                />
-            );
-        }
-
         return (
-            <>
-                <ConciergeHubScreen
-                    viewerProfile={viewerProfile}
-                    onViewProfile={(id) => setSelectedProfileId(id)}
-                    onSignOut={handleSignOut}
-                    onOpenChat={() => setShowAssistedChat(true)}
-                    refreshCounter={conciergeRefreshCounter}
-                />
-                <Modal
-                    transparent={false}
-                    animationType="slide"
-                    visible={Boolean(selectedProfileId)}
-                    onRequestClose={() => {
-                        setSelectedProfileId(null);
-                        setConciergeRefreshCounter((prev) => prev + 1);
-                    }}
-                >
-                    {selectedProfileId ? (
-                        <PremiumAssistedProfileViewer
-                            profileId={selectedProfileId}
-                            onClose={() => {
-                                setSelectedProfileId(null);
-                                setConciergeRefreshCounter((prev) => prev + 1);
-                            }}
-                        />
-                    ) : null}
-                </Modal>
-            </>
+            <PremiumHubScreen
+                viewerProfile={viewerProfile}
+                onSignOut={handleSignOut}
+            />
         );
     }
 

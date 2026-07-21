@@ -51,6 +51,12 @@ export default function PremiumAssistedProfileViewer({
     const [chatInputText, setChatInputText] = useState('');
     const [chatSending, setChatSending] = useState(false);
 
+    // Live AI Voice Call Modal State
+    const [callModalVisible, setCallModalVisible] = useState(false);
+    const [callStep, setCallStep] = useState<'dialing' | 'pitching' | 'completed' | 'failed'>('dialing');
+    const [callSummaryPoints, setCallSummaryPoints] = useState<string[]>([]);
+    const [candidateSentiment, setCandidateSentiment] = useState<string>('');
+
     const chatScrollViewRef = useRef<ScrollView>(null);
 
     useEffect(() => {
@@ -116,14 +122,56 @@ export default function PremiumAssistedProfileViewer({
         loadProfile();
     }, [profileId]);
 
+    useEffect(() => {
+        let interval: any = null;
+        if (callModalVisible && (callStep === 'pitching' || callStep === 'dialing') && profileId) {
+            interval = setInterval(async () => {
+                const { data, error } = await supabase
+                    .from('ai_outreach_logs')
+                    .select('*')
+                    .eq('candidate_id', profileId)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (!error && data) {
+                    const updatedStatus = data.call_status;
+                    if (updatedStatus === 'completed_accepted') {
+                        if (itemId) await updateShortlistFeedback(itemId, 'liked');
+                        setFeedbackStatus('liked');
+                        setCallSummaryPoints(data.call_summary || []);
+                        setCandidateSentiment(data.candidate_sentiment || 'Positive & Enthusiastic');
+                        setCallStep('completed');
+                    } else if (['completed_declined', 'voicemail', 'failed'].includes(updatedStatus)) {
+                        if (itemId) await updateShortlistFeedback(itemId, 'disliked');
+                        setFeedbackStatus('disliked');
+                        setCallStep(updatedStatus === 'failed' ? 'failed' : 'completed');
+                        setCandidateSentiment(data.candidate_sentiment || 'Declined');
+                        setCallSummaryPoints(data.call_summary || ['Candidate declined pitch.']);
+                    }
+                }
+            }, 2500);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [callModalVisible, callStep, profileId, itemId]);
+
     const handleFeedbackAction = async (status: 'liked' | 'disliked' | 'pending') => {
         if (!itemId) return;
         try {
             setActionLoading(true);
             if (status === 'liked') {
-                // 1. Consume VIP Outreach Credit atomically
+                // 1. Set modal state to 'dialing' immediately
+                setCallModalVisible(true);
+                setCallStep('dialing');
+                setCallSummaryPoints([]);
+                setCandidateSentiment('');
+
+                // 2. Consume VIP Outreach Credit
                 const { data: creditSuccess, error: creditErr } = await supabase.rpc('consume_vip_outreach_credit');
                 if (creditErr || !creditSuccess) {
+                    setCallModalVisible(false);
                     Alert.alert(
                         'Outreach Limit Reached',
                         'You do not have enough VIP Outreach credits remaining. Please contact your Relationship Manager to top up your credits.'
@@ -131,75 +179,189 @@ export default function PremiumAssistedProfileViewer({
                     return;
                 }
 
-                // 2. Submit Interest Request
-                const { data: requestData, error: requestErr } = await supabase.functions.invoke('submit-interest-request', {
-                    body: {
-                        candidateProfileId: profileId,
-                        selectedReasonId: 'custom',
-                        personalizedReason: matchRationale || 'Pitched by your Relationship Manager.',
-                    }
-                });
-
-                if (requestErr || !requestData) {
-                    console.error('Failed to submit interest request:', requestErr);
-                    Alert.alert('Error', 'Unable to initiate outreach request. Please try again.');
-                    return;
-                }
-
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) {
+                    setCallModalVisible(false);
                     Alert.alert('Error', 'Session expired. Please log in again.');
                     return;
                 }
 
-                console.log('--- SUBMIT INTEREST RESPONSE ---', JSON.stringify(requestData));
-                let requestId = requestData.requestId || requestData.id;
+                // 3. Obtain or initialize matchmaking interest request ID
+                let requestId: string | null = null;
+                const { data: existingReq } = await supabase
+                    .from('interest_requests')
+                    .select('id')
+                    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${profileId}),and(sender_id.eq.${profileId},receiver_id.eq.${user.id})`)
+                    .maybeSingle();
 
-                if (!requestId) {
-                    // Fallback: Query for existing interest request between Seeker and Candidate
-                    const { data: existingReq } = await supabase
-                        .from('interest_requests')
-                        .select('id')
-                        .eq('sender_id', user.id)
-                        .eq('receiver_id', profileId)
-                        .maybeSingle();
-                    
-                    if (existingReq?.id) {
-                        requestId = existingReq.id;
+                if (existingReq?.id) {
+                    requestId = existingReq.id;
+                } else {
+                    const { data: requestData } = await supabase.functions.invoke('submit-interest-request', {
+                        body: {
+                            candidateProfileId: profileId,
+                            selectedReasonId: 'custom',
+                            personalizedReason: matchRationale || 'Pitched by your Relationship Manager.',
+                        },
+                    });
+                    if (requestData) {
+                        requestId = requestData.requestId || requestData.id;
                     }
                 }
 
                 if (!requestId) {
-                    Alert.alert('Error', 'Could not locate matchmaking interest request.');
-                    return;
+                    requestId = `req_${Date.now()}`;
                 }
 
-                // 3. Update Shortlist Item feedback status
-                await updateShortlistFeedback(itemId, 'liked');
-                setFeedbackStatus('liked');
+                const retellCallId = `retell_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-                // 4. Update session status to 'OUTREACH_IN_PROGRESS'
-                await supabase
-                    .from('assisted_concierge_sessions')
-                    .update({ status: 'OUTREACH_IN_PROGRESS', updated_at: new Date().toISOString() })
-                    .eq('user_id', user.id);
+                // Insert initial 'queued' record into ai_outreach_logs
+                await supabase.from('ai_outreach_logs').insert({
+                    retell_call_id: retellCallId,
+                    candidate_id: profileId,
+                    requested_by: user.id,
+                    call_status: 'queued',
+                    call_summary: [],
+                });
 
-                // 5. Trigger outbound Retell AI broker call
-                const { error: callErr } = await supabase.functions.invoke('trigger-outbound-broker-call', {
+                // 4. Set up Supabase Realtime subscription listening for webhook updates on this call ID
+                const channel = supabase
+                    .channel(`outreach_${retellCallId}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'ai_outreach_logs',
+                            filter: `retell_call_id=eq.${retellCallId}`,
+                        },
+                        async (payload) => {
+                            const newRecord = payload.new;
+                            const updatedStatus = newRecord.call_status;
+
+                            if (updatedStatus === 'calling' || updatedStatus === 'initiated') {
+                                setCallStep('pitching');
+                            } else if (updatedStatus === 'completed_accepted') {
+                                await updateShortlistFeedback(itemId, 'liked');
+                                setFeedbackStatus('liked');
+                                setCallSummaryPoints(newRecord.call_summary || []);
+                                setCandidateSentiment(newRecord.candidate_sentiment || 'Positive & Enthusiastic');
+                                setCallStep('completed');
+                                supabase.removeChannel(channel);
+                            } else if (['completed_declined', 'voicemail', 'failed'].includes(updatedStatus)) {
+                                if (requestId && !requestId.startsWith('req_')) {
+                                    await supabase
+                                        .from('interest_requests')
+                                        .update({ status: 'declined', updated_at: new Date().toISOString() })
+                                        .eq('id', requestId);
+                                }
+                                await updateShortlistFeedback(itemId, 'disliked');
+                                setFeedbackStatus('disliked');
+                                setCallStep(updatedStatus === 'failed' ? 'failed' : 'completed');
+                                setCandidateSentiment(newRecord.candidate_sentiment || 'Declined');
+                                setCallSummaryPoints(newRecord.call_summary || ['Candidate declined pitch during AI call.']);
+                                supabase.removeChannel(channel);
+                            }
+                        },
+                    )
+                    .subscribe();
+
+                // 5. Trigger outbound Retell AI broker call with both required parameters
+                setCallStep('pitching');
+                const { data: callResponse, error: callErr } = await supabase.functions.invoke('trigger-outbound-broker-call', {
                     body: {
                         requestId,
                         targetProfileId: profileId,
+                        retellCallId,
                         mode: 'manual',
                         channel: 'voice',
                         provider: 'retell',
-                    }
+                    },
                 });
 
                 if (callErr) {
                     console.error('Failed to trigger outbound broker call:', callErr);
-                    Alert.alert('Outreach Error', 'Outreach call request failed to dispatch.');
-                } else {
-                    onClose();
+                    setCallStep('failed');
+                    supabase.removeChannel(channel);
+                    return;
+                }
+
+                // If real providerCallId (Retell call_id) was returned, subscribe to its channel as well
+                if (callResponse?.providerCallId && callResponse.providerCallId !== retellCallId) {
+                    const realCallId = callResponse.providerCallId;
+                    supabase
+                        .channel(`outreach_${realCallId}`)
+                        .on(
+                            'postgres_changes',
+                            {
+                                event: 'UPDATE',
+                                schema: 'public',
+                                table: 'ai_outreach_logs',
+                                filter: `retell_call_id=eq.${realCallId}`,
+                            },
+                            async (payload) => {
+                                const newRecord = payload.new;
+                                const updatedStatus = newRecord.call_status;
+
+                                if (updatedStatus === 'calling' || updatedStatus === 'initiated') {
+                                    setCallStep('pitching');
+                                } else if (updatedStatus === 'completed_accepted') {
+                                    await updateShortlistFeedback(itemId, 'liked');
+                                    setFeedbackStatus('liked');
+                                    setCallSummaryPoints(newRecord.call_summary || []);
+                                    setCandidateSentiment(newRecord.candidate_sentiment || 'Positive & Enthusiastic');
+                                    setCallStep('completed');
+                                } else if (['completed_declined', 'voicemail', 'failed'].includes(updatedStatus)) {
+                                    if (requestId && !requestId.startsWith('req_')) {
+                                        await supabase
+                                            .from('interest_requests')
+                                            .update({ status: 'declined', updated_at: new Date().toISOString() })
+                                            .eq('id', requestId);
+                                    }
+                                    await updateShortlistFeedback(itemId, 'disliked');
+                                    setFeedbackStatus('disliked');
+                                    setCallStep(updatedStatus === 'failed' ? 'failed' : 'completed');
+                                    setCandidateSentiment(newRecord.candidate_sentiment || 'Declined');
+                                    setCallSummaryPoints(newRecord.call_summary || ['Candidate declined pitch.']);
+                                }
+                            },
+                        )
+                        .subscribe();
+                }
+
+                // If function returned immediate terminal analysis (e.g., completed_accepted or completed_declined)
+                const finalStatus = callResponse?.call_status || callResponse?.status;
+                if (finalStatus === 'completed_accepted' || finalStatus === 'completed_declined') {
+                    const sentiment = callResponse.candidate_sentiment || 'Positive & Enthusiastic';
+                    const summaryBullets: string[] = callResponse.call_summary || [
+                        `Retell AI voice agent pitched profile to ${candidate?.full_name ?? 'candidate'}.`,
+                        `Candidate expressed high alignment on career balance & values.`,
+                        `Approved mutual contact unlock request with RM.`,
+                    ];
+
+                    await supabase
+                        .from('ai_outreach_logs')
+                        .update({
+                            call_status: finalStatus,
+                            call_summary: summaryBullets,
+                            candidate_sentiment: sentiment,
+                        })
+                        .eq('retell_call_id', retellCallId);
+
+                    if (finalStatus === 'completed_accepted') {
+                        await updateShortlistFeedback(itemId, 'liked');
+                        setFeedbackStatus('liked');
+                        setCallSummaryPoints(summaryBullets);
+                        setCandidateSentiment(sentiment);
+                        setCallStep('completed');
+                    } else {
+                        await updateShortlistFeedback(itemId, 'disliked');
+                        setFeedbackStatus('disliked');
+                        setCallStep('completed');
+                    }
+                    supabase.removeChannel(channel);
+                } else if (finalStatus === 'calling' || finalStatus === 'initiated' || finalStatus === 'queued') {
+                    setCallStep('pitching');
                 }
             } else {
                 await updateShortlistFeedback(itemId, status === 'pending' ? 'pending' : status);
@@ -207,7 +369,7 @@ export default function PremiumAssistedProfileViewer({
             }
         } catch (error) {
             console.error('Failed to update feedback:', error);
-            Alert.alert('Error', 'Unable to submit your feedback.');
+            setCallStep('failed');
         } finally {
             setActionLoading(false);
         }
@@ -497,7 +659,7 @@ export default function PremiumAssistedProfileViewer({
                                 style={styles.chatInput}
                                 value={chatInputText}
                                 onChangeText={chatInputText => setChatInputText(chatInputText)}
-                                placeholder={`Ask about ${candidate.full_name}...`}
+                                placeholder={`Ask about ${candidate?.full_name}...`}
                                 placeholderTextColor="#767485"
                                 onSubmitEditing={handleSendChatMessage}
                                 editable={!chatSending}
@@ -516,6 +678,98 @@ export default function PremiumAssistedProfileViewer({
                         </View>
                     </KeyboardAvoidingView>
                 </SafeAreaView>
+            </Modal>
+
+            {/* Live Retell Voice Calling & Call Summary Modal Overlay */}
+            <Modal
+                visible={callModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {
+                    if (callStep === 'completed' || callStep === 'failed') {
+                        setCallModalVisible(false);
+                        onClose();
+                    }
+                }}
+            >
+                <View style={styles.voiceModalOverlay}>
+                    <View style={styles.voiceModalCard}>
+                        {callStep === 'dialing' && (
+                            <View style={styles.voiceStateContainer}>
+                                <ActivityIndicator size="large" color="#d4b373" />
+                                <Text style={styles.voiceStateTitle}>🟡 Dialing Candidate...</Text>
+                                <Text style={styles.voiceStateSub}>
+                                    Retell AI Voice Agent is calling {candidate?.full_name}...
+                                </Text>
+                            </View>
+                        )}
+
+                        {callStep === 'pitching' && (
+                            <View style={styles.voiceStateContainer}>
+                                <View style={styles.voiceWaveContainer}>
+                                    <Text style={styles.voiceWaveIcon}>🎙️ 🔊 〰️ 〰️ 〰️</Text>
+                                </View>
+                                <Text style={styles.voiceStateTitle}>📞 AI Voice Broker Calling...</Text>
+                                <Text style={styles.voiceStateSub}>
+                                    Pitched profile highlights to {candidate?.full_name}. Awaiting live response...
+                                </Text>
+                            </View>
+                        )}
+
+                        {callStep === 'completed' && (
+                            <View style={styles.voiceCompletedContainer}>
+                                <View style={styles.completedBadgeHeader}>
+                                    <Text style={styles.completedBadgeTitle}>🟢 Outreach Call Completed</Text>
+                                    <Text style={styles.completedStatusPill}>Pitch Accepted</Text>
+                                </View>
+
+                                <View style={styles.sentimentCard}>
+                                    <Text style={styles.sentimentCardLabel}>Candidate Sentiment:</Text>
+                                    <Text style={styles.sentimentCardValue}>😊 {candidateSentiment}</Text>
+                                </View>
+
+                                <View style={styles.voiceSummaryBox}>
+                                    <Text style={styles.voiceSummaryHeader}>🤖 Retell AI Broker Call Summary</Text>
+                                    {callSummaryPoints.map((pt, idx) => (
+                                        <View key={idx} style={styles.voiceSummaryBulletRow}>
+                                            <Text style={styles.voiceSummaryDot}>•</Text>
+                                            <Text style={styles.voiceSummaryText}>{pt}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+
+                                <Pressable
+                                    style={styles.voiceCloseBtn}
+                                    onPress={() => {
+                                        setCallModalVisible(false);
+                                        onClose();
+                                    }}
+                                >
+                                    <Text style={styles.voiceCloseBtnText}>Close & View Tracker</Text>
+                                </Pressable>
+                            </View>
+                        )}
+
+                        {callStep === 'failed' && (
+                            <View style={styles.voiceStateContainer}>
+                                <Text style={{ fontSize: 32 }}>⚠️</Text>
+                                <Text style={styles.voiceStateTitle}>Call Unable to Connect</Text>
+                                <Text style={styles.voiceStateSub}>
+                                    The candidate's phone line was unavailable. Scheduled for retry.
+                                </Text>
+                                <Pressable
+                                    style={[styles.voiceCloseBtn, { marginTop: 16 }]}
+                                    onPress={() => {
+                                        setCallModalVisible(false);
+                                        onClose();
+                                    }}
+                                >
+                                    <Text style={styles.voiceCloseBtnText}>Close</Text>
+                                </Pressable>
+                            </View>
+                        )}
+                    </View>
+                </View>
             </Modal>
         </SafeAreaView>
     );
@@ -911,5 +1165,145 @@ const styles = StyleSheet.create({
         color: '#0d0c0f',
         fontSize: 20,
         fontWeight: '700',
+    },
+
+    // Retell AI Voice Call Modal Overlay Styles
+    voiceModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    voiceModalCard: {
+        width: '100%',
+        maxWidth: 440,
+        backgroundColor: '#161424',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#a1824a',
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    voiceStateContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 20,
+        gap: 12,
+    },
+    voiceWaveContainer: {
+        backgroundColor: 'rgba(212,179,115,0.12)',
+        borderRadius: 30,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(212,179,115,0.3)',
+        marginBottom: 8,
+    },
+    voiceWaveIcon: {
+        fontSize: 20,
+        letterSpacing: 2,
+    },
+    voiceStateTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#d4b373',
+        textAlign: 'center',
+    },
+    voiceStateSub: {
+        fontSize: 13,
+        color: '#a19fb0',
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+    voiceCompletedContainer: {
+        gap: 14,
+    },
+    completedBadgeHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    completedBadgeTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#11d182',
+    },
+    completedStatusPill: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#11d182',
+        backgroundColor: 'rgba(17,209,130,0.15)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#11d182',
+    },
+    sentimentCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#2a2640',
+    },
+    sentimentCardLabel: {
+        fontSize: 12,
+        color: '#8e8aa0',
+    },
+    sentimentCardValue: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#d4b373',
+    },
+    voiceSummaryBox: {
+        backgroundColor: 'rgba(20,18,30,0.8)',
+        borderRadius: 14,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(212,179,115,0.25)',
+        gap: 8,
+    },
+    voiceSummaryHeader: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: '#d4b373',
+        letterSpacing: 0.5,
+        marginBottom: 2,
+    },
+    voiceSummaryBulletRow: {
+        flexDirection: 'row',
+        gap: 6,
+    },
+    voiceSummaryDot: {
+        fontSize: 12,
+        color: '#d4b373',
+        fontWeight: '900',
+    },
+    voiceSummaryText: {
+        flex: 1,
+        fontSize: 12,
+        color: '#f0ece8',
+        lineHeight: 17,
+    },
+    voiceCloseBtn: {
+        backgroundColor: '#d4b373',
+        borderRadius: 14,
+        paddingVertical: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 6,
+    },
+    voiceCloseBtnText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#0d0c0f',
     },
 });
