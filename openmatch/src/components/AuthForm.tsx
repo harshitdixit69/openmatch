@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Platform,
     Pressable,
@@ -9,62 +10,199 @@ import {
     View,
 } from 'react-native';
 
-import { BackButton } from './BackButton';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../lib/theme';
 
-type AuthMode = 'sign-in' | 'sign-up' | 'otp' | 'phone-otp' | 'verify-phone-code';
+type AuthStep = 'phone-input' | 'otp-verify' | 'email-fallback';
 
 export function AuthForm() {
-    const [mode, setMode] = useState<AuthMode>('sign-in');
+    const [step, setStep] = useState<AuthStep>('phone-input');
+    const [selectedCountryCode, setSelectedCountryCode] = useState('+91');
+    const [rawPhone, setRawPhone] = useState('');
+    const [otpCode, setOtpCode] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
+    const [statusType, setStatusType] = useState<'info' | 'success' | 'error'>('info');
+
+    // Resend OTP countdown
+    const [resendCooldown, setResendCooldown] = useState(0);
+
+    // Mock fallback when SMS provider is disabled in Supabase dashboard
+    const [isMockMode, setIsMockMode] = useState(false);
+    const [mockCode, setMockCode] = useState<string | null>(null);
+
+    // Email fallback state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [phone, setPhone] = useState('');
-    const [smsCode, setSmsCode] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [emailCooldownUntil, setEmailCooldownUntil] = useState<number>(0);
-    const [statusMessage, setStatusMessage] = useState<string>('');
-    const [nowMs, setNowMs] = useState<number>(Date.now());
-    const [mockSmsCode, setMockSmsCode] = useState<string | null>(null);
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const hasEmailCooldown = nowMs < emailCooldownUntil;
-    const cooldownSecondsLeft = Math.max(
-        1,
-        Math.ceil((emailCooldownUntil - nowMs) / 1000),
-    );
-    const submitBlockedByCooldown = (mode === 'sign-up' || mode === 'otp') && hasEmailCooldown;
+    const { colors } = useTheme();
 
     useEffect(() => {
-        if (!hasEmailCooldown) {
-            return;
-        }
-
+        if (resendCooldown <= 0) return;
         const timer = setInterval(() => {
-            setNowMs(Date.now());
+            setResendCooldown((prev) => Math.max(0, prev - 1));
         }, 1000);
-
         return () => clearInterval(timer);
-    }, [hasEmailCooldown]);
+    }, [resendCooldown]);
 
-    async function onSubmit() {
-        if ((mode === 'sign-up' || mode === 'otp') && hasEmailCooldown) {
-            Alert.alert(
-                'Please wait',
-                `Too many email requests. Try again in ${cooldownSecondsLeft}s.`,
-            );
+    // Format phone number into E.164 (+919876543210)
+    function getFormattedPhone(): string {
+        const cleaned = rawPhone.replace(/[^0-9]/g, '');
+        if (rawPhone.startsWith('+')) {
+            return '+' + cleaned;
+        }
+        const countryDigits = selectedCountryCode.replace('+', '');
+        if (cleaned.startsWith(countryDigits)) {
+            return '+' + cleaned;
+        }
+        return selectedCountryCode + cleaned;
+    }
+
+    // Validate phone number
+    function validatePhone(): boolean {
+        const cleaned = rawPhone.replace(/[^0-9]/g, '');
+        if (cleaned.length < 7 || cleaned.length > 15) {
+            const msg = 'Please enter a valid mobile number (10 digits).';
+            if (Platform.OS === 'web') alert(msg);
+            else Alert.alert('Invalid Phone Number', msg);
+            return false;
+        }
+        return true;
+    }
+
+    // Step 1: Send Phone OTP via Supabase
+    async function handleSendPhoneOtp() {
+        if (!validatePhone()) return;
+
+        const formattedPhone = getFormattedPhone();
+        setLoading(true);
+        setStatusMessage('');
+
+        try {
+            console.log('[Auth] Requesting Phone OTP for:', formattedPhone);
+            const { error } = await supabase.auth.signInWithOtp({
+                phone: formattedPhone,
+                options: {
+                    shouldCreateUser: true,
+                },
+            });
+
+            if (error) {
+                const errMsg = error.message.toLowerCase();
+                if (
+                    error.code === 'phone_provider_disabled' ||
+                    errMsg.includes('provider') ||
+                    errMsg.includes('disabled') ||
+                    errMsg.includes('unsupported')
+                ) {
+                    console.log('[Auth] Supabase SMS provider disabled. Activating mock OTP fallback.');
+                    setIsMockMode(true);
+                    setMockCode('123456');
+                    setStep('otp-verify');
+                    setResendCooldown(30);
+                    setStatusType('info');
+                    setStatusMessage('SMS OTP simulated (Dev Mode). Use verification code: 123456');
+                    return;
+                }
+                throw error;
+            }
+
+            // Real SMS sent successfully
+            setIsMockMode(false);
+            setStep('otp-verify');
+            setResendCooldown(30);
+            setStatusType('success');
+            setStatusMessage(`Verification code sent to ${formattedPhone}`);
+        } catch (err: any) {
+            console.error('[Auth] Error sending phone OTP:', err);
+            const msg = err?.message || 'Could not send verification code. Please check your phone number.';
+            setStatusType('error');
+            setStatusMessage(msg);
+            if (Platform.OS === 'web') alert(msg);
+            else Alert.alert('Verification Error', msg);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Step 2: Verify Phone OTP via Supabase
+    async function handleVerifyPhoneOtp() {
+        const code = otpCode.trim();
+        if (code.length < 4) {
+            const msg = 'Please enter the 6-digit verification code.';
+            if (Platform.OS === 'web') alert(msg);
+            else Alert.alert('Invalid Code', msg);
             return;
         }
 
-        const isEmailMode = mode === 'sign-in' || mode === 'sign-up' || mode === 'otp';
+        const formattedPhone = getFormattedPhone();
+        setLoading(true);
+        setStatusMessage('');
 
-        if (isEmailMode && !normalizedEmail) {
-            Alert.alert('Missing email', 'Please enter your email address.');
-            return;
+        try {
+            if (isMockMode && mockCode && code === mockCode) {
+                // Mock Authentication logic for test mode
+                const cleanDigits = formattedPhone.replace(/[^0-9]/g, '');
+                const mockEmail = `phone_${cleanDigits}@mock-phone-auth.openmatch.app`;
+                const mockPassword = `MockPhonePass_${cleanDigits}!`;
+
+                const { error: signInErr } = await supabase.auth.signInWithPassword({
+                    email: mockEmail,
+                    password: mockPassword,
+                });
+
+                if (signInErr) {
+                    const { error: signUpErr } = await supabase.auth.signUp({
+                        email: mockEmail,
+                        password: mockPassword,
+                        options: {
+                            data: {
+                                phone: formattedPhone,
+                            },
+                        },
+                    });
+                    if (signUpErr) throw signUpErr;
+
+                    const { error: finalSignInErr } = await supabase.auth.signInWithPassword({
+                        email: mockEmail,
+                        password: mockPassword,
+                    });
+                    if (finalSignInErr) throw finalSignInErr;
+                }
+
+                setStatusType('success');
+                setStatusMessage('Phone verified successfully! Signing you in...');
+                return;
+            }
+
+            // Real Supabase OTP Verification
+            console.log('[Auth] Verifying Supabase OTP for:', formattedPhone);
+            const { error } = await supabase.auth.verifyOtp({
+                phone: formattedPhone,
+                token: code,
+                type: 'sms',
+            });
+
+            if (error) throw error;
+
+            setStatusType('success');
+            setStatusMessage('Phone verified! Signing you in...');
+        } catch (err: any) {
+            console.error('[Auth] Error verifying OTP:', err);
+            const msg = err?.message || 'Invalid verification code. Please try again.';
+            setStatusType('error');
+            setStatusMessage(msg);
+            if (Platform.OS === 'web') alert(msg);
+            else Alert.alert('Verification Failed', msg);
+        } finally {
+            setLoading(false);
         }
+    }
 
-        if (isEmailMode && (mode === 'sign-in' || mode === 'sign-up') && !password) {
-            Alert.alert('Missing password', 'Please enter your password.');
+    // Email Password Fallback Login
+    async function handleEmailAuth(isSignUp: boolean) {
+        if (!email.trim() || !password.trim()) {
+            Alert.alert('Missing Info', 'Please enter email and password.');
             return;
         }
 
@@ -72,414 +210,440 @@ export function AuthForm() {
         setStatusMessage('');
 
         try {
-            if (mode === 'sign-in') {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email: normalizedEmail,
-                    password,
-                });
-
-                if (error) throw error;
-
-                setStatusMessage('Signed in successfully.');
-                Alert.alert('Signed in', 'Welcome back to OpenMatch.');
-            }
-
-            if (mode === 'sign-up') {
+            if (isSignUp) {
                 const { data, error } = await supabase.auth.signUp({
-                    email: normalizedEmail,
+                    email: email.trim().toLowerCase(),
                     password,
                 });
-
                 if (error) throw error;
-
-                setEmailCooldownUntil(Date.now() + 60_000);
-
                 if (data.session) {
                     setStatusMessage('Account created and signed in.');
-                    Alert.alert('Signed up', 'Your account is active and you are signed in.');
-                    return;
+                } else {
+                    setStatusMessage('Check your email for confirmation link.');
                 }
-
-                setStatusMessage('Account created. Please verify your email before signing in.');
-
-                Alert.alert(
-                    'Verify your email',
-                    'Account created. Check your inbox to verify before signing in.',
-                );
-            }
-
-            if (mode === 'otp') {
-                const { error } = await supabase.auth.signInWithOtp({
-                    email: normalizedEmail,
-                    options: {
-                        shouldCreateUser: true,
-                    },
-                });
-
-                if (error) throw error;
-
-                setEmailCooldownUntil(Date.now() + 60_000);
-                setStatusMessage('Magic link sent. Check your inbox.');
-
-                Alert.alert('Magic link sent', 'Check your email for the sign-in link.');
-            }
-
-            if (mode === 'phone-otp') {
-                if (!phone) {
-                    if (Platform.OS === 'web') {
-                        alert('Please enter your mobile number.');
-                    } else {
-                        Alert.alert('Missing phone number', 'Please enter your mobile number.');
-                    }
-                    return;
-                }
-                try {
-                    const { error } = await supabase.auth.signInWithOtp({
-                        phone: phone.trim(),
-                    });
-                    if (error) throw error;
-                    setMode('verify-phone-code');
-                    setStatusMessage('SMS OTP sent. Enter the code below.');
-                    if (Platform.OS === 'web') {
-                        alert('A verification code has been sent to your mobile number.');
-                    } else {
-                        Alert.alert('OTP Sent', 'A verification code has been sent to your mobile number.');
-                    }
-                } catch (err: any) {
-                    const errMsg = err?.message || '';
-                    if (err?.code === 'phone_provider_disabled' || errMsg.includes('provider') || errMsg.includes('disabled')) {
-                        console.log('Phone provider disabled in Supabase, using mock authentication fallback.');
-                        setMockSmsCode('123456');
-                        setMode('verify-phone-code');
-                        setStatusMessage('SMS OTP simulated. Enter "123456" below to verify.');
-                        if (Platform.OS === 'web') {
-                            alert('Phone OTP simulated (mock fallback): A verification code (123456) has been sent to your mobile number.');
-                        } else {
-                            Alert.alert('OTP Sent (Mock Fallback)', 'A verification code (123456) has been simulated for your mobile number.');
-                        }
-                    } else {
-                        throw err;
-                    }
-                }
-            }
-
-            if (mode === 'verify-phone-code') {
-                if (!smsCode) {
-                    if (Platform.OS === 'web') {
-                        alert('Please enter the verification code.');
-                    } else {
-                        Alert.alert('Missing code', 'Please enter the verification code.');
-                    }
-                    return;
-                }
-
-                if (mockSmsCode && smsCode.trim() === mockSmsCode) {
-                    const cleanPhone = phone.replace(/[^0-9]/g, '');
-                    const mockEmail = `phone_${cleanPhone}@mock-phone-auth.openmatch.app`;
-                    const mockPassword = `MockPhonePassword123!`;
-
-                    try {
-                        const { error: signInErr } = await supabase.auth.signInWithPassword({
-                            email: mockEmail,
-                            password: mockPassword,
-                        });
-                        if (signInErr) {
-                            const { error: signUpErr } = await supabase.auth.signUp({
-                                email: mockEmail,
-                                password: mockPassword,
-                                options: {
-                                    data: {
-                                        phone: phone.trim(),
-                                    }
-                                }
-                            });
-                            if (signUpErr) throw signUpErr;
-
-                            const { error: finalSignInErr } = await supabase.auth.signInWithPassword({
-                                email: mockEmail,
-                                password: mockPassword,
-                            });
-                            if (finalSignInErr) throw finalSignInErr;
-                        }
-                    } catch (authErr: any) {
-                        throw new Error(`Mock authentication failed: ${authErr.message}`);
-                    }
-
-                    setStatusMessage('Signed in successfully via mock phone fallback.');
-                    if (Platform.OS === 'web') {
-                        alert('Welcome to OpenMatch (Simulated Phone Session).');
-                    } else {
-                        Alert.alert('Signed in', 'Welcome to OpenMatch.');
-                    }
-                    return;
-                }
-
-                const { error } = await supabase.auth.verifyOtp({
-                    phone: phone.trim(),
-                    token: smsCode.trim(),
-                    type: 'sms',
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: email.trim().toLowerCase(),
+                    password,
                 });
                 if (error) throw error;
                 setStatusMessage('Signed in successfully.');
-                if (Platform.OS === 'web') {
-                    alert('Welcome to OpenMatch.');
-                } else {
-                    Alert.alert('Signed in', 'Welcome to OpenMatch.');
-                }
             }
-        } catch (error) {
-            const authCode = getAuthErrorCode(error);
-            const rawMessage =
-                error instanceof Error ? error.message : 'Authentication failed.';
-
-            if (authCode === 'over_email_send_rate_limit') {
-                setEmailCooldownUntil(Date.now() + 60_000);
-                setStatusMessage(
-                    'Email send rate limit reached. Wait about 1 minute and retry, or switch to Sign In if your account already exists.',
-                );
-                Alert.alert(
-                    'Rate limit reached',
-                    'Supabase temporarily blocked email sends. Wait about 1 minute, then retry. If this email already has an account, use Sign In.',
-                );
-                return;
-            }
-
-            if (rawMessage.toLowerCase().includes('email not confirmed')) {
-                setStatusMessage(
-                    'Your account exists but email is not verified. Check inbox/spam for the confirmation email, then try Sign In again.',
-                );
-                Alert.alert(
-                    'Email not confirmed',
-                    'Please verify your email first. After confirmation, use Sign In.',
-                );
-                return;
-            }
-
-            if (rawMessage.toLowerCase().includes('invalid login credentials')) {
-                setStatusMessage(
-                    'Invalid credentials. Use the same email/password used at signup, or use OTP for passwordless login.',
-                );
-            }
-
-            Alert.alert('Auth error', rawMessage);
+        } catch (err: any) {
+            setStatusType('error');
+            setStatusMessage(err?.message || 'Authentication failed.');
         } finally {
             setLoading(false);
         }
     }
 
-    function resetToSignIn() {
-        setMode('sign-in');
-        setStatusMessage('');
-    }
-
     return (
-        <View style={styles.card}>
-            <View style={styles.headerRow}>
-                {mode !== 'sign-in' ? <BackButton onPress={resetToSignIn} /> : null}
-                <Text style={styles.sectionTitle}>Welcome to OpenMatch</Text>
+        <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
+            {/* Header Title */}
+            <View style={styles.headerContainer}>
+                <Text style={[styles.badgeText, { color: colors.accent }]}>🔐 SECURE PHONE VERIFICATION</Text>
+                <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+                    {step === 'phone-input' && 'Enter your Mobile Number'}
+                    {step === 'otp-verify' && 'Verify 6-Digit OTP Code'}
+                    {step === 'email-fallback' && 'Email Login'}
+                </Text>
+                <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+                    {step === 'phone-input' && 'We will send a 6-digit verification code via SMS to confirm your identity.'}
+                    {step === 'otp-verify' && `Enter the verification code sent to ${getFormattedPhone()}`}
+                    {step === 'email-fallback' && 'Sign in using your account email and password.'}
+                </Text>
             </View>
 
-            {mode !== 'verify-phone-code' && (
-                <View style={styles.tabs}>
+            {/* STEP 1: Phone Number Input */}
+            {step === 'phone-input' && (
+                <View style={styles.formContainer}>
+                    <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Mobile Number</Text>
+                    <View style={styles.phoneInputRow}>
+                        {/* Country Code Picker Pill */}
+                        <View style={styles.countryCodePill}>
+                            <Text style={styles.countryCodeText}>{selectedCountryCode}</Text>
+                        </View>
+
+                        {/* Phone Number TextInput */}
+                        <TextInput
+                            autoFocus
+                            keyboardType="phone-pad"
+                            maxLength={15}
+                            placeholder="98765 43210"
+                            placeholderTextColor="#7b8d96"
+                            style={styles.phoneInput}
+                            value={rawPhone}
+                            onChangeText={setRawPhone}
+                            onSubmitEditing={handleSendPhoneOtp}
+                        />
+                    </View>
+
+                    {/* Submit Button */}
                     <Pressable
-                        onPress={() => setMode('sign-in')}
-                        style={[styles.tab, mode === 'sign-in' && styles.activeTab]}
+                        disabled={loading || !rawPhone.trim()}
+                        onPress={handleSendPhoneOtp}
+                        style={[
+                            styles.primaryBtn,
+                            (loading || !rawPhone.trim()) && styles.disabledBtn,
+                        ]}
                     >
-                        <Text style={[styles.tabText, mode === 'sign-in' && styles.activeTabText]}>
-                            Sign In
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        onPress={() => setMode('sign-up')}
-                        style={[styles.tab, mode === 'sign-up' && styles.activeTab]}
-                    >
-                        <Text style={[styles.tabText, mode === 'sign-up' && styles.activeTabText]}>
-                            Sign Up
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        onPress={() => setMode('otp')}
-                        style={[styles.tab, mode === 'otp' && styles.activeTab]}
-                    >
-                        <Text style={[styles.tabText, mode === 'otp' && styles.activeTabText]}>
-                            Email OTP
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        onPress={() => setMode('phone-otp')}
-                        style={[styles.tab, mode === 'phone-otp' && styles.activeTab]}
-                    >
-                        <Text style={[styles.tabText, mode === 'phone-otp' && styles.activeTabText]}>
-                            Phone OTP
-                        </Text>
+                        {loading ? (
+                            <ActivityIndicator color="#0d0c0f" size="small" />
+                        ) : (
+                            <Text style={styles.primaryBtnText}>Get Verification Code ➔</Text>
+                        )}
                     </Pressable>
                 </View>
             )}
 
-            {(mode === 'sign-in' || mode === 'sign-up' || mode === 'otp') && (
-                <TextInput
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    keyboardType="email-address"
-                    placeholder="Email"
-                    placeholderTextColor="#829198"
-                    style={styles.input}
-                    value={email}
-                    onChangeText={setEmail}
-                />
+            {/* STEP 2: OTP Verification Code Input */}
+            {step === 'otp-verify' && (
+                <View style={styles.formContainer}>
+                    <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Verification Code</Text>
+                    <TextInput
+                        autoFocus
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        placeholder="1 2 3 4 5 6"
+                        placeholderTextColor="#7b8d96"
+                        style={styles.otpInput}
+                        value={otpCode}
+                        onChangeText={setOtpCode}
+                        onSubmitEditing={handleVerifyPhoneOtp}
+                    />
+
+                    {/* Action Buttons Row */}
+                    <Pressable
+                        disabled={loading || otpCode.trim().length < 4}
+                        onPress={handleVerifyPhoneOtp}
+                        style={[
+                            styles.primaryBtn,
+                            (loading || otpCode.trim().length < 4) && styles.disabledBtn,
+                        ]}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#0d0c0f" size="small" />
+                        ) : (
+                            <Text style={styles.primaryBtnText}>Verify Code & Sign In ➔</Text>
+                        )}
+                    </Pressable>
+
+                    <View style={styles.otpFooterRow}>
+                        {/* Resend OTP */}
+                        <Pressable
+                            disabled={resendCooldown > 0 || loading}
+                            onPress={handleSendPhoneOtp}
+                            style={styles.resendBtn}
+                        >
+                            <Text
+                                style={[
+                                    styles.resendBtnText,
+                                    resendCooldown > 0 && styles.disabledText,
+                                ]}
+                            >
+                                {resendCooldown > 0
+                                    ? `Resend OTP (${resendCooldown}s)`
+                                    : 'Resend OTP'}
+                            </Text>
+                        </Pressable>
+
+                        <Text style={styles.dividerDot}>•</Text>
+
+                        {/* Edit Phone Number */}
+                        <Pressable
+                            onPress={() => {
+                                setStep('phone-input');
+                                setOtpCode('');
+                                setStatusMessage('');
+                            }}
+                            style={styles.editPhoneBtn}
+                        >
+                            <Text style={styles.editPhoneText}>Change Number</Text>
+                        </Pressable>
+                    </View>
+                </View>
             )}
 
-            {(mode === 'sign-in' || mode === 'sign-up') && (
-                <TextInput
-                    autoCapitalize="none"
-                    autoComplete="password"
-                    placeholder="Password"
-                    placeholderTextColor="#829198"
-                    secureTextEntry
-                    style={styles.input}
-                    value={password}
-                    onChangeText={setPassword}
-                />
+            {/* STEP 3: Email Fallback (Optional) */}
+            {step === 'email-fallback' && (
+                <View style={styles.formContainer}>
+                    <TextInput
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        placeholder="Email Address"
+                        placeholderTextColor="#7b8d96"
+                        style={styles.standardInput}
+                        value={email}
+                        onChangeText={setEmail}
+                    />
+                    <TextInput
+                        autoCapitalize="none"
+                        placeholder="Password"
+                        placeholderTextColor="#7b8d96"
+                        secureTextEntry
+                        style={styles.standardInput}
+                        value={password}
+                        onChangeText={setPassword}
+                    />
+
+                    <View style={styles.emailBtnRow}>
+                        <Pressable
+                            disabled={loading}
+                            onPress={() => handleEmailAuth(false)}
+                            style={[styles.primaryBtn, { flex: 1 }]}
+                        >
+                            <Text style={styles.primaryBtnText}>Sign In</Text>
+                        </Pressable>
+                        <Pressable
+                            disabled={loading}
+                            onPress={() => handleEmailAuth(true)}
+                            style={[styles.secondaryBtn, { flex: 1 }]}
+                        >
+                            <Text style={styles.secondaryBtnText}>Sign Up</Text>
+                        </Pressable>
+                    </View>
+                </View>
             )}
 
-            {mode === 'phone-otp' && (
-                <TextInput
-                    autoCapitalize="none"
-                    autoComplete="tel"
-                    keyboardType="phone-pad"
-                    placeholder="Phone number (+91...)"
-                    placeholderTextColor="#829198"
-                    style={styles.input}
-                    value={phone}
-                    onChangeText={setPhone}
-                />
+            {/* Status & Banner Messages */}
+            {!!statusMessage && (
+                <View
+                    style={[
+                        styles.statusBanner,
+                        statusType === 'success' && styles.successBanner,
+                        statusType === 'error' && styles.errorBanner,
+                    ]}
+                >
+                    <Text
+                        style={[
+                            styles.statusText,
+                            statusType === 'success' && styles.successText,
+                            statusType === 'error' && styles.errorText,
+                        ]}
+                    >
+                        {statusMessage}
+                    </Text>
+                </View>
             )}
 
-            {mode === 'verify-phone-code' && (
-                <TextInput
-                    autoCapitalize="none"
-                    keyboardType="number-pad"
-                    placeholder="6-digit verification code"
-                    placeholderTextColor="#829198"
-                    style={styles.input}
-                    value={smsCode}
-                    onChangeText={setSmsCode}
-                />
-            )}
-
-            <Pressable
-                onPress={onSubmit}
-                style={[styles.primaryButton, (loading || submitBlockedByCooldown) && styles.disabledButton]}
-                disabled={loading || submitBlockedByCooldown}
-            >
-                <Text style={styles.primaryButtonText}>
-                    {loading
-                        ? 'Please wait...'
-                        : submitBlockedByCooldown
-                            ? `Retry in ${cooldownSecondsLeft}s`
-                            : mode === 'otp'
-                                ? 'Send Magic Link'
-                                : mode === 'phone-otp'
-                                    ? 'Send Verification OTP'
-                                    : mode === 'verify-phone-code'
-                                        ? 'Verify Code & Login'
-                                        : 'Continue'}
-                </Text>
-            </Pressable>
-
-            {submitBlockedByCooldown && (
-                <Text style={styles.cooldownText}>
-                    Email sending is temporarily paused. You can retry in {cooldownSecondsLeft}s.
-                </Text>
-            )}
-
-            {!!statusMessage && <Text style={styles.statusText}>{statusMessage}</Text>}
+            {/* Footer Navigation / Mode Switch */}
+            <View style={[styles.cardFooter, { borderTopColor: colors.cardBorder }]}>
+                {step !== 'email-fallback' ? (
+                    <Pressable onPress={() => setStep('email-fallback')}>
+                        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>Use Email & Password instead</Text>
+                    </Pressable>
+                ) : (
+                    <Pressable onPress={() => setStep('phone-input')}>
+                        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>← Back to Phone Verification</Text>
+                    </Pressable>
+                )}
+            </View>
         </View>
     );
-}
-
-function getAuthErrorCode(error: unknown): string | null {
-    if (typeof error !== 'object' || error === null) {
-        return null;
-    }
-
-    const maybeCode = (error as { code?: unknown }).code;
-    return typeof maybeCode === 'string' ? maybeCode : null;
 }
 
 const styles = StyleSheet.create({
     card: {
         backgroundColor: '#ffffff',
-        borderRadius: 18,
-        gap: 12,
-        padding: 16,
+        borderColor: '#d7e3e6',
+        borderRadius: 20,
+        borderWidth: 1,
+        gap: 16,
+        padding: 24,
+        shadowColor: '#0e2e3a',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
         width: '100%',
     },
-    headerRow: {
+    headerContainer: {
+        gap: 6,
+    },
+    badgeText: {
+        color: '#e56a3a',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+    },
+    cardTitle: {
+        color: '#0e2e3a',
+        fontSize: 22,
+        fontWeight: '800',
+    },
+    cardSubtitle: {
+        color: '#5a717b',
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    formContainer: {
+        gap: 14,
+        marginTop: 4,
+    },
+    fieldLabel: {
+        color: '#0e2e3a',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    phoneInputRow: {
         alignItems: 'center',
         flexDirection: 'row',
-        gap: 8,
+        gap: 10,
     },
-    sectionTitle: {
-        color: '#0f2f3a',
-        fontSize: 15,
+    countryCodePill: {
+        backgroundColor: '#f1f5f7',
+        borderColor: '#d7e3e6',
+        borderRadius: 12,
+        borderWidth: 1,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+    },
+    countryCodeText: {
+        color: '#0e2e3a',
+        fontSize: 16,
         fontWeight: '700',
     },
-    tabs: {
-        backgroundColor: '#f1f4f5',
-        borderRadius: 12,
-        flexDirection: 'row',
-        padding: 4,
-    },
-    tab: {
-        borderRadius: 9,
-        flex: 1,
-        paddingVertical: 10,
-    },
-    activeTab: {
-        backgroundColor: '#0f2f3a',
-    },
-    tabText: {
-        color: '#49606b',
-        fontSize: 13,
-        fontWeight: '600',
-        textAlign: 'center',
-    },
-    activeTabText: {
-        color: '#ffffff',
-    },
-    input: {
+    phoneInput: {
         backgroundColor: '#f7fafb',
         borderColor: '#d7e3e6',
-        borderRadius: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        color: '#10232a',
+        flex: 1,
+        fontSize: 17,
+        fontWeight: '600',
+        letterSpacing: 0.5,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+    },
+    otpInput: {
+        backgroundColor: '#f7fafb',
+        borderColor: '#e56a3a',
+        borderRadius: 12,
+        borderWidth: 1.5,
+        color: '#0e2e3a',
+        fontSize: 24,
+        fontWeight: '800',
+        letterSpacing: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        textAlign: 'center',
+    },
+    standardInput: {
+        backgroundColor: '#f7fafb',
+        borderColor: '#d7e3e6',
+        borderRadius: 12,
         borderWidth: 1,
         color: '#10232a',
         fontSize: 15,
-        paddingHorizontal: 14,
+        paddingHorizontal: 16,
         paddingVertical: 12,
     },
-    primaryButton: {
+    primaryBtn: {
         alignItems: 'center',
         backgroundColor: '#e56a3a',
-        borderRadius: 10,
-        paddingVertical: 12,
+        borderRadius: 12,
+        justifyContent: 'center',
+        paddingVertical: 14,
     },
-    disabledButton: {
+    disabledBtn: {
         backgroundColor: '#dc8c69',
+        opacity: 0.7,
     },
-    primaryButtonText: {
+    primaryBtnText: {
         color: '#ffffff',
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    secondaryBtn: {
+        alignItems: 'center',
+        backgroundColor: '#f1f5f7',
+        borderColor: '#d7e3e6',
+        borderRadius: 12,
+        borderWidth: 1,
+        justifyContent: 'center',
+        paddingVertical: 14,
+    },
+    secondaryBtnText: {
+        color: '#0e2e3a',
         fontSize: 15,
         fontWeight: '700',
     },
-    cooldownText: {
+    otpFooterRow: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 10,
+        marginTop: 4,
+    },
+    resendBtn: {
+        paddingVertical: 4,
+    },
+    resendBtnText: {
+        color: '#e56a3a',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    disabledText: {
+        color: '#94a3b8',
+    },
+    dividerDot: {
+        color: '#cbd5e1',
+        fontSize: 14,
+    },
+    editPhoneBtn: {
+        paddingVertical: 4,
+    },
+    editPhoneText: {
         color: '#5a717b',
-        fontSize: 12,
-        lineHeight: 17,
+        fontSize: 13,
+        fontWeight: '600',
+        textDecorationLine: 'underline',
+    },
+    emailBtnRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    statusBanner: {
+        backgroundColor: '#f8fafc',
+        borderColor: '#e2e8f0',
+        borderRadius: 10,
+        borderWidth: 1,
+        padding: 12,
+    },
+    successBanner: {
+        backgroundColor: '#f0fdf4',
+        borderColor: '#bbf7d0',
+    },
+    errorBanner: {
+        backgroundColor: '#fef2f2',
+        borderColor: '#fecaca',
     },
     statusText: {
-        color: '#36515b',
+        color: '#0284c7',
         fontSize: 13,
         lineHeight: 18,
+        textAlign: 'center',
+    },
+    successText: {
+        color: '#15803d',
+    },
+    errorText: {
+        color: '#dc2626',
+    },
+    cardFooter: {
+        alignItems: 'center',
+        borderTopColor: '#f1f5f9',
+        borderTopWidth: 1,
+        marginTop: 4,
+        paddingTop: 14,
+    },
+    toggleText: {
+        color: '#5a717b',
+        fontSize: 13,
+        fontWeight: '600',
     },
 });

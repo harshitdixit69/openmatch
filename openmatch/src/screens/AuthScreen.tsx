@@ -2,15 +2,22 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthForm } from '../components/AuthForm';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme } from '../lib/theme';
 
 export function AuthScreen() {
+    const { colors } = useTheme();
+
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
             <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.select({ ios: 'padding', android: undefined })}
             >
+                <View style={styles.topBar}>
+                    <ThemeToggle />
+                </View>
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
@@ -18,8 +25,10 @@ export function AuthScreen() {
                 >
                     <View style={styles.contentColumn}>
                         <View style={styles.header}>
-                            <Text style={styles.title}>OpenMatch</Text>
-                            <Text style={styles.subtitle}>Fair matchmaking. AI-first. No exploitative paywalls.</Text>
+                            <Text style={[styles.title, { color: colors.textPrimary }]}>OpenMatch</Text>
+                            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                                Fair matchmaking. AI-first. Verified phone authentication.
+                            </Text>
                         </View>
                         <AuthForm />
                     </View>
@@ -31,11 +40,15 @@ export function AuthScreen() {
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#eff6f8',
         flex: 1,
     },
     container: {
         flex: 1,
+    },
+    topBar: {
+        alignItems: 'flex-end',
+        paddingHorizontal: 16,
+        paddingTop: 8,
     },
     scrollContent: {
         flexGrow: 1,
@@ -50,16 +63,17 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     header: {
+        alignItems: 'center',
         gap: 8,
     },
     title: {
-        color: '#0e2e3a',
         fontSize: 34,
         fontWeight: '800',
+        letterSpacing: -0.5,
     },
     subtitle: {
-        color: '#4a6670',
         fontSize: 15,
         lineHeight: 22,
+        textAlign: 'center',
     },
 });

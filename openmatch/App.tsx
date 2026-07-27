@@ -12,6 +12,7 @@ import { fetchCurrentProfile } from './src/lib/profileApi';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { MainTabsScreen } from './src/screens/MainTabsScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { ThemeProvider } from './src/lib/theme';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -93,18 +94,22 @@ export default function App() {
   if (isBootstrapping) {
     return (
       <SafeAreaProvider>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#11313c" />
-          <StatusBar style="dark" />
-        </View>
+        <ThemeProvider>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#11313c" />
+            <StatusBar style="auto" />
+          </View>
+        </ThemeProvider>
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
-      {!session ? <AuthScreen /> : hasCompletedProfile ? <MainTabsScreen /> : <OnboardingScreen onComplete={() => setHasCompletedProfile(true)} />}
-      <StatusBar style="dark" />
+      <ThemeProvider>
+        {!session ? <AuthScreen /> : hasCompletedProfile ? <MainTabsScreen /> : <OnboardingScreen onComplete={() => setHasCompletedProfile(true)} />}
+        <StatusBar style="auto" />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

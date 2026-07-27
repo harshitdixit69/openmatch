@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">52.63% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/19</span>
+                <span class='fraction'>10/19</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">43.33% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/60</span>
+                <span class='fraction'>26/60</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">66.66% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>2/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">71.42% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>10/14</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line medium'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -147,7 +147,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -162,19 +162,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -188,15 +186,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -227,7 +227,7 @@
 import { supabase } from './supabase';
 import type { PartnerPreferences } from './partnerPreferences';
 &nbsp;
-const PREF_SELECT_COLUMNS = <span class="cstat-no" title="statement not covered" >[</span>
+const PREF_SELECT_COLUMNS = [
     'pref_age_min',
     'pref_age_max',
     'pref_height_min',
@@ -241,20 +241,20 @@ const PREF_SELECT_COLUMNS = <span class="cstat-no" title="statement not covered"
     'pref_location_flexibility',
 ].join(', ');
 &nbsp;
-export async function <span class="fstat-no" title="function not covered" >fetchPartnerPreferences(</span>): Promise&lt;PartnerPreferences | null&gt; {
-    const { data: { user } } = <span class="cstat-no" title="statement not covered" >await supabase.auth.getUser();</span>
-<span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return null;</span></span>
+export async function fetchPartnerPreferences(): Promise&lt;PartnerPreferences | null&gt; {
+    const { data: { user } } = await supabase.auth.getUser();
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!user) <span class="cstat-no" title="statement not covered" >return null;</span>
 &nbsp;
-    const { data, error } = <span class="cstat-no" title="statement not covered" >await supabase</span>
+    const { data, error } = await supabase
         .from('profiles')
         .select(PREF_SELECT_COLUMNS)
         .eq('id', user.id)
         .single();
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (error || !data) <span class="cstat-no" title="statement not covered" >return null;</span></span>
-<span class="cstat-no" title="statement not covered" >    return {</span>
-        pref_age_min: (data as any).pref_age_min ?? null,
-        pref_age_max: (data as any).pref_age_max ?? null,
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (error || !data) <span class="cstat-no" title="statement not covered" >return null;</span>
+    return {
+        pref_age_min: (data as any).pref_age_min ?? <span class="branch-1 cbranch-no" title="branch not covered" >null,</span>
+        pref_age_max: (data as any).pref_age_max ?? <span class="branch-1 cbranch-no" title="branch not covered" >null,</span>
         pref_height_min: (data as any).pref_height_min ?? null,
         pref_height_max: (data as any).pref_height_max ?? null,
         pref_religion: (data as any).pref_religion ?? null,
@@ -267,16 +267,16 @@ export async function <span class="fstat-no" title="function not covered" >fetch
     };
 }
 &nbsp;
-export async function <span class="fstat-no" title="function not covered" >upsertPartnerPreferences(</span>prefs: PartnerPreferences): Promise&lt;void&gt; {
-    const { data: { user } } = <span class="cstat-no" title="statement not covered" >await supabase.auth.getUser();</span>
-<span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >throw new Error('Not authenticated');</span></span>
+export async function upsertPartnerPreferences(prefs: PartnerPreferences): Promise&lt;void&gt; {
+    const { data: { user } } = await supabase.auth.getUser();
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!user) <span class="cstat-no" title="statement not covered" >throw new Error('Not authenticated');</span>
 &nbsp;
-    const { error } = <span class="cstat-no" title="statement not covered" >await supabase</span>
+    const { error } = await supabase
         .from('profiles')
         .update(prefs as any)
         .eq('id', user.id);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (error) <span class="cstat-no" title="statement not covered" >throw error;</span></span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (error) <span class="cstat-no" title="statement not covered" >throw error;</span>
 }
 &nbsp;
 /** Fetch candidates with ad-hoc preference overrides (used by Search screen).
@@ -310,7 +310,7 @@ export async function <span class="fstat-no" title="function not covered" >fetch
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-27T00:53:03.120Z
+                at 2026-07-27T20:06:19.055Z
             </div>
         <script src="../prettify.js"></script>
         <script>
