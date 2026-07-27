@@ -187,10 +187,10 @@ describe('PremiumAssistedProfileViewer tests', () => {
     );
 
     await waitFor(() => {
-      expect(getByText('💖 Approve & Pitch')).toBeTruthy();
+      expect(getByText('💖 Approve & Pitch (1 Credit)')).toBeTruthy();
     });
 
-    const acceptBtn = getByText('💖 Approve & Pitch');
+    const acceptBtn = getByText('💖 Approve & Pitch (1 Credit)');
     await act(async () => {
       fireEvent.press(acceptBtn);
     });

@@ -387,6 +387,7 @@ async function handleNextAction(
 
     const targetProfileId = callResult.data?.target_profile_id
         ?? requestResult.data?.receiver_id ?? null;
+    const senderProfileId = requestResult.data?.sender_id ?? targetProfileId;
 
     // --- NEGATIVE INTENT: close request + reject match ---
     if (nextAction === 'close_request') {
@@ -406,12 +407,14 @@ async function handleNextAction(
                 ? ` They shared: "${summary.note.trim()}"`
                 : '';
 
-            await serviceClient.from('messages').insert({
-                match_id: matchId,
-                sender_id: targetProfileId,
-                content: `OpenMatch broker update: they let us know they can't continue this match right now, so this request has been closed.${noteFromSummary}`,
-                is_flagged_by_system: false,
-            });
+            if (senderProfileId) {
+                await serviceClient.from('messages').insert({
+                    match_id: matchId,
+                    sender_id: senderProfileId,
+                    content: `OpenMatch broker update: candidate declined the pitch, so this request has been closed.${noteFromSummary}`,
+                    is_flagged_by_system: false,
+                });
+            }
         }
 
         await safeInsertInterestRequestEvent(serviceClient, requestId, null, 'broker_request_closed', {
@@ -422,7 +425,7 @@ async function handleNextAction(
     }
 
     // --- POSITIVE INTENT: auto-message + connect match ---
-    if (matchId && targetProfileId) {
+    if (matchId && targetProfileId && senderProfileId) {
         await serviceClient
             .from('matches')
             .update({ status: 'connected' })
@@ -430,7 +433,7 @@ async function handleNextAction(
 
         await serviceClient.from('messages').insert({
             match_id: matchId,
-            sender_id: targetProfileId,
+            sender_id: senderProfileId,
             content: 'OpenMatch broker update: they confirmed they want to stay matched and keep this conversation going! 🎉',
             is_flagged_by_system: false,
         });

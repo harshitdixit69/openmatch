@@ -88,6 +88,8 @@ type ChatScreenProps = {
     onViewProfile?: (profileId: string) => void;
     onOpenNotifications?: () => void;
     unreadNotificationsCount?: number;
+    isPremium?: boolean;
+    hideHeaderRowIfNoActiveMatch?: boolean;
 };
 
 type RecoverySuggestionAction = 'request_unlock' | 'accept_unlock' | 'pay_unlock' | 'call' | 'whatsapp';
@@ -125,6 +127,8 @@ export function ChatScreen({
     onViewProfile,
     onOpenNotifications,
     unreadNotificationsCount = 0,
+    isPremium = false,
+    hideHeaderRowIfNoActiveMatch = false,
 }: ChatScreenProps) {
     const { width: windowWidth } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
@@ -1239,9 +1243,18 @@ export function ChatScreen({
         [currentUserId, matches],
     );
 
+    const allMatchesCount = useMemo(
+        () => matches.filter((match) => matchesChatListFilter(match, matchListFilter, currentUserId)).length,
+        [currentUserId, matchListFilter, matches],
+    );
+
     const unreadMatchCount = useMemo(
-        () => matches.filter((match) => match.unreadCount > 0).length,
-        [matches],
+        () => matches.filter((match) => {
+            const isDeclined = match.interestRequest?.status === 'declined' || match.status === 'rejected';
+            if (isDeclined && match.interestRequest?.senderId !== currentUserId) return false;
+            return match.unreadCount > 0;
+        }).length,
+        [currentUserId, matches],
     );
 
     const needsReplyCount = useMemo(
@@ -1329,225 +1342,233 @@ export function ChatScreen({
     }
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <SafeAreaView style={[styles.safeArea, isPremium && { backgroundColor: '#0d0c0f' }]} edges={['left', 'right']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <View style={styles.headerRow}>
-                    <View style={styles.headerTitleRow}>
-                        <BackButton
-                            onPress={() => {
-                                if (activeMatch) {
-                                    setActiveMatch(null);
-                                    setNotice(null);
-                                    return;
-                                }
+                {!(hideHeaderRowIfNoActiveMatch && !activeMatch) && (
+                    <View style={styles.headerRow}>
+                        <View style={styles.headerTitleRow}>
+                            <BackButton
+                                onPress={() => {
+                                    if (activeMatch) {
+                                        setActiveMatch(null);
+                                        setNotice(null);
+                                        return;
+                                    }
 
-                                onClose();
-                            }}
-                        />
+                                    onClose();
+                                }}
+                            />
 
-                        <Pressable
-                            style={styles.headerProfileContainer}
-                            onPress={() => {
-                                if (activeMatch) {
-                                    onViewProfile?.(activeMatch.otherUserId);
-                                }
-                            }}
-                            disabled={!activeMatch}
-                        >
-                            {activeMatch ? (
-                                <>
-                                    {activeMatch.otherUserPhotoUrls?.[0] ? (
-                                        <Image source={{ uri: activeMatch.otherUserPhotoUrls[0] }} style={styles.headerAvatar} />
-                                    ) : (
-                                        <View style={styles.headerAvatarPlaceholder}>
-                                            <Text style={styles.headerAvatarInitial}>
-                                                {activeMatch.otherUserName.slice(0, 1).toUpperCase()}
+                            <Pressable
+                                style={styles.headerProfileContainer}
+                                onPress={() => {
+                                    if (activeMatch) {
+                                        onViewProfile?.(activeMatch.otherUserId);
+                                    }
+                                }}
+                                disabled={!activeMatch}
+                            >
+                                {activeMatch ? (
+                                    <>
+                                        {activeMatch.otherUserPhotoUrls?.[0] ? (
+                                            <Image source={{ uri: activeMatch.otherUserPhotoUrls[0] }} style={styles.headerAvatar} />
+                                        ) : (
+                                            <View style={styles.headerAvatarPlaceholder}>
+                                                <Text style={styles.headerAvatarInitial}>
+                                                    {activeMatch.otherUserName.slice(0, 1).toUpperCase()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <View style={styles.headerCopy}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                                    {activeMatch.otherUserName}
+                                                </Text>
+                                                {activeMatch.otherUserVerificationStatus === 'verified' ? (
+                                                    <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
+                                                ) : null}
+                                                {activeMatch.otherUserSubscriptionTier && activeMatch.otherUserSubscriptionTier !== 'free' ? (
+                                                    <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
+                                                ) : null}
+                                            </View>
+                                            <Text
+                                                style={[
+                                                    styles.headerSubtitle,
+                                                    otherUserTyping ? styles.headerSubtitleTyping : null,
+                                                ]}
+                                                numberOfLines={1}
+                                            >
+                                                {otherUserTyping ? 'typing...' : getPresenceStatusText(otherUserPresence)}
                                             </Text>
                                         </View>
-                                    )}
+                                    </>
+                                ) : (
                                     <View style={styles.headerCopy}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                                                {activeMatch.otherUserName}
-                                            </Text>
-                                            {activeMatch.otherUserVerificationStatus === 'verified' ? (
-                                                <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
-                                            ) : null}
-                                            {activeMatch.otherUserSubscriptionTier && activeMatch.otherUserSubscriptionTier !== 'free' ? (
-                                                <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
-                                            ) : null}
-                                        </View>
-                                        <Text
-                                            style={[
-                                                styles.headerSubtitle,
-                                                otherUserTyping ? styles.headerSubtitleTyping : null,
-                                            ]}
-                                            numberOfLines={1}
-                                        >
-                                            {otherUserTyping ? 'typing...' : getPresenceStatusText(otherUserPresence)}
+                                        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                            {currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
                                         </Text>
                                     </View>
-                                </>
-                            ) : (
-                                <View style={styles.headerCopy}>
-                                    <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                                        {currentUserFirstName ? `${currentUserFirstName}'s chats` : 'Escrow Chat'}
-                                    </Text>
-                                </View>
-                            )}
-                        </Pressable>
-
-                        {activeMatch ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1000 }}>
-                                {!activeMatch.isUnlocked && (
-                                    <Pressable
-                                        style={({ pressed }) => [
-                                            styles.shareContactHeaderButton,
-                                            activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonPending,
-                                            pressed && styles.headerButtonPressed,
-                                        ]}
-                                        onPress={() => {
-                                            if (activeMatch.unlockState.canAccept) {
-                                                void handleUnlockAction('accept');
-                                            } else if (activeMatch.unlockState.canPay) {
-                                                void handleUnlock();
-                                            } else if (activeMatch.unlockState.waitingOn === 'other_acceptance') {
-                                                Alert.alert(
-                                                    'Request Sent',
-                                                    `Waiting for ${activeMatch.otherUserName} to accept your contact exchange request. Cancel it?`,
-                                                    [
-                                                        { text: 'Keep Pending', style: 'cancel' },
-                                                        { text: 'Cancel Request', style: 'destructive', onPress: () => void handleUnlockAction('decline') },
-                                                    ]
-                                                );
-                                            } else if (activeMatch.unlockState.waitingOn === 'other_payment') {
-                                                Alert.alert('Waiting on Payment', `You've already paid. Waiting for ${activeMatch.otherUserName} to complete their payment.`);
-                                            } else {
-                                                void handleUnlockAction('request');
-                                            }
-                                        }}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="Share Contact"
-                                    >
-                                        <Text style={[
-                                            styles.shareContactHeaderButtonText,
-                                            activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonTextPending,
-                                        ]}>
-                                            {activeMatch.unlockState.canAccept ? '🔑 Accept Share' :
-                                             activeMatch.unlockState.canPay ? ((currentUserProfile?.unlock_credits_remaining ?? 0) > 0 ? '🔑 Use Credit' : '🔑 Pay ₹45') :
-                                             activeMatch.unlockState.waitingOn === 'other_acceptance' ? '⏳ Pending' :
-                                             activeMatch.unlockState.waitingOn === 'other_payment' ? '⏳ They Pay' : '🔑 Share Contact'}
-                                        </Text>
-                                    </Pressable>
                                 )}
-                                <View style={{ position: 'relative', zIndex: 1100 }}>
+                            </Pressable>
+
+                            {activeMatch ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1000 }}>
+                                    {!activeMatch.isUnlocked && (
+                                        <Pressable
+                                            style={({ pressed }) => [
+                                                styles.shareContactHeaderButton,
+                                                activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonPending,
+                                                pressed && styles.headerButtonPressed,
+                                            ]}
+                                            onPress={() => {
+                                                if (activeMatch.unlockState.canAccept) {
+                                                    void handleUnlockAction('accept');
+                                                } else if (activeMatch.unlockState.canPay) {
+                                                    void handleUnlock();
+                                                } else if (activeMatch.unlockState.waitingOn === 'other_acceptance') {
+                                                    Alert.alert(
+                                                        'Request Sent',
+                                                        `Waiting for ${activeMatch.otherUserName} to accept your contact exchange request. Cancel it?`,
+                                                        [
+                                                            { text: 'Keep Pending', style: 'cancel' },
+                                                            { text: 'Cancel Request', style: 'destructive', onPress: () => void handleUnlockAction('decline') },
+                                                        ]
+                                                    );
+                                                } else if (activeMatch.unlockState.waitingOn === 'other_payment') {
+                                                    Alert.alert('Waiting on Payment', `You've already paid. Waiting for ${activeMatch.otherUserName} to complete their payment.`);
+                                                } else {
+                                                    void handleUnlockAction('request');
+                                                }
+                                            }}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="Share Contact"
+                                        >
+                                            <Text style={[
+                                                styles.shareContactHeaderButtonText,
+                                                activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonTextPending,
+                                            ]}>
+                                                {activeMatch.unlockState.canAccept ? '🔑 Accept Share' :
+                                                 activeMatch.unlockState.canPay ? ((currentUserProfile?.unlock_credits_remaining ?? 0) > 0 ? '🔑 Use Credit' : '🔑 Pay ₹45') :
+                                                 activeMatch.unlockState.waitingOn === 'other_acceptance' ? '⏳ Pending' :
+                                                 activeMatch.unlockState.waitingOn === 'other_payment' ? '⏳ They Pay' : '🔑 Share Contact'}
+                                            </Text>
+                                        </Pressable>
+                                    )}
+                                    <View style={{ position: 'relative', zIndex: 1100 }}>
+                                        <Pressable
+                                            style={({ pressed }) => [
+                                                styles.moreHeaderButton,
+                                                pressed && styles.headerButtonPressed,
+                                            ]}
+                                            onPress={() => setDropdownVisible(!dropdownVisible)}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="More options"
+                                        >
+                                            <Text style={styles.moreHeaderButtonText}>⋮</Text>
+                                        </Pressable>
+
+                                        {dropdownVisible && (
+                                            <>
+                                                <Pressable
+                                                    style={styles.dropdownBackdrop}
+                                                    onPress={() => setDropdownVisible(false)}
+                                                />
+                                                <View style={styles.headerDropdownMenu}>
+                                                    <Pressable
+                                                        style={styles.dropdownBackdrop}
+                                                        onPress={() => setDropdownVisible(false)}
+                                                    />
+                                                    <View style={styles.headerDropdownMenu}>
+                                                        <Pressable
+                                                            style={styles.headerDropdownItem}
+                                                            onPress={() => {
+                                                                setDropdownVisible(false);
+                                                                confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                            }}
+                                                        >
+                                                            <Text style={styles.headerDropdownItemText}>Block User</Text>
+                                                        </Pressable>
+                                                        <View style={styles.headerDropdownDivider} />
+                                                        <Pressable
+                                                            style={styles.headerDropdownItem}
+                                                            onPress={() => {
+                                                                setDropdownVisible(false);
+                                                                promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                            }}
+                                                        >
+                                                            <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
+                                                        </Pressable>
+                                                    </View>
+                                                </View>
+                                            </>
+                                        )}
+                                    </View>
+                                </View>
+                            ) : (
+                                onOpenNotifications && (
                                     <Pressable
                                         style={({ pressed }) => [
                                             styles.moreHeaderButton,
+                                            { width: 42, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center', position: 'relative' },
                                             pressed && styles.headerButtonPressed,
                                         ]}
-                                        onPress={() => setDropdownVisible(!dropdownVisible)}
-                                        accessibilityRole="button"
-                                        accessibilityLabel="More options"
+                                        onPress={onOpenNotifications}
                                     >
-                                        <Text style={styles.moreHeaderButtonText}>⋮</Text>
+                                        <Text style={{ fontSize: 18 }}>🔔</Text>
+                                        {unreadNotificationsCount > 0 && (
+                                            <View style={{
+                                                position: 'absolute',
+                                                right: -2,
+                                                top: -2,
+                                                backgroundColor: '#ef4444',
+                                                borderRadius: 6,
+                                                width: 12,
+                                                height: 12,
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }} />
+                                        )}
                                     </Pressable>
-
-                                    {dropdownVisible && (
-                                        <>
-                                            <Pressable
-                                                style={styles.dropdownBackdrop}
-                                                onPress={() => setDropdownVisible(false)}
-                                            />
-                                            <View style={styles.headerDropdownMenu}>
-                                                <Pressable
-                                                    style={styles.headerDropdownItem}
-                                                    onPress={() => {
-                                                        setDropdownVisible(false);
-                                                        confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                    }}
-                                                >
-                                                    <Text style={styles.headerDropdownItemText}>Block User</Text>
-                                                </Pressable>
-                                                <View style={styles.headerDropdownDivider} />
-                                                <Pressable
-                                                    style={styles.headerDropdownItem}
-                                                    onPress={() => {
-                                                        setDropdownVisible(false);
-                                                        promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                    }}
-                                                >
-                                                    <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
-                                                </Pressable>
-                                            </View>
-                                        </>
-                                    )}
-                                </View>
-                            </View>
-                        ) : (
-                            onOpenNotifications && (
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.moreHeaderButton,
-                                        { width: 42, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-                                        pressed && styles.headerButtonPressed,
-                                    ]}
-                                    onPress={onOpenNotifications}
-                                >
-                                    <Text style={{ fontSize: 18 }}>🔔</Text>
-                                    {unreadNotificationsCount > 0 && (
-                                        <View style={{
-                                            position: 'absolute',
-                                            right: -2,
-                                            top: -2,
-                                            backgroundColor: '#ef4444',
-                                            borderRadius: 6,
-                                            width: 12,
-                                            height: 12,
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                        }} />
-                                    )}
-                                </Pressable>
-                            )
-                        )}
-                    </View>
-
-                    {activeMatch?.isUnlocked && (
-                        <View style={styles.contactActionSubBar}>
-                            {activeMatch.otherUserPhoneNumber ? (
-                                <Pressable
-                                    style={({ pressed }) => [styles.subBarCallButton, pressed && styles.subBarButtonPressed]}
-                                    onPress={() => void handleContactAction('call')}
-                                >
-                                    <PhoneIcon size={16} color="#ffffff" />
-                                    <Text style={styles.subBarCallText}>Call {activeMatch.otherUserName}</Text>
-                                </Pressable>
-                            ) : null}
-                            {activeMatch.otherUserWhatsappNumber ? (
-                                <Pressable
-                                    style={({ pressed }) => [styles.subBarWhatsappButton, pressed && styles.subBarButtonPressed]}
-                                    onPress={() => void handleContactAction('whatsapp')}
-                                >
-                                    <WhatsAppLogo size={16} color="#ffffff" />
-                                    <Text style={styles.subBarWhatsappText}>WhatsApp</Text>
-                                </Pressable>
-                            ) : null}
-                            {!activeMatch.otherUserPhoneNumber && !activeMatch.otherUserWhatsappNumber && (
-                                <View style={styles.subBarUnlockNoteBadge}>
-                                    <Text style={styles.subBarUnlockNoteIcon}>🔓</Text>
-                                    <Text style={styles.subBarUnlockNoteText}>No contact details available yet</Text>
-                                </View>
+                                )
                             )}
                         </View>
-                    )}
 
-                    {chatHeaderSubtitle ? <Text style={styles.subtitle}>{chatHeaderSubtitle}</Text> : null}
-                </View>
+                        {activeMatch?.isUnlocked && (
+                            <View style={styles.contactActionSubBar}>
+                                {activeMatch.otherUserPhoneNumber ? (
+                                    <Pressable
+                                        style={({ pressed }) => [styles.subBarCallButton, pressed && styles.subBarButtonPressed]}
+                                        onPress={() => void handleContactAction('call')}
+                                    >
+                                        <PhoneIcon size={16} color="#ffffff" />
+                                        <Text style={styles.subBarCallText}>Call {activeMatch.otherUserName}</Text>
+                                    </Pressable>
+                                ) : null}
+                                {activeMatch.otherUserWhatsappNumber ? (
+                                    <Pressable
+                                        style={({ pressed }) => [styles.subBarWhatsappButton, pressed && styles.subBarButtonPressed]}
+                                        onPress={() => void handleContactAction('whatsapp')}
+                                    >
+                                        <WhatsAppLogo size={16} color="#ffffff" />
+                                        <Text style={styles.subBarWhatsappText}>WhatsApp</Text>
+                                    </Pressable>
+                                ) : null}
+                                {!activeMatch.otherUserPhoneNumber && !activeMatch.otherUserWhatsappNumber && (
+                                    <View style={styles.subBarUnlockNoteBadge}>
+                                        <Text style={styles.subBarUnlockNoteIcon}>🔓</Text>
+                                        <Text style={styles.subBarUnlockNoteText}>No contact details available yet</Text>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
+                        {chatHeaderSubtitle ? <Text style={styles.subtitle}>{chatHeaderSubtitle}</Text> : null}
+                    </View>
+                )}
 
                 {!activeMatch ? (
                     <View style={styles.listArea}>
@@ -1557,29 +1578,29 @@ export function ChatScreen({
                                 <Text style={styles.stateText}>Loading your conversations...</Text>
                             </View>
                         ) : matches.length === 0 ? (
-                            <View style={styles.emptyCard}>
-                                <Text style={styles.emptyTitle}>No conversations yet</Text>
-                                <Text style={styles.emptyBody}>
+                            <View style={[styles.emptyCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e', borderWidth: 1 }]}>
+                                <Text style={[styles.emptyTitle, isPremium && { color: '#ffffff' }]}>No conversations yet</Text>
+                                <Text style={[styles.emptyBody, isPremium && { color: '#a19fb0' }]}>
                                     Swipe right on a match from the feed first. Each interested swipe creates a pending conversation here.
                                 </Text>
 
                                 <Pressable
-                                    style={styles.refreshButton}
+                                    style={[styles.refreshButton, isPremium && { backgroundColor: '#d4b373' }]}
                                     onPress={() => void loadMatches(false)}
                                     disabled={matchesRefreshing}
                                 >
-                                    <Text style={styles.refreshButtonText}>
+                                    <Text style={[styles.refreshButtonText, isPremium && { color: '#0d0c0f' }]}>
                                         {matchesRefreshing ? 'Refreshing...' : 'Refresh chats'}
                                     </Text>
                                 </Pressable>
                             </View>
                         ) : (
                             <>
-                                <View style={styles.inboxToolbarCard}>
+                                <View style={[styles.inboxToolbarCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e' }]}>
                                     <TextInput
-                                        style={styles.inboxSearchInput}
+                                        style={[styles.inboxSearchInput, isPremium && { backgroundColor: '#26242e', color: '#ffffff' }]}
                                         placeholder="Search chats by name, city, or profile text"
-                                        placeholderTextColor="#8b9aa0"
+                                        placeholderTextColor={isPremium ? '#8e8aa0' : '#8b9aa0'}
                                         value={matchSearchQuery}
                                         onChangeText={setMatchSearchQuery}
                                         autoCapitalize="none"
@@ -1599,6 +1620,7 @@ export function ChatScreen({
                                                     count={inboxTabCounts[item.value]}
                                                     active={matchListFilter === item.value}
                                                     onPress={() => setMatchListFilter(item.value)}
+                                                    isPremium={isPremium}
                                                 />
                                             )}
                                         />
@@ -1612,15 +1634,17 @@ export function ChatScreen({
                                     >
                                         <MatchFilterChip
                                             label="All"
-                                            count={matches.length}
+                                            count={allMatchesCount}
                                             active={messageVisibilityFilter === 'all'}
                                             onPress={() => setMessageVisibilityFilter('all')}
+                                            isPremium={isPremium}
                                         />
                                         <MatchFilterChip
                                             label="Unread"
                                             count={unreadMatchCount}
                                             active={messageVisibilityFilter === 'unread'}
                                             onPress={() => setMessageVisibilityFilter('unread')}
+                                            isPremium={isPremium}
                                         />
                                         {!isChatScreen && (
                                             <MatchFilterChip
@@ -1628,25 +1652,26 @@ export function ChatScreen({
                                                 count={needsReplyCount}
                                                 active={messageVisibilityFilter === 'needs_reply'}
                                                 onPress={() => setMessageVisibilityFilter('needs_reply')}
+                                                isPremium={isPremium}
                                             />
                                         )}
                                     </ScrollView>
                                 </View>
 
                                 {visibleMatches.length === 0 ? (
-                                    <View style={styles.emptyCard}>
-                                        <Text style={styles.emptyTitle}>{getEmptyInboxTitle(matchListFilter)}</Text>
-                                        <Text style={styles.emptyBody}>{getEmptyInboxBody(matchListFilter)}</Text>
+                                    <View style={[styles.emptyCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e', borderWidth: 1 }]}>
+                                        <Text style={[styles.emptyTitle, isPremium && { color: '#ffffff' }]}>{getEmptyInboxTitle(matchListFilter)}</Text>
+                                        <Text style={[styles.emptyBody, isPremium && { color: '#a19fb0' }]}>{getEmptyInboxBody(matchListFilter)}</Text>
 
                                         <Pressable
-                                            style={styles.refreshButton}
+                                            style={[styles.refreshButton, isPremium && { backgroundColor: '#d4b373' }]}
                                             onPress={() => {
                                                 setMatchSearchQuery('');
                                                 setMatchListFilter('accepted');
                                                 setMessageVisibilityFilter('all');
                                             }}
                                         >
-                                            <Text style={styles.refreshButtonText}>Clear filters</Text>
+                                            <Text style={[styles.refreshButtonText, isPremium && { color: '#0d0c0f' }]}>Clear filters</Text>
                                         </Pressable>
                                     </View>
                                 ) : (
@@ -1667,6 +1692,7 @@ export function ChatScreen({
                                                             setNotice(null);
                                                             setActiveMatch(item);
                                                         }}
+                                                        isPremium={isPremium}
                                                     />
                                                 );
                                             }
@@ -1712,6 +1738,7 @@ export function ChatScreen({
                                                         setActiveMatch(m);
                                                     }}
                                                     onViewProfile={onViewProfile}
+                                                    isPremium={isPremium}
                                                 />
                                             );
                                         }}
@@ -2200,6 +2227,7 @@ export function ChatScreen({
                                             style: ({ pressed }: { pressed: boolean }) => [
                                                 styles.messageBubble,
                                                 isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
+                                                isPremium && (isOwnMessage ? { backgroundColor: '#d4b373' } : { backgroundColor: '#16151a' }),
                                                 styles.messageBubbleFlagged,
                                                 pressed ? { opacity: 0.7 } : null
                                             ]
@@ -2207,6 +2235,7 @@ export function ChatScreen({
                                             style: [
                                                 styles.messageBubble,
                                                 isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
+                                                isPremium && (isOwnMessage ? { backgroundColor: '#d4b373' } : { backgroundColor: '#16151a' }),
                                                 item.isFlaggedBySystem ? styles.messageBubbleFlagged : null,
                                             ]
                                         };
@@ -2217,6 +2246,7 @@ export function ChatScreen({
                                                     style={[
                                                         styles.messageText,
                                                         isOwnMessage ? styles.messageTextOwn : styles.messageTextOther,
+                                                        isPremium && (isOwnMessage ? { color: '#0d0c0f' } : { color: '#ffffff' }),
                                                         isFlaggedAndLocked ? styles.messageTextFlagged : null,
                                                     ]}
                                                 >
@@ -2226,6 +2256,7 @@ export function ChatScreen({
                                                     style={[
                                                         styles.messageMeta,
                                                         isOwnMessage ? styles.messageMetaOwn : styles.messageMetaOther,
+                                                        isPremium && (isOwnMessage ? { color: 'rgba(13,12,15,0.6)' } : { color: '#8e8aa0' }),
                                                     ]}
                                                 >
                                                     {formatMessageTime(item.createdAt)}
@@ -2249,9 +2280,9 @@ export function ChatScreen({
                         </View>
 
                         {promptSuggestions.length > 0 || chemistry ? (
-                            <View style={styles.promptsCard}>
+                            <View style={[styles.promptsCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e' }]}>
                                 <View style={styles.promptsHeaderRow}>
-                                    <Text style={styles.promptsTitle}>
+                                    <Text style={[styles.promptsTitle, isPremium && { color: '#ffffff' }]}>
                                         {promptsLoading ? '✨ Thinking...' : '✨ AI chat copilot'}
                                     </Text>
 
@@ -2287,14 +2318,14 @@ export function ChatScreen({
                                         {promptSuggestions.map((prompt) => (
                                             <Pressable
                                                 key={prompt}
-                                                style={styles.promptCard}
+                                                style={[styles.promptCard, isPremium && { backgroundColor: 'rgba(212,179,115,0.15)', borderWidth: 1, borderColor: 'rgba(212,179,115,0.3)' }]}
                                                 onPress={() => {
                                                     setDraft(prompt);
                                                     setPromptSuggestions([]);
                                                     setChemistry(null);
                                                 }}
                                             >
-                                                <Text style={styles.promptCardText}>{prompt}</Text>
+                                                <Text style={[styles.promptCardText, isPremium && { color: '#d4b373' }]}>{prompt}</Text>
                                             </Pressable>
                                         ))}
                                     </View>
@@ -2304,9 +2335,9 @@ export function ChatScreen({
 
                         <View style={styles.composerRow}>
                             <TextInput
-                                style={styles.composerInput}
+                                style={[styles.composerInput, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e', color: '#ffffff' }]}
                                 placeholder="Write a message"
-                                placeholderTextColor="#7d8c90"
+                                placeholderTextColor={isPremium ? '#8e8aa0' : '#7d8c90'}
                                 value={draft}
                                 onChangeText={handleDraftChange}
                                 multiline
@@ -2331,11 +2362,11 @@ export function ChatScreen({
                             </Pressable>
 
                             <Pressable
-                                style={[styles.sendButton, sending ? styles.sendButtonDisabled : null]}
+                                style={[styles.sendButton, isPremium && { backgroundColor: '#d4b373' }, sending ? styles.sendButtonDisabled : null]}
                                 onPress={() => void handleSend()}
                                 disabled={sending || !draft.trim()}
                             >
-                                <Text style={styles.sendButtonText}>{sending ? '…' : 'Send'}</Text>
+                                <Text style={[styles.sendButtonText, isPremium && { color: '#0d0c0f' }]}>{sending ? '…' : 'Send'}</Text>
                             </Pressable>
                         </View>
                     </>
@@ -2369,15 +2400,30 @@ function MatchFilterChip({
     count,
     active,
     onPress,
+    isPremium = false,
 }: {
     label: string;
     count: number;
     active: boolean;
     onPress: () => void;
+    isPremium?: boolean;
 }) {
     return (
-        <Pressable style={[styles.matchFilterChip, active ? styles.matchFilterChipActive : null]} onPress={onPress}>
-            <Text style={[styles.matchFilterChipText, active ? styles.matchFilterChipTextActive : null]}>
+        <Pressable
+            style={[
+                styles.matchFilterChip,
+                isPremium && { backgroundColor: '#26242e' },
+                active ? (isPremium ? { backgroundColor: '#d4b373' } : styles.matchFilterChipActive) : null
+            ]}
+            onPress={onPress}
+        >
+            <Text
+                style={[
+                    styles.matchFilterChipText,
+                    isPremium && { color: '#a19fb0' },
+                    active ? (isPremium ? { color: '#0d0c0f' } : styles.matchFilterChipTextActive) : null
+                ]}
+            >
                 {count > 0 ? `${label} (${count})` : label}
             </Text>
         </Pressable>
@@ -2418,6 +2464,7 @@ interface ProfileListItemCardProps {
     onContactAction: (item: ChatMatch, action: 'call' | 'whatsapp') => void;
     onOpenChat: (item: ChatMatch) => void;
     onViewProfile?: (profileId: string) => void;
+    isPremium?: boolean;
 }
 
 function ProfileListItemCard({
@@ -2434,11 +2481,12 @@ function ProfileListItemCard({
     onContactAction,
     onOpenChat,
     onViewProfile,
+    isPremium = false,
 }: ProfileListItemCardProps) {
     const premiumHighlight = getPremiumInboxHighlight(item);
 
     return (
-        <View style={[styles.matchCard, premiumHighlight ? styles.matchCardPremium : null]}>
+        <View style={[styles.matchCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e' }, premiumHighlight ? styles.matchCardPremium : null]}>
             <Pressable
                 style={styles.matchCardPressableContent}
                 onPress={onPress}
@@ -2466,7 +2514,7 @@ function ProfileListItemCard({
                     <View style={styles.matchCardContent}>
                         <View style={styles.matchCardHeader}>
                             <Pressable onPress={() => onViewProfile?.(item.otherUserId)}>
-                                <Text style={styles.matchName}>{item.otherUserName}</Text>
+                                <Text style={[styles.matchName, isPremium && { color: '#ffffff' }]}>{item.otherUserName}</Text>
                             </Pressable>
                             <View style={styles.matchCardHeaderBadges}>
                                 {item.unreadCount > 0 ? (
@@ -2479,12 +2527,12 @@ function ProfileListItemCard({
                         </View>
 
                         <View style={styles.matchTagRow}>
-                            <View style={styles.matchTagPill}>
-                                <Text style={styles.matchTagText}>{item.otherUserLocation}</Text>
+                            <View style={[styles.matchTagPill, isPremium && { backgroundColor: '#26242e' }]}>
+                                <Text style={[styles.matchTagText, isPremium && { color: '#ffffff' }]}>{item.otherUserLocation}</Text>
                             </View>
 
-                            <View style={styles.matchTagPillMuted}>
-                                <Text style={styles.matchTagTextMuted}>
+                            <View style={[styles.matchTagPillMuted, isPremium && { backgroundColor: '#1c1b22', borderColor: '#26242e' }]}>
+                                <Text style={[styles.matchTagTextMuted, isPremium && { color: '#a19fb0' }]}>
                                     {item.otherUserProfileOwner ? `Managed by ${item.otherUserProfileOwner}` : 'Self profile'}
                                 </Text>
                             </View>
@@ -2498,11 +2546,11 @@ function ProfileListItemCard({
                     ))}
                 </View>
 
-                <Text style={styles.matchPreviewStatus}>{getMatchInboxPreview(item)}</Text>
+                <Text style={[styles.matchPreviewStatus, isPremium && { color: '#a19fb0' }]}>{getMatchInboxPreview(item)}</Text>
 
                 {shouldShowInboxBrokerCard(item) ? (
-                    <View style={styles.brokerInfoCard}>
-                        <Text style={styles.brokerInfoText}>{getInboxBrokerPreview(item)}</Text>
+                    <View style={[styles.brokerInfoCard, isPremium && { backgroundColor: '#1f1c2e', borderColor: 'rgba(212,179,115,0.2)' }]}>
+                        <Text style={[styles.brokerInfoText, isPremium && { color: '#a19fb0' }]}>{getInboxBrokerPreview(item)}</Text>
 
                         {item.interestRequest &&
                         item.interestRequest.senderId !== currentUserId &&
@@ -2529,7 +2577,7 @@ function ProfileListItemCard({
                     </View>
                 ) : null}
 
-                <Text numberOfLines={2} style={styles.matchPreview}>
+                <Text numberOfLines={2} style={[styles.matchPreview, isPremium && { color: '#8e8aa0' }]}>
                     {item.otherUserBio ?? item.otherUserPreferences ?? 'No profile summary yet.'}
                 </Text>
             </Pressable>
@@ -2613,12 +2661,12 @@ function ProfileListItemCard({
     );
 }
 
-function ChatListItemCard({ item, onPress }: { item: ChatMatch; onPress: () => void }) {
+function ChatListItemCard({ item, onPress, isPremium = false }: { item: ChatMatch; onPress: () => void; isPremium?: boolean }) {
     const lastMessage = getMatchInboxPreview(item);
 
     return (
         <Pressable
-            style={({ pressed }) => [styles.chatCard, pressed && styles.chatCardPressed]}
+            style={({ pressed }) => [styles.chatCard, isPremium && { backgroundColor: '#16151a', borderBottomColor: '#26242e' }, pressed && (isPremium ? { backgroundColor: '#1f1c2e' } : styles.chatCardPressed)]}
             onPress={onPress}
         >
             <View style={styles.chatCardAvatarContainer}>
@@ -2636,20 +2684,20 @@ function ChatListItemCard({ item, onPress }: { item: ChatMatch; onPress: () => v
             <View style={styles.chatCardBody}>
                 <View style={styles.chatCardHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-                        <Text style={[styles.chatCardName, { flexShrink: 1 }]} numberOfLines={1}>
+                        <Text style={[styles.chatCardName, isPremium && { color: '#ffffff' }, { flexShrink: 1 }]} numberOfLines={1}>
                             {item.otherUserName}
                         </Text>
                         {item.otherUserSubscriptionTier && item.otherUserSubscriptionTier !== 'free' ? (
                             <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
                         ) : null}
                     </View>
-                    <Text style={styles.chatCardTime}>
+                    <Text style={[styles.chatCardTime, isPremium && { color: '#8e8aa0' }]}>
                         {formatChatListTime(item.createdAt)}
                     </Text>
                 </View>
 
                 <View style={styles.chatCardMessageRow}>
-                    <Text style={styles.chatCardMessage} numberOfLines={1}>
+                    <Text style={[styles.chatCardMessage, isPremium && { color: '#a19fb0' }]} numberOfLines={1}>
                         {lastMessage}
                     </Text>
                     {item.unreadCount > 0 ? (

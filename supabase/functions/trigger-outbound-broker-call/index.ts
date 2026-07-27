@@ -47,12 +47,22 @@ type ProfileContactDetailsRow = {
 type ParticipantProfileRow = {
     id: string;
     full_name: string;
+    dob?: string | null;
+    location?: string | null;
+    occupation?: string | null;
+    education?: string | null;
+    bio?: string | null;
 };
 
 type BrokerDispatchContext = {
     destination: string;
     targetName: string | null;
     counterpartyName: string | null;
+    counterpartyAge: number | string | null;
+    counterpartyLocation: string | null;
+    counterpartyOccupation: string | null;
+    counterpartyEducation: string | null;
+    counterpartyBio: string | null;
 };
 
 type BrokerDispatchStatus = 'queued' | 'dialing' | 'in_progress' | 'completed' | 'no_answer' | 'failed' | 'cancelled';
@@ -389,7 +399,7 @@ async function loadBrokerDispatchContext(
             .maybeSingle<ProfileContactDetailsRow>(),
         serviceClient
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, dob, location, occupation, education, bio')
             .in('id', [targetProfileId, otherProfileId]),
     ]);
 
@@ -421,6 +431,11 @@ async function loadBrokerDispatchContext(
         destination,
         targetName: targetProfile?.full_name ?? null,
         counterpartyName: otherProfile?.full_name ?? null,
+        counterpartyAge: calculateAgeFromDob(otherProfile?.dob),
+        counterpartyLocation: otherProfile?.location ?? null,
+        counterpartyOccupation: otherProfile?.occupation ?? null,
+        counterpartyEducation: otherProfile?.education ?? null,
+        counterpartyBio: otherProfile?.bio ?? null,
     };
 }
 
@@ -530,6 +545,14 @@ async function dispatchRetellVoiceCall(args: {
             retell_llm_dynamic_variables: {
                 participant_name: dispatchContext.targetName ?? 'there',
                 counterpart_name: dispatchContext.counterpartyName ?? 'your match',
+                user_name: dispatchContext.targetName ?? 'there',
+                seeker_name: dispatchContext.counterpartyName ?? 'your match',
+                seeker_age: dispatchContext.counterpartyAge ? String(dispatchContext.counterpartyAge) : '27',
+                seeker_occupation: dispatchContext.counterpartyOccupation ?? 'working professional',
+                seeker_city: dispatchContext.counterpartyLocation ?? 'their city',
+                seeker_location: dispatchContext.counterpartyLocation ?? 'their city',
+                seeker_education: dispatchContext.counterpartyEducation ?? 'graduate',
+                seeker_bio: dispatchContext.counterpartyBio ?? '',
                 broker_request_id: requestId,
             },
         }),
@@ -916,6 +939,19 @@ function normalizeContactNumber(value: string | null | undefined) {
 
     // Too short to be a dialable number.
     return null;
+}
+
+function calculateAgeFromDob(dob: string | null | undefined): number | null {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    if (isNaN(birthDate.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
 }
 
 function mapRetellStatus(status: string): BrokerDispatchStatus {

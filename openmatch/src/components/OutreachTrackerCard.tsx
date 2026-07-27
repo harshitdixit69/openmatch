@@ -50,7 +50,7 @@ function getStatusBadge(status: OutreachCallStatus) {
             };
         case 'completed_accepted':
             return {
-                label: 'Pitch Accepted 🟢',
+                label: 'Pitch Accepted',
                 bgColor: 'rgba(17,209,130,0.15)',
                 borderColor: '#11d182',
                 textColor: '#11d182',
@@ -58,7 +58,7 @@ function getStatusBadge(status: OutreachCallStatus) {
             };
         case 'completed_declined':
             return {
-                label: 'Pitch Declined ⚪',
+                label: 'Pitch Declined',
                 bgColor: 'rgba(142,138,160,0.15)',
                 borderColor: '#8e8aa0',
                 textColor: '#8e8aa0',
@@ -66,7 +66,7 @@ function getStatusBadge(status: OutreachCallStatus) {
             };
         case 'voicemail':
             return {
-                label: 'Voicemail Reached 🔴',
+                label: 'Voicemail Reached',
                 bgColor: 'rgba(239,68,68,0.15)',
                 borderColor: '#ef4444',
                 textColor: '#ef4444',
@@ -74,7 +74,7 @@ function getStatusBadge(status: OutreachCallStatus) {
             };
         case 'failed':
             return {
-                label: 'Call Failed ⚠️',
+                label: 'Call Failed',
                 bgColor: 'rgba(239,68,68,0.15)',
                 borderColor: '#ef4444',
                 textColor: '#ef4444',
@@ -83,7 +83,7 @@ function getStatusBadge(status: OutreachCallStatus) {
         case 'pending':
         default:
             return {
-                label: 'Call Scheduled ⏳',
+                label: 'Call Scheduled',
                 bgColor: 'rgba(212,179,115,0.1)',
                 borderColor: 'rgba(212,179,115,0.4)',
                 textColor: '#d4b373',
@@ -95,9 +95,9 @@ function getStatusBadge(status: OutreachCallStatus) {
 function getSentimentBadge(sentiment?: string) {
     if (!sentiment) return null;
     const lower = sentiment.toLowerCase();
-    if (lower.includes('pos') || lower.includes('enthus')) return { label: `😊 ${sentiment}`, color: '#11d182' };
-    if (lower.includes('neg') || lower.includes('declin')) return { label: `🙁 ${sentiment}`, color: '#ef4444' };
-    return { label: `😐 ${sentiment}`, color: '#d4b373' };
+    if (lower.includes('pos') || lower.includes('enthus')) return { label: `✨ ${sentiment}`, color: '#11d182' };
+    if (lower.includes('neg') || lower.includes('declin')) return { label: `❌ ${sentiment}`, color: '#ef4444' };
+    return { label: `⏳ ${sentiment}`, color: '#d4b373' };
 }
 
 export default function OutreachTrackerCard({

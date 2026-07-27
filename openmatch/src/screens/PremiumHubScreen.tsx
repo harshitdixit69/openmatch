@@ -28,6 +28,7 @@ import PremiumSearchScreen from './PremiumSearchScreen';
 import PremiumSettingsScreen from './PremiumSettingsScreen';
 import PremiumWhoViewedMeScreen from './PremiumWhoViewedMeScreen';
 import PremiumChatScreen from './PremiumChatScreen';
+import { ChatScreen } from './ChatScreen';
 import ConciergeHubScreen from './ConciergeHubScreen';
 import PremiumAssistedProfileViewer from '../components/PremiumAssistedProfileViewer';
 import OutreachTrackerCard, { OutreachLogRecord } from '../components/OutreachTrackerCard';
@@ -85,6 +86,42 @@ const EXCLUSIVE_PACKAGES: SubscriptionPackage[] = [
     { id: 'exclusive_12m', months: 12, priceINR: 7499, originalPriceINR: 11999, unlockCredits: 180, aiCalls: 60, pricePerMonth: 624 },
 ];
 
+const INITIAL_OUTREACH_LOGS: OutreachLogRecord[] = [
+    {
+        id: 'log-1',
+        candidateName: 'Riya Rao',
+        candidatePhotoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+        callStatus: 'completed_declined',
+        callSummary: [
+            'Riya appreciated shared interest in tech.',
+            'Declined match request due to preference mismatch on family location flexibility.',
+        ],
+        candidateSentiment: 'Declined',
+        updatedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+    },
+    {
+        id: 'log-2',
+        candidateName: 'Ananya Sharma',
+        candidatePhotoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400',
+        callStatus: 'calling',
+        callSummary: [],
+        candidateSentiment: 'In Progress',
+        updatedAt: new Date().toISOString(),
+    },
+    {
+        id: 'log-3',
+        candidateName: 'Priya Malhotra',
+        candidatePhotoUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400',
+        callStatus: 'voicemail',
+        callSummary: [
+            'Voicemail reached after 4 rings.',
+            'AI voice agent left a personalized pitch message.',
+        ],
+        candidateSentiment: 'Voicemail Left',
+        updatedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,42 +159,7 @@ export default function PremiumHubScreen({
     const [selectedLogModal, setSelectedLogModal] = useState<OutreachLogRecord | null>(null);
 
     // AI Broker Outreach Logs
-    const [outreachLogs, setOutreachLogs] = useState<OutreachLogRecord[]>([
-        {
-            id: 'log-1',
-            candidateName: 'Riya Rao',
-            candidatePhotoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-            callStatus: 'completed_accepted',
-            callSummary: [
-                'Riya appreciated shared interest in tech and architecture.',
-                'Asked about family location flexibility in Mumbai.',
-                'Approved mutual contact detail unlock with Relationship Manager.',
-            ],
-            candidateSentiment: 'Enthusiastic & Positive',
-            updatedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-        },
-        {
-            id: 'log-2',
-            candidateName: 'Ananya Sharma',
-            candidatePhotoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400',
-            callStatus: 'calling',
-            callSummary: [],
-            candidateSentiment: 'In Progress',
-            updatedAt: new Date().toISOString(),
-        },
-        {
-            id: 'log-3',
-            candidateName: 'Priya Malhotra',
-            candidatePhotoUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400',
-            callStatus: 'voicemail',
-            callSummary: [
-                'Voicemail reached after 4 rings.',
-                'AI voice agent left a personalized pitch message.',
-            ],
-            candidateSentiment: 'Voicemail Left',
-            updatedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-        },
-    ]);
+    const [outreachLogs, setOutreachLogs] = useState<OutreachLogRecord[]>(INITIAL_OUTREACH_LOGS);
 
     // Spotlight
     const [secondsRemaining, setSecondsRemaining] = useState(0);
@@ -170,6 +172,7 @@ export default function PremiumHubScreen({
     const [activeDuration, setActiveDuration] = useState<'1_month' | '3_months' | '6_months' | 'till_marriage'>('1_month');
     const [selectedPackageId, setSelectedPackageId] = useState<string>('pro_max_1m');
     const [checkoutLoading, setCheckoutLoading] = useState(false);
+    const [inboxSegment, setInboxSegment] = useState<'dm' | 'outreach'>('dm');
 
     // Load data
     const refreshData = async () => {
@@ -178,6 +181,8 @@ export default function PremiumHubScreen({
             const { data: { user } } = await supabase.auth.getUser();
 
             let unreadNotifCount = 0;
+            let mappedLogs: OutreachLogRecord[] = [];
+
             if (user) {
                 const res = await supabase
                     .from('notifications')
@@ -185,6 +190,41 @@ export default function PremiumHubScreen({
                     .eq('user_id', user.id)
                     .eq('is_read', false);
                 unreadNotifCount = res.count ?? 0;
+
+                const { data: dbLogs, error: logsError } = await supabase
+                    .from('ai_outreach_logs')
+                    .select(`
+                        id,
+                        retell_call_id,
+                        call_status,
+                        call_summary,
+                        candidate_sentiment,
+                        updated_at,
+                        candidate_id,
+                        profiles:candidate_id (
+                            username,
+                            photo_urls
+                        )
+                    `)
+                    .eq('requested_by', user.id)
+                    .order('updated_at', { ascending: false });
+
+                if (!logsError && dbLogs && dbLogs.length > 0) {
+                    mappedLogs = dbLogs.map((dbLog: any) => {
+                        const profileObj = dbLog.profiles;
+                        const photoUrlsArray = profileObj?.photo_urls || [];
+                        return {
+                            id: dbLog.id,
+                            retellCallId: dbLog.retell_call_id || undefined,
+                            candidateName: profileObj?.username || 'Unknown Candidate',
+                            candidatePhotoUrl: photoUrlsArray[0] || undefined,
+                            callStatus: dbLog.call_status,
+                            callSummary: Array.isArray(dbLog.call_summary) ? dbLog.call_summary : [],
+                            candidateSentiment: dbLog.candidate_sentiment || undefined,
+                            updatedAt: dbLog.updated_at,
+                        };
+                    });
+                }
             }
 
             const [profile, matches] = await Promise.all([
@@ -192,6 +232,12 @@ export default function PremiumHubScreen({
                 fetchChatMatches().catch(() => [] as ChatMatch[]),
             ]);
             if (profile) setViewerProfile(profile);
+
+            if (mappedLogs.length > 0) {
+                setOutreachLogs(mappedLogs);
+            } else {
+                setOutreachLogs(INITIAL_OUTREACH_LOGS);
+            }
 
             const total = matches.length;
             const unread = matches.reduce((acc: number, m: ChatMatch) => acc + (m.unreadCount || 0), 0);
@@ -218,6 +264,37 @@ export default function PremiumHubScreen({
 
     useEffect(() => {
         void refreshData();
+
+        // Subscribe to real-time changes on ai_outreach_logs
+        let userChannel: any = null;
+        async function setupSubscription() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            userChannel = supabase
+                .channel(`outreach-logs-changes-${user.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'ai_outreach_logs',
+                        filter: `requested_by=eq.${user.id}`,
+                    },
+                    () => {
+                        void refreshData();
+                    }
+                )
+                .subscribe();
+        }
+
+        void setupSubscription();
+
+        return () => {
+            if (userChannel) {
+                void supabase.removeChannel(userChannel);
+            }
+        };
     }, []);
 
     // Spotlight logic
@@ -410,6 +487,17 @@ export default function PremiumHubScreen({
     // ─────────────────────────────────────────────────────────────────────────
 
     const renderTabContent = () => {
+        const tier = viewerProfile?.subscription_tier || (viewerProfile as any)?.membership_tier;
+        const tierLabel = tier === 'assisted'
+            ? 'ASSISTED EXCLUSIVE'
+            : tier === 'vip'
+            ? 'VIP CONCIERGE'
+            : tier === 'pro_supreme'
+            ? 'PRO SUPREME'
+            : tier === 'pro'
+            ? 'PRO'
+            : 'PRO MAX';
+
         if (activeTab === 'chat') {
             return (
                 <PremiumChatScreen
@@ -443,10 +531,10 @@ export default function PremiumHubScreen({
                 <View style={styles.panelContainer}>
                     <View style={styles.tabHeaderBar}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.inboxTitle}>AI Outreach Tracker</Text>
-                            <Text style={styles.inboxSub}>Real-time updates on Retell AI broker calls</Text>
+                            <Text style={styles.inboxTitle}>Inbox</Text>
+                            <Text style={styles.inboxSub}>Manage chats and AI broker pitches</Text>
                         </View>
-                        {__DEV__ && (
+                        {inboxSegment === 'outreach' && __DEV__ && (
                             <Pressable
                                 style={styles.simulateBtn}
                                 onPress={() => {
@@ -476,25 +564,61 @@ export default function PremiumHubScreen({
                         <NotifBellBtn />
                     </View>
 
-                    <ScrollView contentContainerStyle={{ paddingVertical: 12, gap: 12 }} showsVerticalScrollIndicator={false}>
-                        {outreachLogs.length === 0 ? (
-                            <View style={styles.inboxEmptyCard}>
-                                <Text style={styles.inboxEmptyIcon}>📥</Text>
-                                <Text style={styles.inboxEmptyTitle}>No active AI calls</Text>
-                                <Text style={styles.inboxEmptySub}>
-                                    When your RM initiates AI voice broker outreach, tracking updates will appear here.
-                                </Text>
-                            </View>
-                        ) : (
-                            outreachLogs.map((log) => (
-                                <OutreachTrackerCard
-                                    key={log.id}
-                                    log={log}
-                                    onPress={() => setSelectedLogModal(log)}
-                                />
-                            ))
-                        )}
-                    </ScrollView>
+                    <View style={styles.segmentControlContainer}>
+                        <Pressable
+                            style={[styles.segmentBtn, inboxSegment === 'dm' && styles.segmentBtnActive]}
+                            onPress={() => setInboxSegment('dm')}
+                        >
+                            <Text style={[styles.segmentBtnText, inboxSegment === 'dm' && styles.segmentBtnTextActive]}>
+                                💬 Direct Messages
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.segmentBtn, inboxSegment === 'outreach' && styles.segmentBtnActive]}
+                            onPress={() => setInboxSegment('outreach')}
+                        >
+                            <Text style={[styles.segmentBtnText, inboxSegment === 'outreach' && styles.segmentBtnTextActive]}>
+                                📞 AI Outreach Calls
+                            </Text>
+                        </Pressable>
+                    </View>
+
+                    {inboxSegment === 'dm' ? (
+                        <View style={{ flex: 1 }}>
+                            <ChatScreen
+                                key="premium-inbox-dm"
+                                onClose={() => setActiveTab('home')}
+                                initialMatchListFilter="received"
+                                initialVisibilityFilter="all"
+                                isChatScreen={false}
+                                onViewProfile={(id) => setSelectedCandidateId(id)}
+                                onOpenNotifications={() => setShowNotifications(true)}
+                                unreadNotificationsCount={counts.unreadNotifications}
+                                isPremium={true}
+                                hideHeaderRowIfNoActiveMatch={true}
+                            />
+                        </View>
+                    ) : (
+                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 12, paddingBottom: 110, gap: 12 }} showsVerticalScrollIndicator={false}>
+                            {outreachLogs.length === 0 ? (
+                                <View style={styles.inboxEmptyCard}>
+                                    <Text style={styles.inboxEmptyIcon}>📥</Text>
+                                    <Text style={styles.inboxEmptyTitle}>No active AI calls</Text>
+                                    <Text style={styles.inboxEmptySub}>
+                                        When your RM initiates AI voice broker outreach, tracking updates will appear here.
+                                    </Text>
+                                </View>
+                            ) : (
+                                outreachLogs.map((log) => (
+                                    <OutreachTrackerCard
+                                        key={log.id}
+                                        log={log}
+                                        onPress={() => setSelectedLogModal(log)}
+                                    />
+                                ))
+                            )}
+                        </ScrollView>
+                    )}
                 </View>
             );
         }
@@ -672,7 +796,12 @@ export default function PremiumHubScreen({
                             </View>
                         )}
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.eyebrow}>OPENMATCH</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <Text style={styles.eyebrow}>OPENMATCH</Text>
+                                <View style={styles.headerTierPill}>
+                                    <Text style={styles.headerTierPillText}>👑 {tierLabel}</Text>
+                                </View>
+                            </View>
                             <Text style={styles.welcomeTitle}>{`Welcome back, ${firstName.toLowerCase() || 'member'}`}</Text>
                         </View>
                         <Pressable onPress={() => setShowSettings(true)} style={styles.settingsBtn}>
@@ -686,19 +815,19 @@ export default function PremiumHubScreen({
 
                 {/* 4 Stats Cards */}
                 <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
+                    <View style={[styles.statCard, counts.received > 0 && styles.statCardActive]}>
                         <Text style={styles.statValue}>{counts.received}</Text>
                         <Text style={styles.statLabel}>Requests</Text>
                     </View>
-                    <View style={[styles.statCard, styles.statCardAccent]}>
+                    <View style={[styles.statCard, styles.statCardAccent, counts.unread > 0 && styles.statCardActive]}>
                         <Text style={[styles.statValue, { color: '#f0ece8' }]}>{counts.unread}</Text>
                         <Text style={[styles.statLabel, { color: '#8e8aa0' }]}>Unread</Text>
                     </View>
-                    <View style={styles.statCard}>
+                    <View style={[styles.statCard, counts.contacts > 0 && styles.statCardActive]}>
                         <Text style={styles.statValue}>{counts.contacts}</Text>
                         <Text style={styles.statLabel}>Unlocked</Text>
                     </View>
-                    <View style={styles.statCard}>
+                    <View style={[styles.statCard, (counts.total || 0) > 0 && styles.statCardActive]}>
                         <Text style={styles.statValue}>{counts.total || 1}</Text>
                         <Text style={styles.statLabel}>Active</Text>
                     </View>
@@ -722,8 +851,20 @@ export default function PremiumHubScreen({
                                 <Text style={styles.timerText}>{formatTimer(secondsRemaining)}</Text>
                             </View>
                         ) : (
-                            <Pressable style={styles.activateBtn} onPress={() => setShowSpotlightConfirm(true)}>
-                                <Text style={styles.activateBtnText}>Activate</Text>
+                            <Pressable
+                                style={styles.activateBtn}
+                                onPress={() => {
+                                    const credits = viewerProfile?.spotlights_remaining ?? 0;
+                                    if (credits > 0) {
+                                        setShowSpotlightConfirm(true);
+                                    } else {
+                                        setActiveTab('premium');
+                                    }
+                                }}
+                            >
+                                <Text style={styles.activateBtnText}>
+                                    {(viewerProfile?.spotlights_remaining ?? 0) > 0 ? 'Activate' : 'Get Credits'}
+                                </Text>
                             </Pressable>
                         )}
                     </View>
@@ -734,28 +875,46 @@ export default function PremiumHubScreen({
                     <Text style={styles.quickActionsTitle}>Jump back in</Text>
                     <View style={styles.quickActionList}>
                         <Pressable style={styles.actionRowPrimary} onPress={() => setShowSearch(true)}>
-                            <Text style={styles.actionTitlePrimary}>Search profiles</Text>
-                            <Text style={styles.actionSubPrimary}>Filter by age, religion...</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.actionTitlePrimary}>Search profiles</Text>
+                                <Text style={styles.actionSubPrimary}>Filter by age, religion...</Text>
+                            </View>
+                            <Text style={styles.actionChevronGold}>›</Text>
                         </Pressable>
                         <Pressable style={styles.actionRowGold} onPress={() => setShowWhoViewedMe(true)}>
-                            <Text style={styles.actionTitleGold}>Who viewed me</Text>
-                            <Text style={styles.actionSubGold}>Recent profile visitors</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.actionTitleGold}>Who viewed me</Text>
+                                <Text style={styles.actionSubGold}>Recent profile visitors</Text>
+                            </View>
+                            <Text style={styles.actionChevronGold}>›</Text>
                         </Pressable>
                         <Pressable style={styles.actionRowDark} onPress={() => setShowShortlist(true)}>
-                            <Text style={styles.actionTitleDark}>Saved profiles</Text>
-                            <Text style={styles.actionSubDark}>Your bookmarks</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.actionTitleDark}>Saved profiles</Text>
+                                <Text style={styles.actionSubDark}>Your bookmarks</Text>
+                            </View>
+                            <Text style={styles.actionChevronDark}>›</Text>
                         </Pressable>
                         <Pressable style={styles.actionRowDark} onPress={() => setShowProfileEdit(true)}>
-                            <Text style={styles.actionTitleDark}>Edit profile</Text>
-                            <Text style={styles.actionSubDark}>Update your details</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.actionTitleDark}>Edit profile</Text>
+                                <Text style={styles.actionSubDark}>Update your details</Text>
+                            </View>
+                            <Text style={styles.actionChevronDark}>›</Text>
                         </Pressable>
                         <Pressable style={styles.actionRowDark} onPress={() => setShowPartnerPrefs(true)}>
-                            <Text style={styles.actionTitleDark}>Edit preferences</Text>
-                            <Text style={styles.actionSubDark}>Refine match filters</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.actionTitleDark}>Edit preferences</Text>
+                                <Text style={styles.actionSubDark}>Refine match filters</Text>
+                            </View>
+                            <Text style={styles.actionChevronDark}>›</Text>
                         </Pressable>
                         <Pressable style={styles.actionRowGold} onPress={() => setShowSignOutConfirm(true)}>
-                            <Text style={styles.actionTitleGold}>Sign out</Text>
-                            <Text style={styles.actionSubGold}>Log out of your account</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.actionTitleGold}>Sign out</Text>
+                                <Text style={styles.actionSubGold}>Log out of your account</Text>
+                            </View>
+                            <Text style={styles.actionChevronGold}>›</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -1093,6 +1252,19 @@ const styles = StyleSheet.create({
         color: GOLD,
         letterSpacing: 0.8,
     },
+    headerTierPill: {
+        backgroundColor: 'rgba(212,179,115,0.15)',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(212,179,115,0.4)',
+    },
+    headerTierPillText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: GOLD,
+    },
     welcomeTitle: {
         fontSize: 20,
         fontWeight: '800',
@@ -1135,15 +1307,28 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: BORDER,
     },
+    statCardActive: {
+        borderColor: 'rgba(212,179,115,0.4)',
+        backgroundColor: '#1f1c2e',
+        shadowColor: GOLD,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 3,
+    },
     statCardAccent: {
         backgroundColor: '#221d38',
         borderColor: GOLD,
     },
     statValue: {
-        fontSize: 24,
-        fontWeight: '900',
+        fontSize: 26,
+        fontWeight: '800',
         color: GOLD,
         marginBottom: 2,
+        letterSpacing: -0.5,
+        ...(Platform.OS === 'web'
+            ? ({ fontFamily: 'Playfair Display, Georgia, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' } as any)
+            : {}),
     },
     statLabel: {
         fontSize: 12,
@@ -1220,6 +1405,9 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     actionRowPrimary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         backgroundColor: '#262035',
         borderRadius: 14,
         padding: 14,
@@ -1237,6 +1425,9 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     actionRowGold: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         backgroundColor: 'rgba(212,179,115,0.1)',
         borderRadius: 14,
         padding: 14,
@@ -1254,11 +1445,26 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     actionRowDark: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         backgroundColor: '#14121e',
         borderRadius: 14,
         padding: 14,
         borderWidth: 1,
         borderColor: BORDER,
+    },
+    actionChevronGold: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: GOLD,
+        marginLeft: 8,
+    },
+    actionChevronDark: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: TEXT_SUB,
+        marginLeft: 8,
     },
     actionTitleDark: {
         fontSize: 15,
@@ -1360,6 +1566,36 @@ const styles = StyleSheet.create({
         color: TEXT_MUTED,
     },
     toggleTextActive: {
+        color: DARK_BG,
+        fontWeight: '800',
+    },
+    segmentControlContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#161424',
+        borderRadius: 12,
+        padding: 4,
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: BORDER,
+    },
+    segmentBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+        backgroundColor: 'transparent',
+    },
+    segmentBtnActive: {
+        backgroundColor: GOLD,
+    },
+    segmentBtnText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: TEXT_SUB,
+    },
+    segmentBtnTextActive: {
         color: DARK_BG,
         fontWeight: '800',
     },

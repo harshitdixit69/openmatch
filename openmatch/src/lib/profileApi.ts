@@ -214,6 +214,24 @@ export async function updateCurrentProfilePhotoUrls(photoUrls: string[]): Promis
     throw new Error('Your profile could not be found.');
 }
 
+function triggerProfileEmbeddingGeneration(userId: string, input: ProfileInput): void {
+    if (!supabase.functions?.invoke) return;
+    supabase.functions.invoke('generate-profile-embedding', {
+        body: {
+            type: 'INSERT',
+            record: {
+                id: userId,
+                bio: input.bio,
+                preferences: input.preferences,
+                location: input.location,
+                profile_owner: input.profile_owner,
+            },
+        },
+    }).catch((err) => {
+        console.warn('Failed to auto-generate profile embedding via Edge Function:', err);
+    });
+}
+
 export async function upsertCurrentProfile(input: ProfileInput): Promise<ProfileRecord> {
     const user = await getCurrentSessionUser();
 
@@ -237,6 +255,7 @@ export async function upsertCurrentProfile(input: ProfileInput): Promise<Profile
         if (input.location) {
             await saveProfileCoordinates(user.id, input.location);
         }
+        triggerProfileEmbeddingGeneration(user.id, input);
         return data as ProfileRecord;
     }
 
@@ -262,6 +281,8 @@ export async function upsertCurrentProfile(input: ProfileInput): Promise<Profile
     if (input.location) {
         await saveProfileCoordinates(user.id, input.location);
     }
+
+    triggerProfileEmbeddingGeneration(user.id, input);
 
     return withFallbackOptionalProfileFields(
         fallback.data as Omit<ProfileRecord, 'partner_gender_preference' | 'photo_urls'>,

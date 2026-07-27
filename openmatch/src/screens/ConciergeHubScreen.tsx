@@ -28,6 +28,11 @@ const MOCK_QUESTIONS = [
     "Lastly, are there any absolute deal-breakers for you beyond the standard filters (e.g., specific habits, communication styles)?"
 ];
 
+function formatDisplayName(name: string | null | undefined): string {
+    if (!name) return '';
+    return name.replace(/^seeker\s+/i, '');
+}
+
 export default function ConciergeHubScreen({
     viewerProfile,
     onViewProfile,
@@ -44,6 +49,7 @@ export default function ConciergeHubScreen({
     hideTabBar?: boolean;
 }) {
     const firstName = viewerProfile?.full_name?.split(' ')[0] || 'Member';
+    const showHeader = !hideTabBar;
 
     const [session, setSession] = useState<ConciergeSession | null>(null);
     const [loadingSession, setLoadingSession] = useState(true);
@@ -294,15 +300,17 @@ export default function ConciergeHubScreen({
                     style={styles.keyboardView}
                 >
                     {/* Header */}
-                    <View style={styles.header}>
-                        <View>
-                            <Text style={styles.headerTitle}>AI Relationship Manager</Text>
-                            <Text style={styles.headerSubtitle}>Nuanced Soft Preferences Intake</Text>
+                    {showHeader && (
+                        <View style={styles.header}>
+                            <View>
+                                <Text style={styles.headerTitle}>AI Relationship Manager</Text>
+                                <Text style={styles.headerSubtitle}>Nuanced Soft Preferences Intake</Text>
+                            </View>
+                            <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                                <Text style={styles.signOutText}>Sign Out</Text>
+                            </Pressable>
                         </View>
-                        <Pressable onPress={onSignOut} style={styles.signOutBtn}>
-                            <Text style={styles.signOutText}>Sign Out</Text>
-                        </Pressable>
-                    </View>
+                    )}
 
                     {/* Limit Indicator */}
                     {remainingLimit <= 5 && remainingLimit > 0 && (
@@ -432,15 +440,17 @@ function dateToAge(dobString: string): number {
     if (session?.status === 'OUTREACH_IN_PROGRESS') {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>Broker Outreach Active</Text>
-                        <Text style={styles.headerSubtitle}>Personal Concierge Pitching Candidate</Text>
+                {showHeader && (
+                    <View style={styles.header}>
+                        <View>
+                            <Text style={styles.headerTitle}>Broker Outreach Active</Text>
+                            <Text style={styles.headerSubtitle}>Personal Concierge Pitching Candidate</Text>
+                        </View>
+                        <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                            <Text style={styles.signOutText}>Sign Out</Text>
+                        </Pressable>
                     </View>
-                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
-                        <Text style={styles.signOutText}>Sign Out</Text>
-                    </Pressable>
-                </View>
+                )}
                 <View style={styles.completeContent}>
                     <View style={styles.statusCard}>
                         <Text style={styles.checkmarkIcon}>📞</Text>
@@ -466,15 +476,17 @@ function dateToAge(dobString: string): number {
     if (session?.status === 'AWAITING_HANDSHAKE') {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>Introduction Successful</Text>
-                        <Text style={styles.headerSubtitle}>Outcome: Mutual Match Connected</Text>
+                {showHeader && (
+                    <View style={styles.header}>
+                        <View>
+                            <Text style={styles.headerTitle}>Introduction Successful</Text>
+                            <Text style={styles.headerSubtitle}>Outcome: Mutual Match Connected</Text>
+                        </View>
+                        <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                            <Text style={styles.signOutText}>Sign Out</Text>
+                        </Pressable>
                     </View>
-                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
-                        <Text style={styles.signOutText}>Sign Out</Text>
-                    </Pressable>
-                </View>
+                )}
                 <View style={styles.completeContent}>
                     <View style={styles.statusCard}>
                         <Text style={[styles.checkmarkIcon, { color: '#d4b373' }]}>🎉</Text>
@@ -561,15 +573,17 @@ function dateToAge(dobString: string): number {
 
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>Connection Unlocked</Text>
-                        <Text style={styles.headerSubtitle}>Mutual Handshake Complete 💖</Text>
+                {showHeader && (
+                    <View style={styles.header}>
+                        <View>
+                            <Text style={styles.headerTitle}>Connection Unlocked</Text>
+                            <Text style={styles.headerSubtitle}>Mutual Handshake Complete 💖</Text>
+                        </View>
+                        <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                            <Text style={styles.signOutText}>Sign Out</Text>
+                        </Pressable>
                     </View>
-                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
-                        <Text style={styles.signOutText}>Sign Out</Text>
-                    </Pressable>
-                </View>
+                )}
                 <View style={styles.completeContent}>
                     <View style={styles.unlockCard}>
                         <View style={styles.unlockIconRing}>
@@ -577,7 +591,7 @@ function dateToAge(dobString: string): number {
                         </View>
                         <Text style={styles.unlockTitle}>Connection Unlocked!</Text>
                         <Text style={styles.unlockSubtitle}>
-                            Both of you have completed the mutual handshake.{unlockedContact?.full_name ? ` You are now connected with ${unlockedContact.full_name}.` : ''}
+                            Both of you have completed the mutual handshake.{unlockedContact?.full_name ? ` You are now connected with ${formatDisplayName(unlockedContact.full_name)}.` : ''}
                         </Text>
 
                         <View style={styles.divider} />
@@ -654,15 +668,17 @@ function dateToAge(dobString: string): number {
     if (session?.status === 'CREDIT_REFUNDED') {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>Outreach Completed</Text>
-                        <Text style={styles.headerSubtitle}>Outcome processed by Concierge</Text>
+                {showHeader && (
+                    <View style={styles.header}>
+                        <View>
+                            <Text style={styles.headerTitle}>Outreach Completed</Text>
+                            <Text style={styles.headerSubtitle}>Outcome processed by Concierge</Text>
+                        </View>
+                        <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                            <Text style={styles.signOutText}>Sign Out</Text>
+                        </Pressable>
                     </View>
-                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
-                        <Text style={styles.signOutText}>Sign Out</Text>
-                    </Pressable>
-                </View>
+                )}
                 <View style={styles.completeContent}>
                     <View style={styles.statusCard}>
                         <Text style={[styles.checkmarkIcon, { color: '#ff5252' }]}>✕</Text>
@@ -802,7 +818,11 @@ function dateToAge(dobString: string): number {
                 );
             }
 
-            if (shortlistItems.length === 0) {
+            const activeShortlistItems = shortlistItems.filter(
+                (item) => item.feedback_status !== 'disliked'
+            );
+
+            if (activeShortlistItems.length === 0) {
                 return (
                     <View style={styles.emptyShortlistContainer}>
                         <Text style={styles.emptyEmoji}>🔍</Text>
@@ -813,7 +833,7 @@ function dateToAge(dobString: string): number {
 
             return (
                 <ScrollView contentContainerStyle={styles.shortlistScroll}>
-                    {shortlistItems.map((item) => {
+                    {activeShortlistItems.map((item) => {
                         const profile = item.candidate_profile;
                         if (!profile) return null;
                         const age = profile.dob ? dateToAge(profile.dob) : '30';
@@ -828,16 +848,17 @@ function dateToAge(dobString: string): number {
                                             resizeMode="cover"
                                         />
                                     ) : (
-                                        <View style={styles.imagePlaceholder}>
-                                            <Text style={styles.imagePlaceholderText}>
-                                                {profile.full_name?.charAt(0) || 'M'}
+                                        <View style={styles.premiumAvatarPlaceholder}>
+                                            <Text style={styles.premiumAvatarBadge}>👑</Text>
+                                            <Text style={styles.premiumAvatarInitials}>
+                                                {profile.full_name ? formatDisplayName(profile.full_name).slice(0, 2).toUpperCase() : 'M'}
                                             </Text>
                                         </View>
                                     )}
 
                                     <View style={[styles.cardInfo, { paddingBottom: 0 }]}>
                                         <Text style={styles.candidateName}>
-                                            {profile.full_name}, {age}
+                                            {formatDisplayName(profile.full_name)}, {age}
                                         </Text>
                                         <Text style={styles.candidateLoc}>{profile.location}</Text>
 
@@ -858,7 +879,11 @@ function dateToAge(dobString: string): number {
                                 <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
                                     <View style={styles.pitchBox}>
                                         <Text style={styles.pitchLabel}>💝 Dedicated RM Pitch</Text>
-                                        <Text style={styles.pitchText}>{item.match_rationale}</Text>
+                                        <View style={{ maxHeight: 110 }}>
+                                            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
+                                                <Text style={styles.pitchText}>{item.match_rationale}</Text>
+                                            </ScrollView>
+                                        </View>
                                     </View>
 
                                     {item.feedback_status === 'pending' ? (
@@ -904,26 +929,27 @@ function dateToAge(dobString: string): number {
 
         return (
             <SafeAreaView style={styles.container}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>
-                            {conciergeTab === 'shortlist' ? 'Curated Shortlist'
-                                : conciergeTab === 'activity' ? 'Activity'
-                                : conciergeTab === 'profile' ? 'My Profile'
-                                : 'Curated Shortlist'}
-                        </Text>
-                        <Text style={styles.headerSubtitle}>
-                            {conciergeTab === 'shortlist' ? 'Handselected by your Relationship Manager'
-                                : conciergeTab === 'activity' ? 'Your concierge journey updates'
-                                : conciergeTab === 'profile' ? 'Your Assisted tier account'
-                                : ''}
-                        </Text>
+                {showHeader && (
+                    <View style={styles.header}>
+                        <View>
+                            <Text style={styles.headerTitle}>
+                                {conciergeTab === 'shortlist' ? 'Curated Shortlist'
+                                    : conciergeTab === 'activity' ? 'Activity'
+                                    : conciergeTab === 'profile' ? 'My Profile'
+                                    : 'Curated Shortlist'}
+                            </Text>
+                            <Text style={styles.headerSubtitle}>
+                                {conciergeTab === 'shortlist' ? 'Handselected by your Relationship Manager'
+                                    : conciergeTab === 'activity' ? 'Your concierge journey updates'
+                                    : conciergeTab === 'profile' ? 'Your Assisted tier account'
+                                    : ''}
+                            </Text>
+                        </View>
+                        <Pressable onPress={onSignOut} style={styles.signOutBtn}>
+                            <Text style={styles.signOutText}>Sign Out</Text>
+                        </Pressable>
                     </View>
-                    <Pressable onPress={onSignOut} style={styles.signOutBtn}>
-                        <Text style={styles.signOutText}>Sign Out</Text>
-                    </Pressable>
-                </View>
+                )}
 
                 {/* Content area */}
                 {renderTabContent()}
@@ -1384,6 +1410,25 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#d4b373',
     },
+    premiumAvatarPlaceholder: {
+        width: '100%',
+        height: 260,
+        backgroundColor: '#161424',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(212,179,115,0.2)',
+    },
+    premiumAvatarBadge: {
+        fontSize: 28,
+        marginBottom: 8,
+    },
+    premiumAvatarInitials: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#d4b373',
+        letterSpacing: 2,
+    },
     cardInfo: {
         padding: 20,
     },
@@ -1401,6 +1446,7 @@ const styles = StyleSheet.create({
     attributeRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        gap: 8,
         marginBottom: 16,
     },
     attributeTag: {
@@ -1411,8 +1457,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 12,
-        marginRight: 8,
-        marginBottom: 8,
     },
     pitchBox: {
         backgroundColor: '#1a1714',

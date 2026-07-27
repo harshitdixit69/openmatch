@@ -21,6 +21,14 @@ import { updateShortlistFeedback } from '../lib/conciergeApi';
 
 const { width, height } = Dimensions.get('window');
 
+function capitalizeName(name?: string): string {
+    if (!name) return '';
+    return name
+        .split(' ')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
 type PremiumAssistedProfileViewerProps = {
     profileId: string;
     onClose: () => void;
@@ -82,7 +90,7 @@ export default function PremiumAssistedProfileViewer({
                 setChatMessages([
                     {
                         role: 'assistant',
-                        content: `Hello! I curated ${pData.full_name} for you. I'd be happy to discuss their compatibility or answer any questions you have about their lifestyle, career balance, or values. What would you like to know?`,
+                        content: `Hello! I curated ${capitalizeName(pData.full_name)} for you. I'd be happy to discuss their compatibility or answer any questions you have about their lifestyle, career balance, or values. What would you like to know?`,
                     },
                 ]);
 
@@ -124,7 +132,7 @@ export default function PremiumAssistedProfileViewer({
 
     useEffect(() => {
         let interval: any = null;
-        if (callModalVisible && (callStep === 'pitching' || callStep === 'dialing') && profileId) {
+        if (callModalVisible && profileId) {
             interval = setInterval(async () => {
                 const { data, error } = await supabase
                     .from('ai_outreach_logs')
@@ -136,10 +144,17 @@ export default function PremiumAssistedProfileViewer({
 
                 if (!error && data) {
                     const updatedStatus = data.call_status;
+                    const hasBullets = Array.isArray(data.call_summary) && data.call_summary.length > 0;
+                    const summary = hasBullets ? data.call_summary : (
+                        updatedStatus === 'completed_accepted'
+                            ? ['Retell AI voice agent pitched profile to candidate.', 'Candidate expressed high alignment and approved contact request.']
+                            : ['Candidate declined pitch during AI call.']
+                    );
+
                     if (updatedStatus === 'completed_accepted') {
                         if (itemId) await updateShortlistFeedback(itemId, 'liked');
                         setFeedbackStatus('liked');
-                        setCallSummaryPoints(data.call_summary || []);
+                        setCallSummaryPoints(summary);
                         setCandidateSentiment(data.candidate_sentiment || 'Positive & Enthusiastic');
                         setCallStep('completed');
                     } else if (['completed_declined', 'voicemail', 'failed'].includes(updatedStatus)) {
@@ -147,7 +162,7 @@ export default function PremiumAssistedProfileViewer({
                         setFeedbackStatus('disliked');
                         setCallStep(updatedStatus === 'failed' ? 'failed' : 'completed');
                         setCandidateSentiment(data.candidate_sentiment || 'Declined');
-                        setCallSummaryPoints(data.call_summary || ['Candidate declined pitch.']);
+                        setCallSummaryPoints(summary);
                     }
                 }
             }, 2500);
@@ -155,7 +170,7 @@ export default function PremiumAssistedProfileViewer({
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [callModalVisible, callStep, profileId, itemId]);
+    }, [callModalVisible, profileId, itemId]);
 
     const handleFeedbackAction = async (status: 'liked' | 'disliked' | 'pending') => {
         if (!itemId) return;
@@ -244,7 +259,11 @@ export default function PremiumAssistedProfileViewer({
                             } else if (updatedStatus === 'completed_accepted') {
                                 await updateShortlistFeedback(itemId, 'liked');
                                 setFeedbackStatus('liked');
-                                setCallSummaryPoints(newRecord.call_summary || []);
+                                setCallSummaryPoints(
+                                    Array.isArray(newRecord.call_summary) && newRecord.call_summary.length > 0
+                                        ? newRecord.call_summary
+                                        : ['Retell AI voice agent pitched profile to candidate.', 'Candidate approved contact request.']
+                                );
                                 setCandidateSentiment(newRecord.candidate_sentiment || 'Positive & Enthusiastic');
                                 setCallStep('completed');
                                 supabase.removeChannel(channel);
@@ -259,7 +278,11 @@ export default function PremiumAssistedProfileViewer({
                                 setFeedbackStatus('disliked');
                                 setCallStep(updatedStatus === 'failed' ? 'failed' : 'completed');
                                 setCandidateSentiment(newRecord.candidate_sentiment || 'Declined');
-                                setCallSummaryPoints(newRecord.call_summary || ['Candidate declined pitch during AI call.']);
+                                setCallSummaryPoints(
+                                    Array.isArray(newRecord.call_summary) && newRecord.call_summary.length > 0
+                                        ? newRecord.call_summary
+                                        : ['Candidate declined pitch during AI call.']
+                                );
                                 supabase.removeChannel(channel);
                             }
                         },
@@ -308,7 +331,11 @@ export default function PremiumAssistedProfileViewer({
                                 } else if (updatedStatus === 'completed_accepted') {
                                     await updateShortlistFeedback(itemId, 'liked');
                                     setFeedbackStatus('liked');
-                                    setCallSummaryPoints(newRecord.call_summary || []);
+                                    setCallSummaryPoints(
+                                        Array.isArray(newRecord.call_summary) && newRecord.call_summary.length > 0
+                                            ? newRecord.call_summary
+                                            : ['Retell AI voice agent pitched profile to candidate.', 'Candidate approved contact request.']
+                                    );
                                     setCandidateSentiment(newRecord.candidate_sentiment || 'Positive & Enthusiastic');
                                     setCallStep('completed');
                                 } else if (['completed_declined', 'voicemail', 'failed'].includes(updatedStatus)) {
@@ -322,7 +349,11 @@ export default function PremiumAssistedProfileViewer({
                                     setFeedbackStatus('disliked');
                                     setCallStep(updatedStatus === 'failed' ? 'failed' : 'completed');
                                     setCandidateSentiment(newRecord.candidate_sentiment || 'Declined');
-                                    setCallSummaryPoints(newRecord.call_summary || ['Candidate declined pitch.']);
+                                    setCallSummaryPoints(
+                                        Array.isArray(newRecord.call_summary) && newRecord.call_summary.length > 0
+                                            ? newRecord.call_summary
+                                            : ['Candidate declined pitch.']
+                                    );
                                 }
                             },
                         )
@@ -334,7 +365,7 @@ export default function PremiumAssistedProfileViewer({
                 if (finalStatus === 'completed_accepted' || finalStatus === 'completed_declined') {
                     const sentiment = callResponse.candidate_sentiment || 'Positive & Enthusiastic';
                     const summaryBullets: string[] = callResponse.call_summary || [
-                        `Retell AI voice agent pitched profile to ${candidate?.full_name ?? 'candidate'}.`,
+                        `Retell AI voice agent pitched profile to ${capitalizeName(candidate?.full_name ?? 'candidate')}.`,
                         `Candidate expressed high alignment on career balance & values.`,
                         `Approved mutual contact unlock request with RM.`,
                     ];
@@ -451,7 +482,7 @@ export default function PremiumAssistedProfileViewer({
                 <View style={{ width: 60 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
                 {/* Photo Gallery */}
                 <View style={styles.photoContainer}>
                     {photos.length > 0 ? (
@@ -479,7 +510,7 @@ export default function PremiumAssistedProfileViewer({
                     ) : (
                         <View style={styles.photoPlaceholder}>
                             <Text style={styles.photoPlaceholderText}>
-                                {candidate.full_name?.charAt(0) || 'M'}
+                                {capitalizeName(candidate.full_name).charAt(0) || 'M'}
                             </Text>
                         </View>
                     )}
@@ -488,7 +519,7 @@ export default function PremiumAssistedProfileViewer({
                 {/* Profile Header */}
                 <View style={styles.profileMeta}>
                     <Text style={styles.candidateName}>
-                        {candidate.full_name}, {age}
+                        {capitalizeName(candidate.full_name)}, {age}
                     </Text>
                     <Text style={styles.candidateLoc}>📍 {candidate.location}</Text>
                 </View>
@@ -500,7 +531,11 @@ export default function PremiumAssistedProfileViewer({
                             <Text style={styles.curationEmoji}>💝</Text>
                             <Text style={styles.curationTitle}>RM Curation Pitch</Text>
                         </View>
-                        <Text style={styles.curationText}>{matchRationale}</Text>
+                        <View style={{ maxHeight: 120 }}>
+                            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
+                                <Text style={styles.curationText}>{matchRationale}</Text>
+                            </ScrollView>
+                        </View>
                     </View>
                 ) : null}
 
@@ -575,7 +610,7 @@ export default function PremiumAssistedProfileViewer({
                             onPress={() => handleFeedbackAction('liked')}
                             style={[styles.footerBtn, styles.likeFooterBtn]}
                         >
-                            <Text style={styles.likeFooterBtnText}>💖 Approve & Pitch</Text>
+                            <Text style={styles.likeFooterBtnText}>💖 Approve & Pitch (1 Credit)</Text>
                         </Pressable>
                     </>
                 ) : (
@@ -604,7 +639,7 @@ export default function PremiumAssistedProfileViewer({
                         </Pressable>
                         <View style={{ alignItems: 'center' }}>
                             <Text style={styles.chatTitle}>AI RM Consultant</Text>
-                            <Text style={styles.chatSubtitle}>Discussing {candidate.full_name}</Text>
+                            <Text style={styles.chatSubtitle}>Discussing {capitalizeName(candidate.full_name)}</Text>
                         </View>
                         <View style={{ width: 60 }} />
                     </View>
@@ -659,7 +694,7 @@ export default function PremiumAssistedProfileViewer({
                                 style={styles.chatInput}
                                 value={chatInputText}
                                 onChangeText={chatInputText => setChatInputText(chatInputText)}
-                                placeholder={`Ask about ${candidate?.full_name}...`}
+                                placeholder={`Ask about ${capitalizeName(candidate?.full_name)}...`}
                                 placeholderTextColor="#767485"
                                 onSubmitEditing={handleSendChatMessage}
                                 editable={!chatSending}
@@ -699,7 +734,7 @@ export default function PremiumAssistedProfileViewer({
                                 <ActivityIndicator size="large" color="#d4b373" />
                                 <Text style={styles.voiceStateTitle}>🟡 Dialing Candidate...</Text>
                                 <Text style={styles.voiceStateSub}>
-                                    Retell AI Voice Agent is calling {candidate?.full_name}...
+                                    Retell AI Voice Agent is calling {capitalizeName(candidate?.full_name)}...
                                 </Text>
                             </View>
                         )}
@@ -711,7 +746,7 @@ export default function PremiumAssistedProfileViewer({
                                 </View>
                                 <Text style={styles.voiceStateTitle}>📞 AI Voice Broker Calling...</Text>
                                 <Text style={styles.voiceStateSub}>
-                                    Pitched profile highlights to {candidate?.full_name}. Awaiting live response...
+                                    Pitched profile highlights to {capitalizeName(candidate?.full_name)}. Awaiting live response...
                                 </Text>
                             </View>
                         )}
@@ -720,7 +755,9 @@ export default function PremiumAssistedProfileViewer({
                             <View style={styles.voiceCompletedContainer}>
                                 <View style={styles.completedBadgeHeader}>
                                     <Text style={styles.completedBadgeTitle}>🟢 Outreach Call Completed</Text>
-                                    <Text style={styles.completedStatusPill}>Pitch Accepted</Text>
+                                    <Text style={[styles.completedStatusPill, feedbackStatus === 'disliked' && styles.completedStatusPillDeclined]}>
+                                        {feedbackStatus === 'disliked' ? 'Pitch Declined' : 'Pitch Accepted'}
+                                    </Text>
                                 </View>
 
                                 <View style={styles.sentimentCard}>
@@ -1243,6 +1280,11 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 1,
         borderColor: '#11d182',
+    },
+    completedStatusPillDeclined: {
+        color: '#ff5252',
+        backgroundColor: 'rgba(255,82,82,0.15)',
+        borderColor: '#ff5252',
     },
     sentimentCard: {
         flexDirection: 'row',

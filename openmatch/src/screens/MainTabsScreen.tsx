@@ -280,7 +280,7 @@ export function MainTabsScreen() {
             setViewerProfileId(profile?.id ?? null);
             setViewerProfile(profile);
             
-            const baseCounts = buildShellCounts(matches);
+            const baseCounts = buildShellCounts(matches, user?.id ?? profile?.id ?? null);
             baseCounts.unreadNotifications = unreadNotifsResult.count ?? 0;
             setShellCounts(baseCounts);
             
@@ -1404,19 +1404,27 @@ function FeatureRow({ title, body }: { title: string; body: string }) {
     );
 }
 
-function buildShellCounts(matches: ChatMatch[]): ShellCounts {
+function buildShellCounts(matches: ChatMatch[], currentUserId: string | null): ShellCounts {
     return matches.reduce<ShellCounts>(
         (counts, match) => {
+            const isDeclined = match.interestRequest?.status === 'declined' || match.status === 'rejected';
+
+            if (isDeclined && match.interestRequest?.senderId !== currentUserId) {
+                return counts;
+            }
+
             counts.total += 1;
-            counts.unread += match.unreadCount;
+            if (!isDeclined) {
+                counts.unread += match.unreadCount;
+            }
 
             if (match.isUnlocked) {
                 counts.contacts += 1;
-            } else if (match.matchRequestState === 'received' || match.unlockState.canAccept) {
+            } else if (!isDeclined && (match.matchRequestState === 'received' || match.unlockState.canAccept)) {
                 counts.received += 1;
             } else if (
                 match.matchRequestState === 'sent' ||
-                match.interestRequest?.status === 'declined' ||
+                (isDeclined && match.interestRequest?.senderId === currentUserId) ||
                 match.unlockState.waitingOn === 'other_acceptance' ||
                 match.unlockState.waitingOn === 'other_payment'
             ) {
@@ -1426,8 +1434,6 @@ function buildShellCounts(matches: ChatMatch[]): ShellCounts {
                 match.interestRequest?.status === 'ghosted' ||
                 match.status === 'connected'
             ) {
-                counts.accepted += 1;
-            } else {
                 counts.accepted += 1;
             }
 
