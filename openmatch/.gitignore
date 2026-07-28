@@ -50,4 +50,7 @@ supabase/.branches/
 /ios
 /android
 
+# Test coverage reports (H6)
+coverage/
+
 dist/

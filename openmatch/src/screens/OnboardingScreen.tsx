@@ -596,6 +596,23 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                 Alert.alert('Invalid date', 'Please enter DOB in YYYY-MM-DD format (e.g. 1997-08-14).');
                 return false;
             }
+
+            // C4 FIX: Minimum age check (18 years) for legal compliance
+            const dob = new Date(form.dob.trim());
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const monthDiff = today.getMonth() - dob.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                age--;
+            }
+            if (isNaN(age) || age < 18) {
+                Alert.alert('Age Requirement', 'You must be at least 18 years old to register on this platform.');
+                return false;
+            }
+            if (age > 120) {
+                Alert.alert('Invalid Date', 'Please enter a valid date of birth.');
+                return false;
+            }
         }
 
         if (step === 1) {
@@ -615,6 +632,30 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             }
         }
 
+        // M16 FIX: Add validation for step 2 (Education & Career)
+        if (step === 2) {
+            if (!form.religion) {
+                Alert.alert('Missing Religion', 'Please select your religion.');
+                return false;
+            }
+            if (!form.education) {
+                Alert.alert('Missing Education', 'Please select your education level.');
+                return false;
+            }
+        }
+
+        // M16 FIX: Add validation for step 3 (Family & Lifestyle)
+        if (step === 3) {
+            if (!form.family_type) {
+                Alert.alert('Missing Family Type', 'Please select your family type.');
+                return false;
+            }
+            if (!form.diet) {
+                Alert.alert('Missing Diet', 'Please select your diet preference.');
+                return false;
+            }
+        }
+
         if (step === 4) {
             if (!form.bio.trim()) {
                 Alert.alert('Missing Bio', 'Please add a short bio to introduce yourself.');
@@ -630,6 +671,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         return true;
     }
 
+    // C7 FIX: Debounce guard to prevent double-tap saving
+    const [isSaving, setIsSaving] = useState(false);
+
     async function onNext() {
         if (!validateCurrentStep()) {
             return;
@@ -639,6 +683,10 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             setStep((current) => current + 1);
             return;
         }
+
+        // C7: Prevent double-tap
+        if (isSaving) return;
+        setIsSaving(true);
 
         setLoading(true);
         try {
@@ -684,6 +732,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             Alert.alert('Save failed', message);
         } finally {
             setLoading(false);
+            setIsSaving(false);
         }
     }
 

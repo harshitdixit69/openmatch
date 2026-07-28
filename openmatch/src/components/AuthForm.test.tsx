@@ -56,6 +56,9 @@ describe('AuthForm Phone OTP Unit Tests', () => {
         const phoneInput = getByPlaceholderText('98765 43210');
         fireEvent.changeText(phoneInput, '9876543210');
 
+        // Check ToS
+        fireEvent.press(getByText(/Terms of Service/));
+
         const submitBtn = getByText('Get Verification Code ➔');
         await act(async () => {
             fireEvent.press(submitBtn);
@@ -86,6 +89,7 @@ describe('AuthForm Phone OTP Unit Tests', () => {
         // Step 1: Send OTP
         const phoneInput = getByPlaceholderText('98765 43210');
         fireEvent.changeText(phoneInput, '9876543210');
+        fireEvent.press(getByText(/Terms of Service/));
 
         await act(async () => {
             fireEvent.press(getByText('Get Verification Code ➔'));
@@ -127,6 +131,7 @@ describe('AuthForm Phone OTP Unit Tests', () => {
 
         const phoneInput = getByPlaceholderText('98765 43210');
         fireEvent.changeText(phoneInput, '9876543210');
+        fireEvent.press(getByText(/Terms of Service/));
 
         await act(async () => {
             fireEvent.press(getByText('Get Verification Code ➔'));
@@ -162,6 +167,7 @@ describe('AuthForm Phone OTP Unit Tests', () => {
         const { getByPlaceholderText, getByText } = render(<AuthForm />);
 
         fireEvent.changeText(getByPlaceholderText('98765 43210'), '9876543210');
+        fireEvent.press(getByText(/Terms of Service/));
 
         await act(async () => {
             fireEvent.press(getByText('Get Verification Code ➔'));

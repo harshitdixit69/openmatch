@@ -56,6 +56,20 @@ async function updateOutreachLogs(callId: string, metadata: any, updateFields: R
 }
 
 serve(async (req: Request) => {
+    const webhookSecret = Deno.env.get('RETELL_WEBHOOK_SECRET');
+    if (webhookSecret) {
+        const signature = req.headers.get('x-retell-signature') || req.headers.get('authorization') || req.headers.get('Authorization');
+        if (signature !== webhookSecret) {
+            console.error('Unauthorized webhook request: invalid signature');
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+    } else {
+        console.warn('RETELL_WEBHOOK_SECRET is not configured, skipping signature verification');
+    }
+
     if (req.method !== 'POST') {
         return new Response(JSON.stringify({ error: 'Method not allowed' }), {
             status: 405,

@@ -135,12 +135,27 @@ export async function fetchCurrentProfileContactDetails(userId?: string): Promis
     }
 
     if (user && targetUserId !== user.id) {
+        // C3 FIX: Check for block
         const { data: block } = await supabase
             .from('user_blocks')
             .select('id')
             .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${targetUserId}),and(blocker_id.eq.${targetUserId},blocked_id.eq.${user.id})`)
             .maybeSingle();
         if (block) {
+            return null;
+        }
+
+        // C3 FIX: Verify mutual match/escrow unlock before exposing contact details
+        const { data: mutualMatch } = await supabase
+            .from('matches')
+            .select('id')
+            .or(
+                `and(user_a.eq.${user.id},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${user.id})`
+            )
+            .maybeSingle();
+
+        if (!mutualMatch) {
+            // No mutual match — deny access to contact details
             return null;
         }
     }
@@ -409,4 +424,63 @@ export async function activateSpotlight(): Promise<{ success: boolean; spotlight
         throw error;
     }
     return data as { success: boolean; spotlight_active_until: string; spotlights_remaining: number };
+}
+
+// ─── C5 FIX: Block & Report User API ────────────────────────────────────────
+
+export type ReportReason = 'fake_profile' | 'harassment' | 'spam' | 'inappropriate_content' | 'underage' | 'other';
+
+export async function blockUser(blockedId: string): Promise<void> {
+    const user = await getCurrentSessionUser();
+    if (!user) throw new Error('You must be signed in to block a user.');
+    if (user.id === blockedId) throw new Error('You cannot block yourself.');
+
+    const { error } = await supabase
+        .from('blocked_users')
+        .upsert({ blocker_id: user.id, blocked_id: blockedId }, { onConflict: 'blocker_id,blocked_id' });
+
+    if (error) throw error;
+}
+
+export async function unblockUser(blockedId: string): Promise<void> {
+    const user = await getCurrentSessionUser();
+    if (!user) throw new Error('You must be signed in to unblock a user.');
+
+    const { error } = await supabase
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', blockedId);
+
+    if (error) throw error;
+}
+
+export async function isUserBlocked(otherUserId: string): Promise<boolean> {
+    const user = await getCurrentSessionUser();
+    if (!user) return false;
+
+    const { data } = await supabase
+        .from('blocked_users')
+        .select('id')
+        .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${otherUserId}),and(blocker_id.eq.${otherUserId},blocked_id.eq.${user.id})`)
+        .maybeSingle();
+
+    return !!data;
+}
+
+export async function reportUser(reportedId: string, reason: ReportReason, description?: string): Promise<void> {
+    const user = await getCurrentSessionUser();
+    if (!user) throw new Error('You must be signed in to report a user.');
+    if (user.id === reportedId) throw new Error('You cannot report yourself.');
+
+    const { error } = await supabase
+        .from('user_reports')
+        .insert({
+            reporter_id: user.id,
+            reported_id: reportedId,
+            reason,
+            description: description?.trim() || null,
+        });
+
+    if (error) throw error;
 }

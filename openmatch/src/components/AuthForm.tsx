@@ -35,6 +35,9 @@ export function AuthForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
+    // C6 FIX: ToS/Privacy acceptance
+    const [tosAccepted, setTosAccepted] = useState(false);
+
     const { colors } = useTheme();
 
     useEffect(() => {
@@ -79,7 +82,7 @@ export function AuthForm() {
         setStatusMessage('');
 
         try {
-            console.log('[Auth] Requesting Phone OTP for:', formattedPhone);
+            if (__DEV__) console.log('[Auth] Requesting Phone OTP for:', formattedPhone);
             const { error } = await supabase.auth.signInWithOtp({
                 phone: formattedPhone,
                 options: {
@@ -89,13 +92,17 @@ export function AuthForm() {
 
             if (error) {
                 const errMsg = error.message.toLowerCase();
+                // C1 FIX: Only allow mock OTP fallback in development builds
                 if (
-                    error.code === 'phone_provider_disabled' ||
-                    errMsg.includes('provider') ||
-                    errMsg.includes('disabled') ||
-                    errMsg.includes('unsupported')
+                    __DEV__ &&
+                    (
+                        error.code === 'phone_provider_disabled' ||
+                        errMsg.includes('provider') ||
+                        errMsg.includes('disabled') ||
+                        errMsg.includes('unsupported')
+                    )
                 ) {
-                    console.log('[Auth] Supabase SMS provider disabled. Activating mock OTP fallback.');
+                    console.log('[Auth] Supabase SMS provider disabled. Activating mock OTP fallback (DEV ONLY).');
                     setIsMockMode(true);
                     setMockCode('123456');
                     setStep('otp-verify');
@@ -176,7 +183,7 @@ export function AuthForm() {
             }
 
             // Real Supabase OTP Verification
-            console.log('[Auth] Verifying Supabase OTP for:', formattedPhone);
+            if (__DEV__) console.log('[Auth] Verifying Supabase OTP for:', formattedPhone);
             const { error } = await supabase.auth.verifyOtp({
                 phone: formattedPhone,
                 token: code,
@@ -278,13 +285,29 @@ export function AuthForm() {
                         />
                     </View>
 
+                    {/* C6 FIX: ToS/Privacy Policy Acceptance */}
+                    <Pressable
+                        style={styles.tosRow}
+                        onPress={() => setTosAccepted((prev) => !prev)}
+                    >
+                        <View style={[styles.tosCheckbox, tosAccepted && styles.tosCheckboxChecked]}>
+                            {tosAccepted ? <Text style={styles.tosCheckmark}>✓</Text> : null}
+                        </View>
+                        <Text style={[styles.tosText, { color: colors.textSecondary }]}>
+                            I agree to the{' '}
+                            <Text style={styles.tosLink}>Terms of Service</Text>
+                            {' '}and{' '}
+                            <Text style={styles.tosLink}>Privacy Policy</Text>
+                        </Text>
+                    </Pressable>
+
                     {/* Submit Button */}
                     <Pressable
-                        disabled={loading || !rawPhone.trim()}
+                        disabled={loading || !rawPhone.trim() || !tosAccepted}
                         onPress={handleSendPhoneOtp}
                         style={[
                             styles.primaryBtn,
-                            (loading || !rawPhone.trim()) && styles.disabledBtn,
+                            (loading || !rawPhone.trim() || !tosAccepted) && styles.disabledBtn,
                         ]}
                     >
                         {loading ? (
@@ -645,5 +668,39 @@ const styles = StyleSheet.create({
         color: '#5a717b',
         fontSize: 13,
         fontWeight: '600',
+    },
+    tosRow: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 10,
+        paddingVertical: 4,
+    },
+    tosCheckbox: {
+        alignItems: 'center',
+        borderColor: '#c4d0d6',
+        borderRadius: 5,
+        borderWidth: 2,
+        height: 22,
+        justifyContent: 'center',
+        width: 22,
+    },
+    tosCheckboxChecked: {
+        backgroundColor: '#e56a3a',
+        borderColor: '#e56a3a',
+    },
+    tosCheckmark: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    tosText: {
+        flex: 1,
+        fontSize: 12,
+        lineHeight: 17,
+    },
+    tosLink: {
+        color: '#e56a3a',
+        fontWeight: '700',
+        textDecorationLine: 'underline',
     },
 });
