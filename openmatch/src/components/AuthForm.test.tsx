@@ -1,5 +1,10 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+    require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
 import { AuthForm } from './AuthForm';
 import { AuthScreen } from '../screens/AuthScreen';
 import { supabase } from '../lib/supabase';

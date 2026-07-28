@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SettingsScreen } from './SettingsScreen';
 import { ThemeProvider } from '../lib/theme';
@@ -35,7 +35,7 @@ const mockSafeAreaMetrics = {
 };
 
 describe('SettingsScreen & Theme Toggle Tests', () => {
-    it('renders SettingsScreen with Account, Appearance, Availability sections', async () => {
+    it('renders SettingsScreen with Account and Privacy sections', async () => {
         const { getByText } = render(
             <SafeAreaProvider initialMetrics={mockSafeAreaMetrics}>
                 <ThemeProvider>
@@ -47,24 +47,8 @@ describe('SettingsScreen & Theme Toggle Tests', () => {
         await waitFor(() => {
             expect(getByText('Settings')).toBeTruthy();
             expect(getByText('Account')).toBeTruthy();
-            expect(getByText('Appearance')).toBeTruthy();
-            expect(getByText('Dark Mode')).toBeTruthy();
-            expect(getByText('Light mode enabled')).toBeTruthy();
-        });
-    });
-
-    it('toggles Dark Mode switch on and updates theme status label', async () => {
-        const { getByText } = render(
-            <SafeAreaProvider initialMetrics={mockSafeAreaMetrics}>
-                <ThemeProvider>
-                    <SettingsScreen onBack={() => {}} onSignedOut={() => {}} />
-                </ThemeProvider>
-            </SafeAreaProvider>
-        );
-
-        await waitFor(() => {
-            expect(getByText('Dark Mode')).toBeTruthy();
-            expect(getByText('Light mode enabled')).toBeTruthy();
+            expect(getByText('Privacy')).toBeTruthy();
+            expect(getByText('Danger Zone')).toBeTruthy();
         });
     });
 });
