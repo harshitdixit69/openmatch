@@ -49,32 +49,42 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
         }
     }
 
+    const [aiScanStep, setAiScanStep] = useState<'ocr' | 'face' | 'data' | 'complete'>('ocr');
+
     async function handleSubmit() {
         if (!idPhotoUri || !selfiePhotoUri) return;
 
         setSubmitting(true);
-        // Simulate a brief processing delay (facial recognition & OCR scans)
-        setTimeout(async () => {
-            try {
-                await submitVerification(idPhotoUri, selfiePhotoUri);
-                setSubmitting(false);
-                if (Platform.OS === 'web') {
-                    alert('Verification Successful: Your identity has been successfully verified! ✅');
-                } else {
-                    Alert.alert('Verification Successful', 'Your identity has been successfully verified! ✅');
-                }
+        setAiScanStep('ocr');
+
+        // Step 1: Scan Govt ID
+        setTimeout(() => setAiScanStep('face'), 800);
+        // Step 2: Facial Recognition
+        setTimeout(() => setAiScanStep('data'), 1600);
+
+        try {
+            const result = await submitVerification(idPhotoUri, selfiePhotoUri);
+            setSubmitting(false);
+
+            if (result.status === 'approved') {
+                const msg = `AI Identity Verification Successful! ✅\n\n• Document Confidence: ${result.similarityScore.toFixed(0)}%\n• Facial Recognition Match: Confirmed\n• Verified Badge (✅) is now active on your profile.`;
+                if (Platform.OS === 'web') alert(msg);
+                else Alert.alert('Identity Verified! 🎉', msg);
                 onCompleted('verified');
-            } catch (err: any) {
-                console.error('Verification failed:', err);
-                setSubmitting(false);
-                if (Platform.OS === 'web') {
-                    alert(err?.message || 'Verification upload failed. Please try again.');
-                } else {
-                    Alert.alert('Verification Failed', err?.message || 'Verification upload failed. Please try again.');
-                }
+            } else {
+                const msg = result.reason || 'Verification could not confirm identity match. Please upload clearer photos.';
+                if (Platform.OS === 'web') alert(msg);
+                else Alert.alert('Verification Failed', msg);
                 onCompleted('rejected');
             }
-        }, 2000);
+        } catch (err: any) {
+            console.error('Verification failed:', err);
+            setSubmitting(false);
+            const msg = err?.message || 'Verification upload failed. Please try again.';
+            if (Platform.OS === 'web') alert(msg);
+            else Alert.alert('Verification Error', msg);
+            onCompleted('rejected');
+        }
     }
 
     return (
@@ -82,13 +92,13 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
             {/* Header */}
             <View style={styles.header}>
                 <BackButton onPress={onBack} />
-                <Text style={styles.headerTitle}>Verify Identity</Text>
+                <Text style={styles.headerTitle}>AI Identity Verification</Text>
                 <View style={{ width: 36 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.container}>
                 <Text style={styles.infoText}>
-                    Verify your profile to increase trust and match authenticity. Upload your official identity document and a matching live selfie to unlock the verified badge (✅).
+                    Verify your profile to increase trust and match authenticity. Upload an official Govt ID document (Aadhaar, PAN, Passport) and a matching live selfie for instant AI verification (✅).
                 </Text>
 
                 {/* Upload Cards Grid */}
@@ -109,7 +119,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                             <View style={styles.placeholderContainer}>
                                 <Text style={styles.placeholderIcon}>🪪</Text>
                                 <Text style={styles.placeholderTitle}>Government ID Card</Text>
-                                <Text style={styles.placeholderSubtitle}>Tap to upload photo ID</Text>
+                                <Text style={styles.placeholderSubtitle}>Aadhaar / PAN / Passport / DL</Text>
                             </View>
                         )}
                     </Pressable>
@@ -130,7 +140,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                             <View style={styles.placeholderContainer}>
                                 <Text style={styles.placeholderIcon}>📸</Text>
                                 <Text style={styles.placeholderTitle}>Live Selfie</Text>
-                                <Text style={styles.placeholderSubtitle}>Tap to upload selfie photo</Text>
+                                <Text style={styles.placeholderSubtitle}>Clear front-facing photo</Text>
                             </View>
                         )}
                     </Pressable>
@@ -146,7 +156,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                         disabled={!idPhotoUri || !selfiePhotoUri}
                         onPress={handleSubmit}
                     >
-                        <Text style={styles.submitButtonText}>Submit Verification</Text>
+                        <Text style={styles.submitButtonText}>🤖 Verify Identity with AI ⚡</Text>
                     </Pressable>
 
                     <Pressable style={styles.cancelButton} onPress={onBack}>
@@ -155,13 +165,25 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                 </View>
             </ScrollView>
 
-            {/* Processing Spinner Overlay */}
+            {/* AI Scanner Processing Overlay */}
             {submitting && (
                 <View style={styles.spinnerOverlay}>
                     <View style={styles.spinnerCard}>
-                        <ActivityIndicator size="large" color="#FF6F61" />
-                        <Text style={styles.spinnerText}>Comparing face match biometric score...</Text>
-                        <Text style={styles.spinnerSubtext}>This will take just a few seconds</Text>
+                        <ActivityIndicator size="large" color="#e56a3a" style={{ marginBottom: 16 }} />
+                        
+                        <Text style={styles.spinnerText}>AI Scanner Active</Text>
+                        
+                        <View style={styles.scanStepList}>
+                            <Text style={[styles.scanStep, aiScanStep === 'ocr' && styles.scanStepActive]}>
+                                {aiScanStep === 'ocr' ? '🔍 Scanning Govt ID Document...' : '✓ Govt ID Scanned'}
+                            </Text>
+                            <Text style={[styles.scanStep, aiScanStep === 'face' && styles.scanStepActive]}>
+                                {aiScanStep === 'face' ? '👤 Matching Facial Features...' : aiScanStep === 'data' ? '✓ Facial Recognition Match' : '⏳ Facial Recognition'}
+                            </Text>
+                            <Text style={[styles.scanStep, aiScanStep === 'data' && styles.scanStepActive]}>
+                                {aiScanStep === 'data' ? '📋 Cross-Checking Name & DOB...' : '⏳ Name & DOB Validation'}
+                            </Text>
+                        </View>
                     </View>
                 </View>
             )}
@@ -308,14 +330,23 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     spinnerText: {
-        marginTop: 16,
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#333333',
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#11313c',
+        marginBottom: 16,
     },
-    spinnerSubtext: {
-        marginTop: 6,
-        fontSize: 12,
-        color: '#999999',
+    scanStepList: {
+        alignItems: 'flex-start',
+        gap: 10,
+        width: '100%',
+    },
+    scanStep: {
+        fontSize: 14,
+        color: '#8b9da5',
+        fontWeight: '500',
+    },
+    scanStepActive: {
+        color: '#e56a3a',
+        fontWeight: '700',
     },
 });
