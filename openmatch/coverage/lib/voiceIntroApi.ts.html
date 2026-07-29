@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">73.91% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>17/23</span>
+                <span class='fraction'>23/23</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">55.55% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/18</span>
+                <span class='fraction'>18/18</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">73.91% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>17/23</span>
+                <span class='fraction'>23/23</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -135,50 +135,50 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { supabase } from './supabase';
 &nbsp;
 const voiceIntroBucket = 'intent-voice-intros';
@@ -195,12 +195,12 @@ export async function uploadCurrentUserVoiceIntro(clip: VoiceIntroClip) {
         error,
     } = await supabase.auth.getUser();
 &nbsp;
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (error) {
-<span class="cstat-no" title="statement not covered" >        throw error;</span>
+    if (error) {
+        throw error;
     }
 &nbsp;
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (!user) {
-<span class="cstat-no" title="statement not covered" >        throw new Error('You must be signed in to upload a voice intro.');</span>
+    if (!user) {
+        throw new Error('You must be signed in to upload a voice intro.');
     }
 &nbsp;
     const response = await fetch(clip.uri);
@@ -209,12 +209,12 @@ export async function uploadCurrentUserVoiceIntro(clip: VoiceIntroClip) {
     const path = `${user.id}/${Date.now()}-voice-intro.${extension}`;
 &nbsp;
     const { error: uploadError } = await supabase.storage.from(voiceIntroBucket).upload(path, arrayBuffer, {
-        contentType: clip.mimeType ?? <span class="branch-1 cbranch-no" title="branch not covered" >`audio/${extension}`,</span>
+        contentType: clip.mimeType ?? `audio/${extension}`,
         upsert: false,
     });
 &nbsp;
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (uploadError) {
-<span class="cstat-no" title="statement not covered" >        throw uploadError;</span>
+    if (uploadError) {
+        throw uploadError;
     }
 &nbsp;
     const { data } = supabase.storage.from(voiceIntroBucket).getPublicUrl(path);
@@ -222,18 +222,18 @@ export async function uploadCurrentUserVoiceIntro(clip: VoiceIntroClip) {
 }
 &nbsp;
 function resolveAudioExtension(mimeType: string | null | undefined) {
-    const normalized = mimeType?.trim().toLowerCase() ?? <span class="branch-1 cbranch-no" title="branch not covered" >'';</span>
+    const normalized = mimeType?.trim().toLowerCase() ?? '';
 &nbsp;
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (normalized.includes('mpeg') || normalized.includes('mp3')) {
-<span class="cstat-no" title="statement not covered" >        return 'mp3';</span>
+    if (normalized.includes('mpeg') || normalized.includes('mp3')) {
+        return 'mp3';
     }
 &nbsp;
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (normalized.includes('wav')) {
-<span class="cstat-no" title="statement not covered" >        return 'wav';</span>
+    if (normalized.includes('wav')) {
+        return 'wav';
     }
 &nbsp;
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (normalized.includes('aac')) {
-<span class="cstat-no" title="statement not covered" >        return 'aac';</span>
+    if (normalized.includes('aac')) {
+        return 'aac';
     }
 &nbsp;
     return 'm4a';
@@ -244,7 +244,7 @@ function resolveAudioExtension(mimeType: string | null | undefined) {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-28T13:38:26.749Z
+                at 2026-07-29T18:49:06.445Z
             </div>
         <script src="../prettify.js"></script>
         <script>

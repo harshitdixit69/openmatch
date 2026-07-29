@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">85% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>10/20</span>
+                <span class='fraction'>17/20</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">40.74% </span>
+                <span class="strong">70.37% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>11/27</span>
+                <span class='fraction'>19/27</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>3/6</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">66.66% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>10/15</span>
+                <span class='fraction'>15/15</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -222,7 +222,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -257,8 +257,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -272,20 +272,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -295,8 +285,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -377,7 +377,7 @@ export async function fetchNotifications(limit = <span class="branch-0 cbranch-n
 // ---------------------------------------------------------------------------
 export async function markNotificationRead(notificationId: string): Promise&lt;void&gt; {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (authErr || !user) <span class="cstat-no" title="statement not covered" >throw authErr ?? new Error('Not authenticated');</span>
+    if (authErr || !user) throw authErr ?? <span class="branch-1 cbranch-no" title="branch not covered" >new Error('Not authenticated');</span>
 &nbsp;
     const { error } = await supabase
         .from('notifications')
@@ -390,21 +390,21 @@ export async function markNotificationRead(notificationId: string): Promise&lt;v
 // ---------------------------------------------------------------------------
 // Mark all notifications as read
 // ---------------------------------------------------------------------------
-export async function <span class="fstat-no" title="function not covered" >markAllNotificationsRead(</span>): Promise&lt;void&gt; {
-    const { data: { user }, error: authErr } = <span class="cstat-no" title="statement not covered" >await supabase.auth.getUser();</span>
-<span class="cstat-no" title="statement not covered" >    if (authErr || !user) <span class="cstat-no" title="statement not covered" >throw authErr ?? new Error('Not authenticated');</span></span>
+export async function markAllNotificationsRead(): Promise&lt;void&gt; {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) throw authErr ?? new Error('Not authenticated');
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await supabase.rpc('mark_all_notifications_read', { p_user_id: user.id });</span>
+    await supabase.rpc('mark_all_notifications_read', { p_user_id: user.id });
 }
 &nbsp;
 // ---------------------------------------------------------------------------
 // Realtime subscription
 // ---------------------------------------------------------------------------
-export function <span class="fstat-no" title="function not covered" >subscribeToNotifications(</span>
+export function subscribeToNotifications(
     userId: string,
     onNew: (n: AppNotification) =&gt; void
 ): RealtimeChannel {
-<span class="cstat-no" title="statement not covered" >    return supabase</span>
+    return supabase
         .channel(`notifications:${userId}`)
         .on(
             'postgres_changes',
@@ -414,8 +414,8 @@ export function <span class="fstat-no" title="function not covered" >subscribeTo
                 table: 'notifications',
                 filter: `user_id=eq.${userId}`,
             },
-<span class="fstat-no" title="function not covered" >            (p</span>ayload) =&gt; {
-<span class="cstat-no" title="statement not covered" >                onNew(rowToNotification(payload.new as NotificationRow));</span>
+            (payload) =&gt; {
+                onNew(rowToNotification(payload.new as NotificationRow));
             }
         )
         .subscribe();
@@ -427,7 +427,7 @@ export function <span class="fstat-no" title="function not covered" >subscribeTo
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-28T13:38:26.667Z
+                at 2026-07-29T18:49:06.373Z
             </div>
         <script src="../prettify.js"></script>
         <script>
