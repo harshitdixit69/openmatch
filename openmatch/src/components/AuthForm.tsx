@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -15,8 +15,15 @@ import { useTheme } from '../lib/theme';
 
 type AuthStep = 'phone-input' | 'otp-verify' | 'email-fallback';
 
+// H2 FIX: OTP rate limiting constants
+const OTP_MAX_REQUESTS = 3;
+const OTP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
 export function AuthForm() {
     const [step, setStep] = useState<AuthStep>('phone-input');
+
+    // H2 FIX: Track OTP request timestamps for rate limiting
+    const otpRequestTimestamps = useRef<number[]>([]);
     const [selectedCountryCode, setSelectedCountryCode] = useState('+91');
     const [rawPhone, setRawPhone] = useState('');
     const [otpCode, setOtpCode] = useState('');
@@ -76,6 +83,23 @@ export function AuthForm() {
     // Step 1: Send Phone OTP via Supabase
     async function handleSendPhoneOtp() {
         if (!validatePhone()) return;
+
+        // H2 FIX: Client-side OTP rate limiting
+        const now = Date.now();
+        otpRequestTimestamps.current = otpRequestTimestamps.current.filter(
+            (t) => now - t < OTP_WINDOW_MS
+        );
+        if (otpRequestTimestamps.current.length >= OTP_MAX_REQUESTS) {
+            const remainingMs = OTP_WINDOW_MS - (now - otpRequestTimestamps.current[0]);
+            const remainingMin = Math.ceil(remainingMs / 60000);
+            const msg = `Too many OTP requests. Please try again in ${remainingMin} minute${remainingMin > 1 ? 's' : ''}.`;
+            setStatusType('error');
+            setStatusMessage(msg);
+            if (Platform.OS === 'web') alert(msg);
+            else Alert.alert('Rate Limit', msg);
+            return;
+        }
+        otpRequestTimestamps.current.push(now);
 
         const formattedPhone = getFormattedPhone();
         setLoading(true);

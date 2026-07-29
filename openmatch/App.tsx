@@ -13,6 +13,7 @@ import { AuthScreen } from './src/screens/AuthScreen';
 import { MainTabsScreen } from './src/screens/MainTabsScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ThemeProvider } from './src/lib/theme';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -49,13 +50,10 @@ export default function App() {
     async function bootstrap() {
       console.log('[DEBUG] App bootstrap started...');
       try {
-        console.log('[DEBUG] Requesting auth session with 1.5s timeout...');
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<any>((_, reject) =>
-          setTimeout(() => reject(new Error('Auth session request timed out')), 1500)
-        );
-
-        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        // H15 FIX: Removed hardcoded 1500ms timeout that caused false logouts
+        // on slow networks. We now await getSession() without a race condition.
+        // The onAuthStateChange listener below handles subsequent auth updates.
+        const { data, error } = await supabase.auth.getSession();
         console.log('[DEBUG] Auth session request finished. Session user:', data?.session?.user?.id ?? 'none', 'Error:', error);
 
         if (error) {
@@ -95,10 +93,12 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <ThemeProvider>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#11313c" />
-            <StatusBar style="auto" />
-          </View>
+          <ErrorBoundary>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#11313c" />
+              <StatusBar style="auto" />
+            </View>
+          </ErrorBoundary>
         </ThemeProvider>
       </SafeAreaProvider>
     );
@@ -107,8 +107,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        {!session ? <AuthScreen /> : hasCompletedProfile ? <MainTabsScreen /> : <OnboardingScreen onComplete={() => setHasCompletedProfile(true)} />}
-        <StatusBar style="auto" />
+        <ErrorBoundary>
+          {!session ? <AuthScreen /> : hasCompletedProfile ? <MainTabsScreen /> : <OnboardingScreen onComplete={() => setHasCompletedProfile(true)} />}
+          <StatusBar style="auto" />
+        </ErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
   );

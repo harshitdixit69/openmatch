@@ -40,38 +40,16 @@ serve(async (req) => {
       const newCredits = parseInt(metadata.unlockCredits || "0", 10);
       const newAiCalls = parseInt(metadata.aiCalls || "0", 10);
 
-      // Fetch the current profile to add credits, instead of just setting them,
-      // and determine if they already have an active expiry.
-      const { data: profile, error: profileErr } = await supabaseAdmin
-        .from('profiles')
-        .select('subscription_expires_at, unlock_credits_remaining, ai_call_credits')
-        .eq('id', userId)
-        .single();
-
-      if (profileErr) {
-        console.error("Error fetching profile", profileErr);
-        return new Response("Error updating profile", { status: 500 });
-      }
-
-      let currentExpiry = profile.subscription_expires_at ? new Date(profile.subscription_expires_at) : new Date();
-      if (currentExpiry.getTime() < Date.now()) {
-        currentExpiry = new Date();
-      }
-
-      // Add the new months to the expiry date
-      currentExpiry.setMonth(currentExpiry.getMonth() + months);
-
-      const updatePayload = {
-        subscription_tier: tier,
-        subscription_expires_at: currentExpiry.toISOString(),
-        unlock_credits_remaining: (profile.unlock_credits_remaining || 0) + newCredits,
-        ai_call_credits: (profile.ai_call_credits || 0) + newAiCalls,
-      };
-
-      const { error: updateErr } = await supabaseAdmin
-        .from('profiles')
-        .update(updatePayload)
-        .eq('id', userId);
+      // H21 FIX: Use atomic SQL update to prevent race conditions
+      // Instead of read-then-write, we atomically increment credits
+      // and extend the subscription expiry in a single SQL statement.
+      const { error: updateErr } = await supabaseAdmin.rpc('atomic_process_subscription', {
+        p_user_id: userId,
+        p_tier: tier,
+        p_months: months,
+        p_new_credits: newCredits,
+        p_new_ai_calls: newAiCalls,
+      });
 
       if (updateErr) {
         console.error("Error updating profile", updateErr);

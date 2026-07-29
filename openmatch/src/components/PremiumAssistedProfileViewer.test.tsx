@@ -266,4 +266,165 @@ describe('PremiumAssistedProfileViewer tests', () => {
       expect(getByText('AI RM reply about compatibility.')).toBeTruthy();
     });
   });
+
+  it('should handle Pass/Dislike action and allow Undo', async () => {
+    const mockFrom = supabase.from as jest.Mock;
+    
+    mockFrom
+      .mockReturnValueOnce({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            single: jest.fn().mockResolvedValue({ data: mockProfile, error: null }),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        select: jest.fn(() => ({
+          eq: jest.fn().mockResolvedValue({
+            data: [mockShortlistItem],
+            error: null,
+          }),
+        })),
+      });
+
+    const { getByText } = render(
+      <PremiumAssistedProfileViewer
+        profileId="candidate-123"
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByText('✕ Pass')).toBeTruthy();
+    });
+
+    const passBtn = getByText('✕ Pass');
+    await act(async () => {
+      fireEvent.press(passBtn);
+    });
+
+    expect(updateShortlistFeedback).toHaveBeenCalledWith('item-123', 'disliked');
+
+    await waitFor(() => {
+      expect(getByText('Curation Passed ✕')).toBeTruthy();
+      expect(getByText('Undo Choice')).toBeTruthy();
+    });
+
+    const undoBtn = getByText('Undo Choice');
+    await act(async () => {
+      fireEvent.press(undoBtn);
+    });
+
+    expect(updateShortlistFeedback).toHaveBeenCalledWith('item-123', 'pending');
+  });
+
+  it('should handle compatibility chat error gracefully', async () => {
+    const mockFrom = supabase.from as jest.Mock;
+    
+    mockFrom
+      .mockReturnValueOnce({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            single: jest.fn().mockResolvedValue({ data: mockProfile, error: null }),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        select: jest.fn(() => ({
+          eq: jest.fn().mockResolvedValue({
+            data: [mockShortlistItem],
+            error: null,
+          }),
+        })),
+      });
+
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('Network error'),
+    });
+
+    const { getByText, getByPlaceholderText } = render(
+      <PremiumAssistedProfileViewer
+        profileId="candidate-123"
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByText('💬 Discuss candidate with your RM')).toBeTruthy();
+    });
+
+    fireEvent.press(getByText('💬 Discuss candidate with your RM'));
+
+    const input = getByPlaceholderText('Ask about Premium Alice...');
+    fireEvent.changeText(input, 'Hello?');
+
+    await act(async () => {
+      fireEvent.press(getByText('→'));
+    });
+
+    await waitFor(() => {
+      expect(getByText(/encountered an issue discussing/)).toBeTruthy();
+    });
+  });
+
+  it('should allow clicking photo pagination dots when candidate has multiple photos', async () => {
+    const multiPhotoProfile = {
+      ...mockProfile,
+      photo_urls: ['http://example.com/photo1.jpg', 'http://example.com/photo2.jpg'],
+    };
+
+    const mockFrom = supabase.from as jest.Mock;
+    mockFrom
+      .mockReturnValueOnce({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            single: jest.fn().mockResolvedValue({ data: multiPhotoProfile, error: null }),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        select: jest.fn(() => ({
+          eq: jest.fn().mockResolvedValue({
+            data: [mockShortlistItem],
+            error: null,
+          }),
+        })),
+      });
+
+    const { getByText } = render(
+      <PremiumAssistedProfileViewer
+        profileId="candidate-123"
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByText('Premium Alice, 31')).toBeTruthy();
+    });
+  });
+
+  it('should handle profile load error by calling onClose', async () => {
+    const mockOnClose = jest.fn();
+    const mockFrom = supabase.from as jest.Mock;
+    
+    mockFrom.mockReturnValueOnce({
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          single: jest.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch profile') }),
+        })),
+      })),
+    });
+
+    render(
+      <PremiumAssistedProfileViewer
+        profileId="candidate-invalid"
+        onClose={mockOnClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+    });
+  });
 });

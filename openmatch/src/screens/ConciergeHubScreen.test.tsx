@@ -298,4 +298,89 @@ describe('ConciergeHubScreen component tests', () => {
       expect(getByText('Liked 💖')).toBeTruthy();
     });
   });
+
+  it('should render OUTREACH_IN_PROGRESS state card', async () => {
+    (fetchConciergeSession as jest.Mock).mockResolvedValue({
+      id: 'session-123',
+      status: 'OUTREACH_IN_PROGRESS',
+    });
+
+    const { getByText } = render(
+      <ConciergeHubScreen
+        viewerProfile={mockProfile}
+        onViewProfile={mockOnViewProfile}
+        onSignOut={mockOnSignOut}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByText('Broker Outreach Active')).toBeTruthy();
+      expect(getByText('Outreach Call In Progress')).toBeTruthy();
+    });
+  });
+
+  it('should render AWAITING_HANDSHAKE state and respond to buttons', async () => {
+    (fetchConciergeSession as jest.Mock).mockResolvedValue({
+      id: 'session-123',
+      status: 'AWAITING_HANDSHAKE',
+    });
+
+    const mockOnOpenChat = jest.fn();
+
+    const { getByText } = render(
+      <ConciergeHubScreen
+        viewerProfile={mockProfile}
+        onViewProfile={mockOnViewProfile}
+        onSignOut={mockOnSignOut}
+        onOpenChat={mockOnOpenChat}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByText("It's a Mutual Match!")).toBeTruthy();
+    });
+
+    fireEvent.press(getByText('💬 Open Chat'));
+    expect(mockOnOpenChat).toHaveBeenCalled();
+
+    fireEvent.press(getByText('Return to Shortlist'));
+    await waitFor(() => {
+      expect(getByText(/Shortlist|Matches/i)).toBeTruthy();
+    });
+  });
+
+  it('should navigate to Profile tab and handle View Profile / Sign Out', async () => {
+    (fetchConciergeSession as jest.Mock).mockResolvedValue({
+      id: 'session-123',
+      status: 'SHORTLIST_READY',
+    });
+    (fetchAssistedShortlist as jest.Mock).mockResolvedValue([]);
+
+    const { getByText, getAllByText } = render(
+      <ConciergeHubScreen
+        viewerProfile={mockProfile}
+        onViewProfile={mockOnViewProfile}
+        onSignOut={mockOnSignOut}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getByText('Profile')).toBeTruthy();
+    });
+
+    fireEvent.press(getByText('Profile'));
+
+    await waitFor(() => {
+      expect(getByText('Test Harshit')).toBeTruthy();
+      expect(getByText('View Full Profile')).toBeTruthy();
+      expect(getAllByText('Sign Out').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.press(getByText('View Full Profile'));
+    expect(mockOnViewProfile).toHaveBeenCalledWith('test-user-id');
+
+    const signOutBtns = getAllByText('Sign Out');
+    fireEvent.press(signOutBtns[0]);
+    expect(mockOnSignOut).toHaveBeenCalled();
+  });
 });

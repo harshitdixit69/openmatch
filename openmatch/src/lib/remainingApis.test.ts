@@ -6,10 +6,13 @@ import {
 import {
   fetchNotifications,
   markNotificationRead,
+  markAllNotificationsRead,
+  subscribeToNotifications,
 } from './notificationsApi';
 import {
   fetchPartnerPreferences,
   upsertPartnerPreferences,
+  fetchFilteredMatches,
 } from './partnerPreferencesApi';
 import {
   fetchProfileViewers,
@@ -162,6 +165,73 @@ describe('OpenMatch Core Library API Tests', () => {
 
       expect(supabase.from).toHaveBeenCalledWith('notifications');
     });
+
+    it('markNotificationRead should throw when unauthenticated', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: new Error('Auth error'),
+      });
+
+      await expect(markNotificationRead('n-1')).rejects.toThrow('Auth error');
+    });
+
+    it('markAllNotificationsRead should invoke rpc mark_all_notifications_read', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'user-123' } },
+        error: null,
+      });
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
+
+      await markAllNotificationsRead();
+
+      expect(supabase.rpc).toHaveBeenCalledWith('mark_all_notifications_read', { p_user_id: 'user-123' });
+    });
+
+    it('markAllNotificationsRead should throw when unauthenticated', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+
+      await expect(markAllNotificationsRead()).rejects.toThrow('Not authenticated');
+    });
+
+    it('subscribeToNotifications should subscribe to channel and execute callback on INSERT', () => {
+      let payloadHandler: Function = () => {};
+      const mockChannel = {
+        on: jest.fn().mockImplementation((_event: any, _filter: any, callback: Function) => {
+          payloadHandler = callback;
+          return mockChannel;
+        }),
+        subscribe: jest.fn(),
+      };
+      (supabase.channel as jest.Mock) = jest.fn().mockReturnValue(mockChannel);
+
+      const onNewMock = jest.fn();
+      subscribeToNotifications('user-123', onNewMock);
+
+      expect(supabase.channel).toHaveBeenCalledWith('notifications:user-123');
+
+      // Simulate payload
+      payloadHandler({
+        new: {
+          id: 'n-99',
+          user_id: 'user-123',
+          type: 'new_match',
+          title: 'New Match!',
+          body: 'You matched',
+          metadata: null,
+          is_read: false,
+          created_at: '2026-07-29T00:00:00Z',
+        },
+      });
+
+      expect(onNewMock).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'n-99',
+        type: 'new_match',
+        title: 'New Match!',
+      }));
+    });
   });
 
   // --- partnerPreferencesApi tests ---
@@ -198,6 +268,64 @@ describe('OpenMatch Core Library API Tests', () => {
 
       expect(supabase.from).toHaveBeenCalledWith('profiles');
     });
+
+    it('fetchPartnerPreferences should return null when user is unauthenticated or query fails', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+      expect(await fetchPartnerPreferences()).toBeNull();
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'u1' } },
+        error: null,
+      });
+      const mockQuery = makeChainableMock(null, new Error('DB error'));
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+      expect(await fetchPartnerPreferences()).toBeNull();
+    });
+
+    it('upsertPartnerPreferences should throw when unauthenticated or update fails', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+      await expect(upsertPartnerPreferences({})).rejects.toThrow('Not authenticated');
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'u1' } },
+        error: null,
+      });
+      const mockQuery = makeChainableMock(null, new Error('Update failed'));
+      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+      await expect(upsertPartnerPreferences({})).rejects.toThrow('Update failed');
+    });
+
+    it('fetchFilteredMatches should pass overrides to match_profiles RPC', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'u1' } },
+        error: null,
+      });
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: [{ id: 'p1' }], error: null });
+
+      const result = await fetchFilteredMatches({ pref_religion: ['Hindu'], result_limit: 20 });
+      expect(supabase.rpc).toHaveBeenCalledWith('match_profiles', expect.objectContaining({
+        result_limit: 20,
+        p_viewer_id: 'u1',
+        p_religion: ['Hindu'],
+      }));
+      expect(result).toEqual([{ id: 'p1' }]);
+    });
+
+    it('fetchFilteredMatches should handle error when RPC fails', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: new Error('RPC error') });
+
+      await expect(fetchFilteredMatches({})).rejects.toThrow('RPC error');
+    });
   });
 
   // --- profileViewsApi tests ---
@@ -224,20 +352,70 @@ describe('OpenMatch Core Library API Tests', () => {
       (supabase.rpc as jest.Mock).mockResolvedValue({
         data: [
           { viewer_id: 'viewer-abc', viewed_at: '2026-07-19T00:00:00Z' },
+          { viewer_id: 'viewer-xyz', viewed_at: '2026-07-20T00:00:00Z' },
         ],
         error: null,
       });
 
-      const mockQuery = makeChainableMock([]);
-      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+      // Mock user_blocks check returning a block where user-123 is blocked_id
+      const mockBlockQuery = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockResolvedValue({
+          data: [{ blocker_id: 'viewer-abc', blocked_id: 'user-123' }],
+        }),
+      };
+
+      // Mock profiles check returning viewer-xyz profile
+      const mockProfilesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({
+          data: [
+            { id: 'viewer-xyz', full_name: 'XYZ User', photo_urls: ['p.jpg'], location: 'Delhi', bio: 'Bio', dob: '1998-01-01' },
+          ],
+          error: null,
+        }),
+      };
+
+      (supabase.from as jest.Mock)
+        .mockReturnValueOnce(mockBlockQuery)
+        .mockReturnValueOnce(mockProfilesQuery);
 
       const result = await fetchProfileViewers();
 
-      expect(supabase.rpc).toHaveBeenCalledWith('get_profile_viewers', {
-        p_viewed_id: 'user-123',
-        p_limit: 50,
+      expect(result).toHaveLength(1);
+      expect(result[0].viewerId).toBe('viewer-xyz');
+      expect(result[0].fullName).toBe('XYZ User');
+    });
+
+    it('recordProfileView should return early if unauthenticated or viewing self', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
       });
-      expect(result).toHaveLength(0);
+      await recordProfileView('p1');
+      expect(supabase.rpc).not.toHaveBeenCalled();
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'self-id' } },
+        error: null,
+      });
+      await recordProfileView('self-id');
+      expect(supabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it('fetchProfileViewers should throw error when unauthenticated or RPC fails', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+      await expect(fetchProfileViewers()).rejects.toThrow('Not authenticated');
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'u1' } },
+        error: null,
+      });
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: new Error('RPC failure') });
+      await expect(fetchProfileViewers()).rejects.toThrow('RPC failure');
     });
   });
 
@@ -312,6 +490,54 @@ describe('OpenMatch Core Library API Tests', () => {
 
       expect(result).toBe('https://cdn/voice.m4a');
       expect(supabase.storage.from).toHaveBeenCalledWith('intent-voice-intros');
+    });
+
+    it('uploadCurrentUserVoiceIntro should handle mp3, mpeg, wav, and aac mime types', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'user-123' } },
+        error: null,
+      });
+
+      const mockUpload = jest.fn().mockResolvedValue({ error: null });
+      const mockGetPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn/voice.mp3' } });
+      (supabase.storage.from as jest.Mock).mockReturnValue({
+        upload: mockUpload,
+        getPublicUrl: mockGetPublicUrl,
+      });
+
+      global.fetch = jest.fn().mockResolvedValue({
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+      });
+
+      await uploadCurrentUserVoiceIntro({ uri: 'file://voice.mp3', durationSeconds: 10, mimeType: 'audio/mpeg' });
+      await uploadCurrentUserVoiceIntro({ uri: 'file://voice.wav', durationSeconds: 10, mimeType: 'audio/wav' });
+      await uploadCurrentUserVoiceIntro({ uri: 'file://voice.aac', durationSeconds: 10, mimeType: 'audio/aac' });
+
+      expect(mockUpload).toHaveBeenCalledTimes(3);
+    });
+
+    it('uploadCurrentUserVoiceIntro should throw on auth error, null user, or upload error', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: new Error('Auth err'),
+      });
+      await expect(uploadCurrentUserVoiceIntro({ uri: 'file://v.m4a', durationSeconds: 5 })).rejects.toThrow('Auth err');
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+      await expect(uploadCurrentUserVoiceIntro({ uri: 'file://v.m4a', durationSeconds: 5 })).rejects.toThrow('You must be signed in to upload a voice intro.');
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'u1' } },
+        error: null,
+      });
+      (supabase.storage.from as jest.Mock).mockReturnValue({
+        upload: jest.fn().mockResolvedValue({ error: new Error('Upload fail') }),
+        getPublicUrl: jest.fn(),
+      });
+      await expect(uploadCurrentUserVoiceIntro({ uri: 'file://v.m4a', durationSeconds: 5 })).rejects.toThrow('Upload fail');
     });
   });
 

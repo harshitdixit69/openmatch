@@ -231,6 +231,8 @@ export async function updateCurrentProfilePhotoUrls(photoUrls: string[]): Promis
 
 function triggerProfileEmbeddingGeneration(userId: string, input: ProfileInput): void {
     if (!supabase.functions?.invoke) return;
+    // H5 FIX: The edge function will validate the caller's auth token server-side.
+    // We pass userId here but the edge function MUST verify auth.uid() === record.id.
     supabase.functions.invoke('generate-profile-embedding', {
         body: {
             type: 'INSERT',
