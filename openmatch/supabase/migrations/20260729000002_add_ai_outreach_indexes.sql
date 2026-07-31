@@ -7,5 +7,5 @@ CREATE INDEX IF NOT EXISTS idx_ai_outreach_logs_candidate_id
 CREATE INDEX IF NOT EXISTS idx_ai_outreach_logs_requested_by
     ON ai_outreach_logs (requested_by);
 
-CREATE INDEX IF NOT EXISTS idx_ai_outreach_logs_status
-    ON ai_outreach_logs (status);
+CREATE INDEX IF NOT EXISTS idx_ai_outreach_logs_call_status
+    ON ai_outreach_logs (call_status);
