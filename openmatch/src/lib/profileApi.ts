@@ -554,6 +554,20 @@ export async function isUserBlocked(otherUserId: string): Promise<boolean> {
 
 // ─── Gemini Vision AI Multimodal Identity Verification Engine ──────────────
 
+async function fetchUrlAsBase64(url: string): Promise<string> {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1] || result;
+            resolve(base64);
+        };
+        reader.onerror = reject;
+    });
+}
+
 async function performGeminiVisionVerification(
     idPhotoUrl: string,
     selfiePhotoUrl: string,
@@ -567,20 +581,24 @@ async function performGeminiVisionVerification(
     extractedDob?: string;
     reason: string;
 }> {
+    // 1. Fetch images and convert to Base64 inline_data parts for Gemini Vision
+    const idBase64 = await fetchUrlAsBase64(idPhotoUrl);
+    const selfieBase64 = await fetchUrlAsBase64(selfiePhotoUrl);
+
     const promptText = `
 You are an AI Identity & Security Auditor for OpenMatch matrimonial app in India.
-Analyze the two image URLs provided:
-1. ID Photo URL: ${idPhotoUrl}
-2. Selfie Photo URL: ${selfiePhotoUrl}
+You are given TWO images:
+- Image 1 (First inline image): Supposed to be a Indian Government ID card (Aadhaar Card, PAN Card, Driving License, Passport, or Voter ID).
+- Image 2 (Second inline image): Supposed to be a Live Selfie photo of the candidate.
 
 Candidate Expected Full Name: "${expectedName}"
 Candidate Expected DOB: "${expectedDob}"
 
 Perform the following 4 strict checks:
-1. Confirm if Image 1 is a valid Indian Government ID card (Aadhaar, PAN Card, Driving License, Passport, Voter ID).
-2. Extract the Name and Date of Birth printed on the ID document.
+1. Confirm if Image 1 is a valid, readable Indian Government ID card (Aadhaar, PAN Card, Driving License, Passport, Voter ID). If it is a random picture (cat, landscape, blank, non-ID photo), set "isValidGovtId": false.
+2. Extract the Name and Date of Birth printed on the ID document in Image 1.
 3. Compare the extracted name on the document with "${expectedName}" (allow minor spelling/middle name variations).
-4. Perform facial biometric comparison between the face photo on the ID card and the live selfie in Image 2.
+4. Perform facial biometric comparison between the face photo on the ID card (Image 1) and the selfie photo (Image 2).
 
 Return ONLY a valid JSON object matching this schema:
 {
@@ -603,6 +621,8 @@ Return ONLY a valid JSON object matching this schema:
             contents: [
                 {
                     parts: [
+                        { inline_data: { mime_type: 'image/jpeg', data: idBase64 } },
+                        { inline_data: { mime_type: 'image/jpeg', data: selfieBase64 } },
                         { text: promptText },
                     ],
                 },
@@ -631,7 +651,7 @@ Return ONLY a valid JSON object matching this schema:
 
     return {
         status: isApproved ? 'approved' : 'rejected',
-        similarityScore: parsed.confidenceScore ?? (isApproved ? 92 : 45),
+        similarityScore: parsed.confidenceScore ?? (isApproved ? 92 : 25),
         extractedName: parsed.extractedName,
         extractedDob: parsed.extractedDob,
         reason: parsed.reason || (isApproved ? 'Identity verified successfully by AI Vision.' : 'Verification failed AI security checks.'),
