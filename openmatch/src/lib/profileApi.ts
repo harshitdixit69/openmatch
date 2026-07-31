@@ -346,12 +346,13 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
     const { data: selfieUrlData } = supabase.storage.from('profile-photos').getPublicUrl(selfiePath);
 
     // 3. Real AI Vision Verification Engine (Govt ID OCR + Facial Match + Profile Name Cross-check)
+    // Default to REJECTED by default (Strict Security Model)
     let verificationResult = {
-        status: 'approved' as 'approved' | 'rejected',
-        similarityScore: 94,
-        extractedName: profile?.full_name ?? undefined,
-        extractedDob: profile?.dob ?? undefined,
-        reason: 'Govt ID Document, Facial Biometric, and Name/DOB match candidate profile.',
+        status: 'rejected' as 'approved' | 'rejected',
+        similarityScore: 0,
+        extractedName: undefined as string | undefined,
+        extractedDob: undefined as string | undefined,
+        reason: 'AI Verification engine failed to analyze images. Please upload valid Govt ID and Selfie photos.',
     };
 
     // A) Try Supabase Edge Function first if deployed
@@ -366,18 +367,18 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
                     expectedDob: profile?.dob,
                 },
             });
-            if (!aiErr && aiData) {
+            if (!aiErr && aiData && aiData.verified !== undefined) {
                 verificationResult = {
                     status: aiData.verified ? 'approved' : 'rejected',
-                    similarityScore: aiData.confidenceScore ?? 90,
+                    similarityScore: aiData.confidenceScore ?? (aiData.verified ? 90 : 30),
                     extractedName: aiData.extractedName,
                     extractedDob: aiData.extractedDob,
-                    reason: aiData.reason,
+                    reason: aiData.reason || (aiData.verified ? 'Identity verified successfully.' : 'Verification failed security checks.'),
                 };
                 aiHandled = true;
             }
         } catch {
-            // Edge function fallback
+            // Edge function not available / 404
         }
     }
 
@@ -396,8 +397,12 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
                 verificationResult = aiAnalysis;
                 aiHandled = true;
             } catch (geminiErr) {
-                console.warn('[AI Verification] Gemini Vision call failed, using biometric fallback:', geminiErr);
+                console.warn('[AI Verification] Gemini Vision call failed:', geminiErr);
+                verificationResult.reason = 'AI Vision model error. Please check your image clarity or API key.';
             }
+        } else {
+            // If neither Edge Function nor Gemini API key is configured, reject with clear warning
+            verificationResult.reason = 'AI Verification Engine unavailable. Please configure EXPO_PUBLIC_GEMINI_API_KEY in your environment to enable live image reading.';
         }
     }
 
