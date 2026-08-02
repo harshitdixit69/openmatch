@@ -36,6 +36,44 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * Retell signs each webhook with HMAC-SHA256 over the raw request body, using
+ * your Retell API key as the secret, hex-encoded, in the `X-Retell-Signature`
+ * header (this mirrors the official `Retell.verify()` SDK helper).
+ *
+ * We accept the key from RETELL_API_KEY (preferred) or RETELL_WEBHOOK_SECRET.
+ */
+const RETELL_SIGNING_SECRET =
+    Deno.env.get('RETELL_API_KEY') || Deno.env.get('RETELL_WEBHOOK_SECRET') || '';
+
+/** Constant-time string comparison to avoid signature timing leaks. */
+function timingSafeEqual(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    let mismatch = 0;
+    for (let i = 0; i < a.length; i++) {
+        mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return mismatch === 0;
+}
+
+async function verifyRetellSignature(rawBody: string, signature: string | null): Promise<boolean> {
+    if (!signature) return false;
+    const key = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(RETELL_SIGNING_SECRET),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign'],
+    );
+    const macBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
+    const expected = Array.from(new Uint8Array(macBuffer))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+    // Retell sends the raw hex digest; tolerate an optional "sha256=" prefix.
+    const provided = signature.startsWith('sha256=') ? signature.slice('sha256='.length) : signature;
+    return timingSafeEqual(expected, provided.toLowerCase());
+}
+
 async function updateOutreachLogs(callId: string, metadata: any, updateFields: Record<string, any>) {
     // 1. Try updating by retell_call_id = call_id
     const { data: updatedById } = await supabase
@@ -63,8 +101,41 @@ serve(async (req: Request) => {
         });
     }
 
+    // Read the raw body once — required for signature verification (re-serializing
+    // parsed JSON would change bytes and break the HMAC).
+    const rawBody = await req.text();
+
+    // Fail closed: a missing signing secret is a misconfiguration, not a reason
+    // to accept unauthenticated webhooks that can fake call outcomes.
+    if (!RETELL_SIGNING_SECRET) {
+        console.error('RETELL_API_KEY / RETELL_WEBHOOK_SECRET is not configured; rejecting webhook.');
+        return new Response(JSON.stringify({ error: 'Webhook signing secret not configured' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    const signature =
+        req.headers.get('x-retell-signature') || req.headers.get('X-Retell-Signature');
+    const signatureValid = await verifyRetellSignature(rawBody, signature);
+    if (!signatureValid) {
+        console.error('Unauthorized webhook request: invalid or missing Retell signature.');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
     try {
-        const payload: RetellWebhookPayload = await req.json();
+        let payload: RetellWebhookPayload;
+        try {
+            payload = JSON.parse(rawBody) as RetellWebhookPayload;
+        } catch {
+            return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
         const { event, call } = payload;
 
         if (!call || !call.call_id) {
