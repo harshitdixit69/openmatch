@@ -306,6 +306,16 @@ export async function upsertCurrentProfile(input: ProfileInput): Promise<Profile
     ) as ProfileRecord;
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return typeof btoa !== 'undefined' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
+}
+
 export async function submitVerification(idPhotoUri: string, selfiePhotoUri: string): Promise<{
     status: 'approved' | 'rejected';
     similarityScore: number;
@@ -323,14 +333,18 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
         .eq('id', user.id)
         .maybeSingle();
 
-    // 1. Upload ID Photo & convert buffer to Base64 in memory
+    // 1. Upload ID Photo/Document & convert buffer to Base64 in memory
     const idRes = await fetch(idPhotoUri);
     const idBuffer = await idRes.arrayBuffer();
     const idBase64 = arrayBufferToBase64(idBuffer);
 
-    const idPath = `${user.id}/verification_id_${Date.now()}.jpg`;
+    const isPdf = idPhotoUri.toLowerCase().includes('.pdf') || idPhotoUri.startsWith('data:application/pdf');
+    const idContentType = isPdf ? 'application/pdf' : 'image/jpeg';
+    const idExtension = isPdf ? 'pdf' : 'jpg';
+
+    const idPath = `${user.id}/verification_id_${Date.now()}.${idExtension}`;
     const { error: idUploadErr } = await supabase.storage.from('profile-photos').upload(idPath, idBuffer, {
-        contentType: 'image/jpeg',
+        contentType: idContentType,
         upsert: true,
     });
     if (idUploadErr) throw idUploadErr;
@@ -349,7 +363,7 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
     if (selfieUploadErr) throw selfieUploadErr;
     const { data: selfieUrlData } = supabase.storage.from('profile-photos').getPublicUrl(selfiePath);
 
-    // 3. Real AI Vision Verification Engine (Govt ID OCR + Facial Match + Profile Name Cross-check)
+    // 3. Real AI Vision Verification Engine (Gemini 1.5 Flash Vision AI)
     let verificationResult = {
         status: 'rejected' as 'approved' | 'rejected',
         similarityScore: 0,
@@ -358,73 +372,35 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
         reason: 'AI Verification engine failed to analyze images. Please upload valid Govt ID and Selfie photos.',
     };
 
-    // A) Try Direct Client-side Gemini 1.5 Flash Vision AI Engine First
-    let aiHandled = false;
-    const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-
-    if (geminiApiKey) {
-        try {
-            const aiAnalysis = await performGeminiVisionVerification(
+    // NC1 FIX: Call the verify-identity-ai Edge Function (server-side) instead of
+    // calling Gemini directly from the client. This prevents API key exposure in the
+    // client bundle and avoids client-side rate limiting issues.
+    try {
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('verify-identity-ai', {
+            body: {
                 idBase64,
+                idMimeType: idContentType,
                 selfieBase64,
-                profile?.full_name ?? '',
-                profile?.dob ?? '',
-                geminiApiKey
-            );
-            verificationResult = aiAnalysis;
-            aiHandled = true;
-        } catch (geminiErr) {
-            console.warn('[AI Verification] Gemini Vision call failed:', geminiErr);
-            verificationResult.reason = 'AI Vision model error. Please check your image clarity or API key.';
-        }
-    }
+                selfieMimeType: 'image/jpeg',
+            },
+        });
 
-    // B) Try Supabase Edge Function as backup if deployed
-    if (!aiHandled && supabase.functions?.invoke) {
-        try {
-            const { data: aiData, error: aiErr } = await supabase.functions.invoke('verify-identity-ai', {
-                body: {
-                    idPhotoUrl: idUrlData.publicUrl,
-                    selfiePhotoUrl: selfieUrlData.publicUrl,
-                    expectedName: profile?.full_name,
-                    expectedDob: profile?.dob,
-                },
-            });
-            if (!aiErr && aiData && aiData.verified !== undefined) {
-                verificationResult = {
-                    status: aiData.verified ? 'approved' : 'rejected',
-                    similarityScore: aiData.confidenceScore ?? (aiData.verified ? 90 : 30),
-                    extractedName: aiData.extractedName,
-                    extractedDob: aiData.extractedDob,
-                    reason: aiData.reason || (aiData.verified ? 'Identity verified successfully.' : 'Verification failed security checks.'),
-                };
-                aiHandled = true;
-            }
-        } catch {
-            // Edge function not available / 404
+        if (fnError) {
+            console.warn('[AI Verification] Edge Function call failed:', fnError);
+            verificationResult.reason = fnError.message || 'AI verification service is temporarily unavailable.';
+        } else if (fnData) {
+            const isApproved = fnData.verified === true && (fnData.confidenceScore ?? 0) >= 80;
+            verificationResult = {
+                status: isApproved ? 'approved' : 'rejected',
+                similarityScore: fnData.confidenceScore ?? 0,
+                extractedName: fnData.extractedName,
+                extractedDob: fnData.extractedDob,
+                reason: fnData.reason || (isApproved ? 'Identity verified successfully by Gemini AI Vision.' : 'Verification failed AI security checks.'),
+            };
         }
-    }
-
-    if (!aiHandled) {
-        if (__DEV__) {
-            console.warn('[AI Verification] EXPO_PUBLIC_GEMINI_API_KEY not set in local .env. Running local dev AI analyzer...');
-            // In local development without API key, verify uploaded images (require non-empty photos)
-            const idValid = idUrlData?.publicUrl?.length > 10;
-            const selfieValid = selfieUrlData?.publicUrl?.length > 10;
-            if (idValid && selfieValid) {
-                verificationResult = {
-                    status: 'approved',
-                    similarityScore: 92,
-                    extractedName: profile?.full_name ?? undefined,
-                    extractedDob: profile?.dob ?? undefined,
-                    reason: '[Dev Mode] Identity verified via local AI analyzer. Configure EXPO_PUBLIC_GEMINI_API_KEY for live Gemini Vision.',
-                };
-            } else {
-                verificationResult.reason = '[Dev Mode] Uploaded photos were invalid or missing.';
-            }
-        } else {
-            verificationResult.reason = 'AI Verification Engine unavailable. Please configure EXPO_PUBLIC_GEMINI_API_KEY in your environment to enable live image reading.';
-        }
+    } catch (edgeFnErr: any) {
+        console.warn('[AI Verification] Edge Function error:', edgeFnErr);
+        verificationResult.reason = edgeFnErr?.message || 'AI verification service encountered an error.';
     }
 
     const finalStatus = verificationResult.status;
@@ -573,101 +549,7 @@ export async function isUserBlocked(otherUserId: string): Promise<boolean> {
     return Boolean(data);
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return typeof btoa !== 'undefined' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
-}
 
-async function performGeminiVisionVerification(
-    idBase64: string,
-    selfieBase64: string,
-    expectedName: string,
-    expectedDob: string,
-    apiKey: string
-): Promise<{
-    status: 'approved' | 'rejected';
-    similarityScore: number;
-    extractedName?: string;
-    extractedDob?: string;
-    reason: string;
-}> {
-    const promptText = `
-You are an AI Identity & Security Auditor for OpenMatch matrimonial app in India.
-You are given TWO images:
-- Image 1 (First inline image): Supposed to be a Indian Government ID card (Aadhaar Card, PAN Card, Driving License, Passport, or Voter ID).
-- Image 2 (Second inline image): Supposed to be a Live Selfie photo of the candidate.
-
-Candidate Expected Full Name: "${expectedName}"
-Candidate Expected DOB: "${expectedDob}"
-
-Perform the following 4 strict checks:
-1. Confirm if Image 1 is a valid, readable Indian Government ID card (Aadhaar, PAN Card, Driving License, Passport, Voter ID). If it is a random picture (cat, landscape, blank, non-ID photo), set "isValidGovtId": false.
-2. Extract the Name and Date of Birth printed on the ID document in Image 1.
-3. Compare the extracted name on the document with "${expectedName}" (allow minor spelling/middle name variations).
-4. Perform facial biometric comparison between the face photo on the ID card (Image 1) and the selfie photo (Image 2).
-
-Return ONLY a valid JSON object matching this schema:
-{
-  "isValidGovtId": boolean,
-  "docType": "Aadhaar" | "PAN" | "Passport" | "Driving License" | "Voter ID" | "Unknown",
-  "extractedName": string,
-  "extractedDob": string,
-  "nameMatches": boolean,
-  "faceMatches": boolean,
-  "confidenceScore": number (0-100),
-  "reason": "Clear explanation of verification outcome"
-}
-`;
-
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [
-                {
-                    parts: [
-                        { inline_data: { mime_type: 'image/jpeg', data: idBase64 } },
-                        { inline_data: { mime_type: 'image/jpeg', data: selfieBase64 } },
-                        { text: promptText },
-                    ],
-                },
-            ],
-            generationConfig: {
-                responseMimeType: 'application/json',
-                temperature: 0.1,
-            },
-        }),
-    });
-
-    if (!res.ok) {
-        throw new Error(`Gemini Vision API HTTP error ${res.status}`);
-    }
-
-    const resJson = await res.json();
-    const rawText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) throw new Error('Empty response from Gemini Vision model');
-
-    const parsed = JSON.parse(rawText);
-    const isApproved =
-        Boolean(parsed.isValidGovtId) &&
-        Boolean(parsed.nameMatches) &&
-        Boolean(parsed.faceMatches) &&
-        (parsed.confidenceScore ?? 0) >= 80;
-
-    return {
-        status: isApproved ? 'approved' : 'rejected',
-        similarityScore: parsed.confidenceScore ?? (isApproved ? 92 : 25),
-        extractedName: parsed.extractedName,
-        extractedDob: parsed.extractedDob,
-        reason: parsed.reason || (isApproved ? 'Identity verified successfully by AI Vision.' : 'Verification failed AI security checks.'),
-    };
-}
 
 export async function reportUser(reportedId: string, reason: ReportReason, description?: string): Promise<void> {
     const user = await getCurrentSessionUser();

@@ -53,4 +53,7 @@ supabase/.branches/
 # Test coverage reports (H6)
 coverage/
 
+# Temporary scratch scripts
+scratch_*.js
+
 dist/

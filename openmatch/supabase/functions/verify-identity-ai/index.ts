@@ -1,46 +1,23 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  try {
-    const { idPhotoUrl, selfiePhotoUrl, expectedName, expectedDob } = await req.json();
-
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('EXPO_PUBLIC_GEMINI_API_KEY');
-    if (!geminiApiKey) {
-      return new Response(
-        JSON.stringify({
-          verified: false,
-          confidenceScore: 0,
-          reason: 'GEMINI_API_KEY environment variable is not configured on Supabase Edge Function.',
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
-    }
-
-    const promptText = `
-You are an AI Identity & Security Auditor for OpenMatch matrimonial app in India.
-Analyze the two image URLs provided:
-1. ID Photo URL: ${idPhotoUrl}
-2. Selfie Photo URL: ${selfiePhotoUrl}
-
-Candidate Expected Full Name: "${expectedName || ''}"
-Candidate Expected DOB: "${expectedDob || ''}"
+const SYSTEM_INSTRUCTION = `You are an AI Identity & Security Auditor for OpenMatch, a professional Indian matrimonial app.
+You are given two images:
+1. A government-issued ID document (Aadhaar Card, PAN Card, Driving License, Passport, or Voter ID).
+2. A live selfie of the candidate.
 
 Perform the following 4 strict checks:
-1. Confirm if Image 1 is a valid Indian Government ID card (Aadhaar, PAN Card, Driving License, Passport, Voter ID).
-2. Extract the Name and Date of Birth printed on the ID document.
-3. Compare the extracted name on the document with "${expectedName || ''}" (allow minor spelling/middle name variations).
-4. Perform facial biometric comparison between the face photo on the ID card and the live selfie in Image 2.
+- Confirm Image 1 is a valid Indian Government ID document.
+- Extract the Name and Date of Birth from the ID.
+- Compare the face on the ID document with the face in the selfie.
+- Assess overall confidence in the identity match.
 
-Return ONLY a valid JSON object matching this schema:
+Return ONLY a valid JSON object:
 {
   "isValidGovtId": boolean,
   "docType": "Aadhaar" | "PAN" | "Passport" | "Driving License" | "Voter ID" | "Unknown",
@@ -49,77 +26,151 @@ Return ONLY a valid JSON object matching this schema:
   "nameMatches": boolean,
   "faceMatches": boolean,
   "confidenceScore": number (0-100),
-  "reason": "Clear explanation of verification outcome"
-}
-`;
+  "reason": string
+}`;
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: promptText }],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-        },
-      }),
+async function callGemini(model: string, apiKey: string, body: any) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  
+  if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error('RATE_LIMIT');
+    }
+    const errText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} ${errText}`);
+  }
+  
+  return response.json();
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      return new Response(
-        JSON.stringify({
-          verified: false,
-          confidenceScore: 0,
-          reason: `Gemini API HTTP Error ${res.status}: ${errText}`,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    const resJson = await res.json();
-    const rawText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      return new Response(
-        JSON.stringify({
-          verified: false,
-          confidenceScore: 0,
-          reason: 'AI Vision model returned an empty response.',
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+    const { idBase64, idMimeType, selfieBase64, selfieMimeType } = await req.json();
+    
+    if (!idBase64 || !selfieBase64) {
+       return new Response(JSON.stringify({ error: 'Missing image data' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    const parsed = JSON.parse(rawText);
-    const isApproved =
-      Boolean(parsed.isValidGovtId) &&
-      Boolean(parsed.nameMatches) &&
-      Boolean(parsed.faceMatches) &&
-      (parsed.confidenceScore ?? 0) >= 80;
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      return new Response(JSON.stringify({ error: 'Server configuration error (missing API key)' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-    return new Response(
-      JSON.stringify({
-        verified: isApproved,
-        confidenceScore: parsed.confidenceScore ?? (isApproved ? 92 : 30),
-        extractedName: parsed.extractedName,
-        extractedDob: parsed.extractedDob,
-        reason: parsed.reason || (isApproved ? 'Identity verified successfully by AI Vision.' : 'Verification failed AI security checks.'),
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    );
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({
-        verified: false,
-        confidenceScore: 0,
-        reason: `Server error during AI verification: ${err?.message || 'Unknown error'}`,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    const geminiReqBody = {
+      systemInstruction: {
+        parts: [{ text: SYSTEM_INSTRUCTION }]
+      },
+      contents: [{
+        parts: [
+          {
+            inlineData: {
+              mimeType: idMimeType || 'image/jpeg',
+              data: idBase64
+            }
+          },
+          {
+            inlineData: {
+              mimeType: selfieMimeType || 'image/jpeg',
+              data: selfieBase64
+            }
+          },
+          {
+            text: "Please verify the identity."
+          }
+        ]
+      }],
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
+    };
+
+    let geminiResponse;
+    try {
+      geminiResponse = await callGemini('gemini-2.0-flash', geminiApiKey, geminiReqBody);
+    } catch (e: any) {
+      if (e.message === 'RATE_LIMIT') {
+        return new Response(JSON.stringify({ error: 'AI rate limit exceeded. Please try again later.' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      console.warn('Falling back to gemini-2.5-flash after error:', e.message);
+      // Try fallback
+      try {
+        geminiResponse = await callGemini('gemini-2.5-flash', geminiApiKey, geminiReqBody);
+      } catch (fallbackError: any) {
+        if (fallbackError.message === 'RATE_LIMIT') {
+          return new Response(JSON.stringify({ error: 'AI rate limit exceeded. Please try again later.' }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        throw fallbackError;
+      }
+    }
+
+    const text = geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error("Invalid response from Gemini");
+    }
+
+    const result = JSON.parse(text);
+
+    // Keep the same response format for the client
+    const responsePayload = {
+      verified: Boolean(result.isValidGovtId) && Boolean(result.nameMatches) && Boolean(result.faceMatches) && (result.confidenceScore ?? 0) >= 80,
+      confidenceScore: result.confidenceScore || 0,
+      extractedName: result.extractedName || '',
+      extractedDob: result.extractedDob || '',
+      reason: result.reason || ''
+    };
+
+    return new Response(JSON.stringify(responsePayload), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error: any) {
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
-});
+})

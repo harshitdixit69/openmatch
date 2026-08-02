@@ -645,10 +645,12 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
 
             let matchRequestState: MatchRequestState = 'none';
             if (interestRequest) {
-                if (interestRequest.senderId === user.id) {
-                    matchRequestState = 'sent';
-                } else if (interestRequest.receiverId === user.id) {
-                    matchRequestState = 'received';
+                if (interestRequest.status === 'sent') {
+                    if (interestRequest.senderId === user.id) {
+                        matchRequestState = 'sent';
+                    } else if (interestRequest.receiverId === user.id) {
+                        matchRequestState = 'received';
+                    }
                 }
             } else if (match.status === 'pending') {
                 if (firstMessageSenderId === user.id) {

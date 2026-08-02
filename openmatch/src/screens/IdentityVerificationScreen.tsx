@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '../components/BackButton';
-import { pickProfilePhotoFromLibrary } from '../lib/profilePhotoApi';
+import { pickGovtIdDocument, pickProfilePhotoFromLibrary } from '../lib/profilePhotoApi';
 import { submitVerification } from '../lib/profileApi';
 
 interface Props {
@@ -24,14 +24,17 @@ interface Props {
 export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
     const insets = useSafeAreaInsets();
     const [idPhotoUri, setIdPhotoUri] = useState<string | null>(null);
+    const [idIsPdf, setIdIsPdf] = useState(false);
     const [selfiePhotoUri, setSelfiePhotoUri] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     async function handlePickID() {
         try {
-            const photo = await pickProfilePhotoFromLibrary();
-            if (photo?.uri) {
-                setIdPhotoUri(photo.uri);
+            const doc = await pickGovtIdDocument();
+            if (doc?.uri) {
+                setIdPhotoUri(doc.uri);
+                const isPdf = doc.mimeType === 'application/pdf' || doc.fileName?.toLowerCase().endsWith('.pdf') || doc.uri.toLowerCase().includes('.pdf');
+                setIdIsPdf(Boolean(isPdf));
             }
         } catch (err: any) {
             console.error('Failed to select ID photo:', err);
@@ -57,33 +60,40 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
         setSubmitting(true);
         setAiScanStep('ocr');
 
-        // Step 1: Scan Govt ID
-        setTimeout(() => setAiScanStep('face'), 800);
-        // Step 2: Facial Recognition
-        setTimeout(() => setAiScanStep('data'), 1600);
+        const t1 = setTimeout(() => setAiScanStep('face'), 600);
+        const t2 = setTimeout(() => setAiScanStep('data'), 1200);
 
         try {
             const result = await submitVerification(idPhotoUri, selfiePhotoUri);
+            clearTimeout(t1);
+            clearTimeout(t2);
             setSubmitting(false);
 
-            if (result.status === 'approved') {
-                const msg = `AI Identity Verification Successful! ✅\n\n• Document Confidence: ${result.similarityScore.toFixed(0)}%\n• Facial Recognition Match: Confirmed\n• Verified Badge (✅) is now active on your profile.`;
-                if (Platform.OS === 'web') alert(msg);
-                else Alert.alert('Identity Verified! 🎉', msg);
-                onCompleted('verified');
-            } else {
-                const msg = result.reason || 'Verification could not confirm identity match. Please upload clearer photos.';
-                if (Platform.OS === 'web') alert(msg);
-                else Alert.alert('Verification Failed', msg);
-                onCompleted('rejected');
-            }
+            // Allow React to paint the UI (hiding spinner) before showing blocking browser alert
+            setTimeout(() => {
+                if (result.status === 'approved') {
+                    const msg = `AI Identity Verification Successful! ✅\n\n• Document Confidence: ${result.similarityScore.toFixed(0)}%\n• Facial Recognition Match: Confirmed\n• Verified Badge (✅) is now active on your profile.`;
+                    if (Platform.OS === 'web') alert(msg);
+                    else Alert.alert('Identity Verified! 🎉', msg);
+                    onCompleted('verified');
+                } else {
+                    const msg = result.reason || 'Verification could not confirm identity match. Please upload clearer photos.';
+                    if (Platform.OS === 'web') alert(msg);
+                    else Alert.alert('Verification Failed', msg);
+                    onCompleted('rejected');
+                }
+            }, 100);
         } catch (err: any) {
-            console.error('Verification failed:', err);
+            clearTimeout(t1);
+            clearTimeout(t2);
             setSubmitting(false);
+            console.error('Verification failed:', err);
             const msg = err?.message || 'Verification upload failed. Please try again.';
-            if (Platform.OS === 'web') alert(msg);
-            else Alert.alert('Verification Error', msg);
-            onCompleted('rejected');
+            setTimeout(() => {
+                if (Platform.OS === 'web') alert(msg);
+                else Alert.alert('Verification Error', msg);
+                onCompleted('rejected');
+            }, 100);
         }
     }
 
@@ -110,7 +120,15 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                     >
                         {idPhotoUri ? (
                             <View style={styles.previewContainer}>
-                                <Image source={{ uri: idPhotoUri }} style={styles.previewImage} />
+                                {idIsPdf ? (
+                                    <View style={[styles.placeholderContainer, { backgroundColor: '#FFF5F5', height: '100%', justifyContent: 'center' }]}>
+                                        <Text style={{ fontSize: 36, marginBottom: 6 }}>📄</Text>
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: '#D9363E' }}>PDF Document Attached</Text>
+                                        <Text style={{ fontSize: 12, color: '#666666', marginTop: 2 }}>Official Aadhaar / PAN PDF</Text>
+                                    </View>
+                                ) : (
+                                    <Image source={{ uri: idPhotoUri }} style={styles.previewImage} resizeMode="cover" />
+                                )}
                                 <View style={styles.cardOverlay}>
                                     <Text style={styles.cardOverlayText}>Tap to Change ID</Text>
                                 </View>
@@ -118,8 +136,8 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                         ) : (
                             <View style={styles.placeholderContainer}>
                                 <Text style={styles.placeholderIcon}>🪪</Text>
-                                <Text style={styles.placeholderTitle}>Government ID Card</Text>
-                                <Text style={styles.placeholderSubtitle}>Aadhaar / PAN / Passport / DL</Text>
+                                <Text style={styles.placeholderTitle}>Government ID Document</Text>
+                                <Text style={styles.placeholderSubtitle}>Image (JPG, PNG) or PDF Document</Text>
                             </View>
                         )}
                     </Pressable>
@@ -131,7 +149,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                     >
                         {selfiePhotoUri ? (
                             <View style={styles.previewContainer}>
-                                <Image source={{ uri: selfiePhotoUri }} style={styles.previewImage} />
+                                <Image source={{ uri: selfiePhotoUri }} style={styles.previewImage} resizeMode="cover" />
                                 <View style={styles.cardOverlay}>
                                     <Text style={styles.cardOverlayText}>Tap to Change Selfie</Text>
                                 </View>
@@ -266,7 +284,6 @@ const styles = StyleSheet.create({
     previewImage: {
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
     },
     cardOverlay: {
         ...StyleSheet.absoluteFill,

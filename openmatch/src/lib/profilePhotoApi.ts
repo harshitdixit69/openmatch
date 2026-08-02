@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 
 import { supabase } from './supabase';
 
@@ -11,6 +12,39 @@ export type PickedProfilePhoto = {
     fileName: string | null;
     mimeType: string | null;
 };
+
+export async function pickGovtIdDocument(): Promise<PickedProfilePhoto | null> {
+    if (Platform.OS === 'web') {
+        return new Promise((resolve) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,application/pdf';
+            input.onchange = (e: any) => {
+                const file = e.target?.files?.[0];
+                if (!file) {
+                    resolve(null);
+                    return;
+                }
+                const uri = URL.createObjectURL(file);
+                const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+                resolve({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    uri,
+                    fileName: file.name ?? 'document.pdf',
+                    mimeType: isPdf ? 'application/pdf' : (file.type || 'image/jpeg'),
+                });
+            };
+            input.onerror = () => resolve(null);
+            input.click();
+        });
+    }
+
+    try {
+        return await pickProfilePhotoFromLibrary();
+    } catch {
+        return null;
+    }
+}
 
 export async function pickProfilePhotoFromLibrary(): Promise<PickedProfilePhoto | null> {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
