@@ -71,7 +71,9 @@ BEGIN
     NEW.super_interest_remaining := OLD.super_interest_remaining;
     NEW.spotlights_remaining     := OLD.spotlights_remaining;
     NEW.spotlight_active_until   := OLD.spotlight_active_until;
-    NEW.verification_status      := OLD.verification_status;
+    -- NOTE: verification_status / verification_id_url / verification_selfie_url are
+    -- locked separately by 20260803000100_harden_identity_verification.sql
+    -- (trg_prevent_client_verification_change) to avoid a redundant second revert here.
     RETURN NEW;
 END;
 $$;
