@@ -8,6 +8,24 @@ Priority key: 🔴 Critical · 🟡 Important · 🟢 Nice-to-have
 
 ## 🔴 Critical
 
+### 0. ✅ DONE (2026-08-04) — `profile_locations` was world-readable (privacy/safety leak)
+- [x] Black-box test with the **public anon key** (no login) dumped every user's exact
+      latitude/longitude from `profile_locations` — a stalking/scraping risk.
+- [x] Root cause: a **dashboard-created permissive policy** granted public SELECT (not in git).
+- [x] Fix (migrations `20260804000000` + `20260804000100`): enable RLS, dynamically drop ALL
+      existing policies, allow **own-row access only**. Geo matching unaffected (server-side RPCs).
+- [x] **Verified**: anon read now returns `[]`. Deployed to prod + pushed.
+- Note: the black-box test confirmed all other sensitive tables (contact details/phone,
+  messages, matches, payments, KYC attempts, reports) already return `[]` to anon. ✅
+
+### 0b. 🟡 OPEN — `profiles` is readable without login
+- [ ] The anon key returns full profile rows (name, DOB, city, bio) with **no user session**,
+      so the entire user base can be scraped via the public key. Consider restricting the
+      profiles SELECT policy to `TO authenticated` (browsing already happens logged-in).
+      Left open because it may be intentional (public share links) — confirm before changing.
+
+## 🔴 Critical
+
 ### 1. ✅ DONE — Remove duplicate / conflicting edge functions
 - [x] Deleted stale `openmatch/supabase/functions/` (broken `stripe-webhook` with mismatched
       metadata keys + old `create-subscription-checkout`, `retell-webhook-handler`).
