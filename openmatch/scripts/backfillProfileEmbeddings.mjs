@@ -65,6 +65,10 @@ for (const [index, profile] of candidates.entries()) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            // The Supabase Functions gateway requires a valid JWT. The service
+            // role key is accepted and also lets the function run privileged work.
+            'Authorization': `Bearer ${serviceRoleKey}`,
+            'apikey': serviceRoleKey,
         },
         body: JSON.stringify({
             type: 'INSERT',
