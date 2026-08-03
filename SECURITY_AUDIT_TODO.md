@@ -18,11 +18,11 @@ Priority key: 🔴 Critical · 🟡 Important · 🟢 Nice-to-have
 - Note: the black-box test confirmed all other sensitive tables (contact details/phone,
   messages, matches, payments, KYC attempts, reports) already return `[]` to anon. ✅
 
-### 0b. 🟡 OPEN — `profiles` is readable without login
-- [ ] The anon key returns full profile rows (name, DOB, city, bio) with **no user session**,
-      so the entire user base can be scraped via the public key. Consider restricting the
-      profiles SELECT policy to `TO authenticated` (browsing already happens logged-in).
-      Left open because it may be intentional (public share links) — confirm before changing.
+### 0b. ✅ DONE — `profiles` readable without login (scraping) — now locked
+- [x] The anon key returned full profile rows (name, DOB, city, bio) with no user session.
+- [x] Fix (migration `20260804000200`): recreated the same "read unless blocked" +
+      VIP/ASSISTED isolation policy but scoped `TO authenticated`. Verified anon now `[]`;
+      logged-in users unaffected (smoke test showed 89 profiles). Deployed + pushed.
 
 ## 🔴 Critical
 
