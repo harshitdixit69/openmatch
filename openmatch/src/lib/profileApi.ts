@@ -316,8 +316,19 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     return typeof btoa !== 'undefined' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
 }
 
+function mimeTypeForUri(uri: string): string {
+    const lower = uri.toLowerCase();
+    if (lower.includes('.pdf') || lower.startsWith('data:application/pdf')) return 'application/pdf';
+    if (lower.includes('.png') || lower.startsWith('data:image/png')) return 'image/png';
+    if (lower.includes('.heic') || lower.startsWith('data:image/heic')) return 'image/heic';
+    if (lower.includes('.webp') || lower.startsWith('data:image/webp')) return 'image/webp';
+    return 'image/jpeg';
+}
+
 export async function submitVerification(idPhotoUri: string, selfiePhotoUri: string): Promise<{
-    status: 'approved' | 'rejected';
+    // 'approved'/'rejected' are final; 'pending' means queued for manual review;
+    // 'error' means a transient failure (retry) and must NOT be treated as a rejection.
+    status: 'approved' | 'rejected' | 'pending' | 'error';
     similarityScore: number;
     extractedName?: string;
     extractedDob?: string;
@@ -326,110 +337,53 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) throw new Error('Unauthorized');
 
-    // Fetch candidate's current profile for data cross-checking
+    // Registered identity to cross-check the ID against (name/DOB match).
     const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, dob')
         .eq('id', user.id)
         .maybeSingle();
 
-    // 1. Upload ID Photo/Document & convert buffer to Base64 in memory
-    const idRes = await fetch(idPhotoUri);
-    const idBuffer = await idRes.arrayBuffer();
-    const idBase64 = arrayBufferToBase64(idBuffer);
+    // Convert both images to base64 in memory. We deliberately do NOT upload here:
+    // the Edge Function stores the raw KYC docs in a PRIVATE bucket using the service
+    // role, and is the ONLY path allowed to write the verification badge. This closes
+    // two holes: (1) client-forged 'verified' status, (2) govt IDs in a public bucket.
+    const idMimeType = mimeTypeForUri(idPhotoUri);
+    const selfieMimeType = mimeTypeForUri(selfiePhotoUri);
 
-    const isPdf = idPhotoUri.toLowerCase().includes('.pdf') || idPhotoUri.startsWith('data:application/pdf');
-    const idContentType = isPdf ? 'application/pdf' : 'image/jpeg';
-    const idExtension = isPdf ? 'pdf' : 'jpg';
+    const idBase64 = arrayBufferToBase64(await (await fetch(idPhotoUri)).arrayBuffer());
+    const selfieBase64 = arrayBufferToBase64(await (await fetch(selfiePhotoUri)).arrayBuffer());
 
-    const idPath = `${user.id}/verification_id_${Date.now()}.${idExtension}`;
-    const { error: idUploadErr } = await supabase.storage.from('profile-photos').upload(idPath, idBuffer, {
-        contentType: idContentType,
-        upsert: true,
+    // Server-side AI verification. The Edge Function performs the decision, persists the
+    // documents, logs the attempt, and writes verification_status with the service role.
+    const { data: fnData, error: fnError } = await supabase.functions.invoke('verify-identity-ai', {
+        body: {
+            idBase64,
+            idMimeType,
+            selfieBase64,
+            selfieMimeType,
+            fullName: profile?.full_name ?? null,
+            dob: profile?.dob ?? null,
+        },
     });
-    if (idUploadErr) throw idUploadErr;
-    const { data: idUrlData } = supabase.storage.from('profile-photos').getPublicUrl(idPath);
 
-    // 2. Upload Live Selfie & convert buffer to Base64 in memory
-    const selfieRes = await fetch(selfiePhotoUri);
-    const selfieBuffer = await selfieRes.arrayBuffer();
-    const selfieBase64 = arrayBufferToBase64(selfieBuffer);
+    if (fnError || !fnData) {
+        console.warn('[AI Verification] Edge Function call failed:', fnError);
+        return {
+            status: 'error',
+            similarityScore: 0,
+            reason: fnError?.message || 'AI verification service is temporarily unavailable. Please try again.',
+        };
+    }
 
-    const selfiePath = `${user.id}/verification_selfie_${Date.now()}.jpg`;
-    const { error: selfieUploadErr } = await supabase.storage.from('profile-photos').upload(selfiePath, selfieBuffer, {
-        contentType: 'image/jpeg',
-        upsert: true,
-    });
-    if (selfieUploadErr) throw selfieUploadErr;
-    const { data: selfieUrlData } = supabase.storage.from('profile-photos').getPublicUrl(selfiePath);
-
-    // 3. Real AI Vision Verification Engine (Gemini 1.5 Flash Vision AI)
-    let verificationResult = {
-        status: 'rejected' as 'approved' | 'rejected',
-        similarityScore: 0,
-        extractedName: undefined as string | undefined,
-        extractedDob: undefined as string | undefined,
-        reason: 'AI Verification engine failed to analyze images. Please upload valid Govt ID and Selfie photos.',
+    const status = (fnData.status as 'approved' | 'rejected' | 'pending' | 'error') ?? 'error';
+    return {
+        status,
+        similarityScore: fnData.confidenceScore ?? 0,
+        extractedName: fnData.extractedName,
+        extractedDob: fnData.extractedDob,
+        reason: fnData.reason,
     };
-
-    // NC1 FIX: Call the verify-identity-ai Edge Function (server-side) instead of
-    // calling Gemini directly from the client. This prevents API key exposure in the
-    // client bundle and avoids client-side rate limiting issues.
-    try {
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('verify-identity-ai', {
-            body: {
-                idBase64,
-                idMimeType: idContentType,
-                selfieBase64,
-                selfieMimeType: 'image/jpeg',
-            },
-        });
-
-        if (fnError) {
-            console.warn('[AI Verification] Edge Function call failed:', fnError);
-            verificationResult.reason = fnError.message || 'AI verification service is temporarily unavailable.';
-        } else if (fnData) {
-            const isApproved = fnData.verified === true && (fnData.confidenceScore ?? 0) >= 80;
-            verificationResult = {
-                status: isApproved ? 'approved' : 'rejected',
-                similarityScore: fnData.confidenceScore ?? 0,
-                extractedName: fnData.extractedName,
-                extractedDob: fnData.extractedDob,
-                reason: fnData.reason || (isApproved ? 'Identity verified successfully by Gemini AI Vision.' : 'Verification failed AI security checks.'),
-            };
-        }
-    } catch (edgeFnErr: any) {
-        console.warn('[AI Verification] Edge Function error:', edgeFnErr);
-        verificationResult.reason = edgeFnErr?.message || 'AI verification service encountered an error.';
-    }
-
-    const finalStatus = verificationResult.status;
-
-    // 4. Record verification attempt in database
-    const { error: attemptErr } = await supabase
-        .from('verification_attempts')
-        .insert({
-            user_id: user.id,
-            id_photo_url: idUrlData.publicUrl,
-            selfie_photo_url: selfieUrlData.publicUrl,
-            similarity_score: verificationResult.similarityScore,
-            status: finalStatus,
-        });
-    if (attemptErr) {
-        console.warn('Could not record verification attempt:', attemptErr);
-    }
-
-    // 5. Update user profile status
-    const { error: profileErr } = await supabase
-        .from('profiles')
-        .update({
-            verification_status: finalStatus === 'approved' ? 'verified' : 'rejected',
-        })
-        .eq('id', user.id);
-
-    if (profileErr) throw profileErr;
-
-    return verificationResult;
 }
 
 export function resolveCityToCoordinates(city: string): { latitude: number; longitude: number } {

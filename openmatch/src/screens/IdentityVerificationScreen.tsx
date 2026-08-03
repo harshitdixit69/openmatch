@@ -13,12 +13,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '../components/BackButton';
-import { pickGovtIdDocument, pickProfilePhotoFromLibrary } from '../lib/profilePhotoApi';
+import { captureLiveSelfie, pickGovtIdDocument } from '../lib/profilePhotoApi';
 import { submitVerification } from '../lib/profileApi';
 
 interface Props {
     onBack: () => void;
-    onCompleted: (status: 'verified' | 'rejected') => void;
+    onCompleted: (status: 'verified' | 'rejected' | 'pending') => void;
 }
 
 export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
@@ -43,12 +43,17 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
 
     async function handlePickSelfie() {
         try {
-            const photo = await pickProfilePhotoFromLibrary();
+            // Live camera capture (liveness-lite) — deliberately NOT a library picker, so users
+            // can't submit a downloaded photo of someone else.
+            const photo = await captureLiveSelfie();
             if (photo?.uri) {
                 setSelfiePhotoUri(photo.uri);
             }
         } catch (err: any) {
-            console.error('Failed to select selfie photo:', err);
+            console.error('Failed to capture selfie photo:', err);
+            const msg = err?.message || 'Could not open the camera. Please allow camera access and try again.';
+            if (Platform.OS === 'web') alert(msg);
+            else Alert.alert('Camera unavailable', msg);
         }
     }
 
@@ -67,19 +72,28 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
             const result = await submitVerification(idPhotoUri, selfiePhotoUri);
             clearTimeout(t1);
             clearTimeout(t2);
+            setAiScanStep('complete');
             setSubmitting(false);
 
             // Allow React to paint the UI (hiding spinner) before showing blocking browser alert
             setTimeout(() => {
+                const showAlert = (title: string, body: string) => {
+                    if (Platform.OS === 'web') alert(body);
+                    else Alert.alert(title, body);
+                };
+
                 if (result.status === 'approved') {
-                    const msg = `AI Identity Verification Successful! ✅\n\n• Document Confidence: ${result.similarityScore.toFixed(0)}%\n• Facial Recognition Match: Confirmed\n• Verified Badge (✅) is now active on your profile.`;
-                    if (Platform.OS === 'web') alert(msg);
-                    else Alert.alert('Identity Verified! 🎉', msg);
+                    showAlert('Identity Verified! 🎉', `AI Identity Verification Successful! ✅\n\n• Document Confidence: ${result.similarityScore.toFixed(0)}%\n• Facial Recognition Match: Confirmed\n• Verified Badge (✅) is now active on your profile.`);
                     onCompleted('verified');
+                } else if (result.status === 'pending') {
+                    showAlert('Verification Under Review', result.reason || 'Your documents look genuine but need a quick manual review. Your verified badge will appear once approved — no need to resubmit.');
+                    onCompleted('pending');
+                } else if (result.status === 'error') {
+                    // Transient failure — do NOT mark the user rejected. Let them retry.
+                    showAlert('Verification Unavailable', result.reason || 'The verification service is temporarily unavailable. Please try again in a moment.');
+                    // Intentionally no onCompleted() — status is unchanged so the user can retry.
                 } else {
-                    const msg = result.reason || 'Verification could not confirm identity match. Please upload clearer photos.';
-                    if (Platform.OS === 'web') alert(msg);
-                    else Alert.alert('Verification Failed', msg);
+                    showAlert('Verification Failed', result.reason || 'Verification could not confirm identity. Please upload a clearer Govt ID and capture a well-lit live selfie.');
                     onCompleted('rejected');
                 }
             }, 100);
@@ -88,11 +102,11 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
             clearTimeout(t2);
             setSubmitting(false);
             console.error('Verification failed:', err);
+            // Unexpected client/network error → treat as retryable, not a rejection.
             const msg = err?.message || 'Verification upload failed. Please try again.';
             setTimeout(() => {
                 if (Platform.OS === 'web') alert(msg);
                 else Alert.alert('Verification Error', msg);
-                onCompleted('rejected');
             }, 100);
         }
     }
@@ -158,7 +172,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                             <View style={styles.placeholderContainer}>
                                 <Text style={styles.placeholderIcon}>📸</Text>
                                 <Text style={styles.placeholderTitle}>Live Selfie</Text>
-                                <Text style={styles.placeholderSubtitle}>Clear front-facing photo</Text>
+                                <Text style={styles.placeholderSubtitle}>Tap to open camera</Text>
                             </View>
                         )}
                     </Pressable>

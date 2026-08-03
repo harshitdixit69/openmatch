@@ -46,6 +46,61 @@ export async function pickGovtIdDocument(): Promise<PickedProfilePhoto | null> {
     }
 }
 
+/**
+ * Capture a live selfie using the front camera (liveness-lite for identity verification).
+ * On web, falls back to the file picker with a camera capture hint. Forcing camera capture
+ * (instead of letting the user pick any library photo) makes it materially harder to submit
+ * a downloaded photo of someone else for verification.
+ */
+export async function captureLiveSelfie(): Promise<PickedProfilePhoto | null> {
+    if (Platform.OS === 'web') {
+        return new Promise((resolve) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.setAttribute('capture', 'user');
+            input.onchange = (e: any) => {
+                const file = e.target?.files?.[0];
+                if (!file) {
+                    resolve(null);
+                    return;
+                }
+                resolve({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    uri: URL.createObjectURL(file),
+                    fileName: file.name ?? 'selfie.jpg',
+                    mimeType: file.type || 'image/jpeg',
+                });
+            };
+            input.onerror = () => resolve(null);
+            input.click();
+        });
+    }
+
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+        throw new Error('Camera permission is required to capture a live selfie for verification.');
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+        cameraType: ImagePicker.CameraType.front,
+        allowsEditing: false,
+        quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+        return null;
+    }
+
+    const asset = result.assets[0];
+    return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        uri: asset.uri,
+        fileName: asset.fileName ?? null,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+    };
+}
+
 export async function pickProfilePhotoFromLibrary(): Promise<PickedProfilePhoto | null> {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
