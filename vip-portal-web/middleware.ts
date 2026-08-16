@@ -36,38 +36,60 @@ export async function middleware(request: NextRequest) {
   // Retrieve authenticated user session info
   const { data: { user } } = await supabase.auth.getUser()
 
+  const pathname = request.nextUrl.pathname
+  const isAdminRoute = pathname.startsWith('/admin')
+  const isDashboardRoute = pathname.startsWith('/dashboard')
+
   if (!user) {
-    // If attempting to access dashboard, redirect to sign-in page
-    if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    // Unauthenticated → redirect to login for protected routes
+    if (isDashboardRoute || isAdminRoute) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
     return response
   }
 
-  // Query authenticated profile's user_tier value
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('user_tier')
-    .eq('id', user.id)
-    .single()
+  // ── Admin route gate ──────────────────────────────────────────────
+  if (isAdminRoute) {
+    const { data: adminProfile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
 
-  const userTier = profile?.user_tier || 'BASIC'
-  const isVipRoute = request.nextUrl.pathname.startsWith('/dashboard/vip')
-
-  // Enforce dynamic, path-based route isolation
-  if (userTier === 'VIP' && !isVipRoute) {
-    // VIP user attempting standard route -> auto-redirect to premium portal
-    return NextResponse.redirect(new URL('/dashboard/vip', request.url))
+    if (!adminProfile?.is_admin) {
+      // Non-admin attempting admin route → kick to standard dashboard
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    // Admin user → allow through
+    return response
   }
 
-  if (userTier !== 'VIP' && isVipRoute) {
-    // Non-VIP attempting VIP route -> kick back to standard dashboard
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  // ── Dashboard route gate (existing VIP/Standard isolation) ────────
+  if (isDashboardRoute) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('user_tier')
+      .eq('id', user.id)
+      .single()
+
+    const userTier = profile?.user_tier || 'BASIC'
+    const isVipRoute = pathname.startsWith('/dashboard/vip')
+
+    // Enforce dynamic, path-based route isolation
+    if (userTier === 'VIP' && !isVipRoute) {
+      // VIP user attempting standard route -> auto-redirect to premium portal
+      return NextResponse.redirect(new URL('/dashboard/vip', request.url))
+    }
+
+    if (userTier !== 'VIP' && isVipRoute) {
+      // Non-VIP attempting VIP route -> kick back to standard dashboard
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return response
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/admin/:path*'],
 }
