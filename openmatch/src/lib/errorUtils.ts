@@ -182,7 +182,18 @@ export function getFriendlyErrorMessage(error: unknown, fallback = 'Something we
         return 'Camera or photo library permission is required. Please grant access in your device settings.';
     }
 
-    // 15. Clean user-provided validation strings that are already friendly
+    // 15. File / Upload Too Large
+    if (
+        lower.includes('exceeded the maximum allowed size') ||
+        lower.includes('maximum allowed size') ||
+        lower.includes('payload too large') ||
+        lower.includes('entity too large') ||
+        lower.includes('413')
+    ) {
+        return 'That photo is too large. Please choose a smaller image (under 5 MB) and try again.';
+    }
+
+    // 16. Clean user-provided validation strings that are already friendly
     if (
         rawMessage &&
         rawMessage.length < 150 &&

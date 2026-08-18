@@ -6,6 +6,70 @@ import { supabase } from './supabase';
 export const maxProfilePhotos = 4;
 const profilePhotosBucket = 'profile-photos';
 
+// Keep uploads comfortably under the Supabase Storage bucket file-size limit.
+const maxUploadDimension = 1600; // px on the longest edge
+const uploadJpegQuality = 0.82;
+
+/**
+ * Downscale/re-encode an image so it stays under the storage bucket size limit.
+ *
+ * On web we use a canvas to resize + re-encode to JPEG (the source of the
+ * "object exceeded the maximum allowed size" error, since browsers hand us the
+ * full-resolution original). On native we fall back to the already-fetched
+ * ArrayBuffer (expo-image-picker already applies `quality`).
+ */
+async function compressImageToArrayBuffer(uri: string, fallbackBuffer: ArrayBuffer): Promise<ArrayBuffer> {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') {
+        return fallbackBuffer;
+    }
+
+    try {
+        const dataUrl: string = await new Promise((resolve, reject) => {
+            const blob = new Blob([fallbackBuffer]);
+            const objectUrl = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const scale = Math.min(1, maxUploadDimension / Math.max(img.width, img.height));
+                    const width = Math.max(1, Math.round(img.width * scale));
+                    const height = Math.max(1, Math.round(img.height * scale));
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Canvas not supported'));
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', uploadJpegQuality));
+                } catch (err) {
+                    reject(err);
+                } finally {
+                    URL.revokeObjectURL(objectUrl);
+                }
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error('Failed to load image for compression'));
+            };
+            img.src = objectUrl;
+        });
+
+        const base64 = dataUrl.split(',')[1] ?? '';
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    } catch {
+        // If compression fails for any reason, fall back to the original bytes.
+        return fallbackBuffer;
+    }
+}
+
 export type PickedProfilePhoto = {
     id: string;
     uri: string;
@@ -150,12 +214,15 @@ export async function uploadCurrentUserProfilePhotos(photos: PickedProfilePhoto[
 
     for (const photo of photos) {
         const response = await fetch(photo.uri);
-        const arrayBuffer = await response.arrayBuffer();
-        const extension = resolveFileExtension(photo);
+        const originalBuffer = await response.arrayBuffer();
+        const arrayBuffer = await compressImageToArrayBuffer(photo.uri, originalBuffer);
+        const wasCompressed = arrayBuffer !== originalBuffer;
+        const extension = wasCompressed ? 'jpg' : resolveFileExtension(photo);
+        const contentType = wasCompressed ? 'image/jpeg' : photo.mimeType ?? `image/${extension}`;
         const path = `${user.id}/${Date.now()}-${photo.id}.${extension}`;
 
         const { error: uploadError } = await supabase.storage.from(profilePhotosBucket).upload(path, arrayBuffer, {
-            contentType: photo.mimeType ?? `image/${extension}`,
+            contentType,
             upsert: false,
         });
 
