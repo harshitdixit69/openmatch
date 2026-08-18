@@ -1,0 +1,35 @@
+{
+  "name": "openmatch-marketing-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone AI marketing automation agent for the OpenMatch app. Generates on-brand content, publishes via an aggregator, collects metrics, and runs owned-audience re-engagement.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "omkt": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "generate": "tsx src/index.ts generate",
+    "generate:dry": "tsx src/index.ts generate --dry-run",
+    "publish": "tsx src/index.ts publish",
+    "publish:dry": "tsx src/index.ts publish --dry-run",
+    "metrics": "tsx src/index.ts collect-metrics",
+    "lifecycle": "tsx src/index.ts lifecycle",
+    "db:push": "tsx src/scripts/applySchema.ts",
+    "test": "tsx --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "dotenv": "^16.4.5",
+    "openai": "^4.67.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}

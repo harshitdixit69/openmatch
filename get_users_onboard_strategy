@@ -1,0 +1,38 @@
+The math
+100 users in <del>28 days = **</del>4 signups/day**. Very doable with daily personal outreach + one focused community push. Reach matters less than density — 100 people in one city/community beats 100 scattered strangers.
+
+Week 1 — Foundation (don't skip)
+Pick ONE niche community. One city + one segment (e.g., "South Delhi professionals 25–32," or one college alumni network, or one profession). Matchmaking dies when the pool is empty/scattered.
+Ship the APK + web link (you're ready).
+Seed already done (89 profiles) so it doesn't feel dead — but tell early users honestly it's a beta so they set expectations.
+Add a feedback channel — a WhatsApp group or Google Form link in Settings. Early testers = gold.
+Personal invites first: DM 20–30 friends/contacts individually. Personal asks convert 5–10× better than public posts. Target ~15 signups from your own network in week 1.
+Week 2 — Community seeding
+Post in the ONE community where your niche hangs out:
+City/college WhatsApp & Telegram groups
+Relevant subreddits (r/india, r/delhi, city subs, r/india_dating)
+Instagram (a simple reel: "I built a matchmaking app, first 100 testers get X free")
+Peerlist / LinkedIn if targeting professionals
+Lead with a hook, not "please try my app": e.g., "No swiping, no ghosting — mutual-unlock matchmaking. Free for the first 100."
+Week 3 — Referral loop (your built-in advantage)
+You already have unlock credits / invite mechanics — repurpose them:
+
+"Invite 2 friends who complete a profile → get 5 free unlock credits."
+Each engaged user brings ~1–2 more. This is what turns 40 → 100.
+Week 4 — Push to 100 + retention
+Waitlist/landing page (reuse vip-portal-web) to collect emails, then drip-invite in batches so it feels exclusive ("you're invited off the waitlist").
+Manual matchmaking touch: DM active users "we found someone for you" — early hand-holding drives word of mouth.
+Product Hunt / Peerlist launch for a final spike if you want tech-crowd numbers.
+Daily habit (the real secret)
+10 personal DMs/day
+Reply to every piece of feedback within an hour
+Post in 1 new community every 2–3 days
+Track it (so you know what's working)
+Add lightweight analytics (PostHog free tier or even a Supabase query) to watch signups/day and profile-completion rate. If people sign up but don't complete profiles, fix onboarding before spending more on acquisition.
+
+What I can build for you right now to accelerate this
+A waitlist landing page in vip-portal-web (collect emails + "get early access").
+A referral/invite screen wired to your existing unlock credits.
+A simple analytics query/dashboard for signups & activation.
+An in-app feedback link in Settings.
+Which one should I start with? I'd suggest #4 (feedback link) + #1 (waitlist page) first — they're quick and directly help conversion.
