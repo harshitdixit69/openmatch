@@ -17,6 +17,7 @@ import { MatchCandidate } from '../lib/matchmaking';
 import { generateRequestReasons, submitInterestRequest } from '../lib/intentEscrowApi';
 import { GenerateRequestReasonsResult } from '../lib/intentEscrow';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
+import { showFriendlyAlert } from '../lib/errorUtils';
 import { BackButton } from './BackButton';
 
 type ConnectComposerSheetProps = {
@@ -144,8 +145,7 @@ export function ConnectComposerSheet({
             onSubmitted(candidate);
             onClose();
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Could not send this request.';
-            Alert.alert('Send failed', message);
+            showFriendlyAlert('Send Failed', error, 'Could not send this connection request. Please try again.');
         } finally {
             setSubmitPending(false);
         }

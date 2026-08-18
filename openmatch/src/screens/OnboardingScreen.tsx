@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '../components/BackButton';
+import { DatePickerField } from '../components/DatePickerField';
 import { runOnboardingCopilot } from '../lib/aiApi';
 import {
     getDefaultPartnerGenderPreference,
@@ -31,6 +32,7 @@ import {
     uploadCurrentUserProfilePhotos,
 } from '../lib/profilePhotoApi';
 import { upsertCurrentProfile, upsertCurrentProfileContactDetails } from '../lib/profileApi';
+import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { supabase } from '../lib/supabase';
 import { updateUserPresence } from '../lib/chatApi';
@@ -70,6 +72,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
@@ -82,6 +85,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
     async function handleVerifyPhone() {
         if (!phoneNumber.trim()) {
+            setErrors((prev) => ({ ...prev, phone: 'Please enter a phone number first.' }));
             Alert.alert('Error', 'Please enter a phone number first.');
             return;
         }
@@ -92,6 +96,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             );
             if (confirmed) {
                 setIsPhoneVerified(true);
+                setErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.phone;
+                    return n;
+                });
                 alert('Phone number verified successfully! ✅');
             }
             return;
@@ -106,6 +115,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     text: 'Verify',
                     onPress: () => {
                         setIsPhoneVerified(true);
+                        setErrors((prev) => {
+                            const n = { ...prev };
+                            delete n.phone;
+                            return n;
+                        });
                         Alert.alert('Verified', 'Phone number verified successfully! ✅');
                     }
                 }
@@ -141,6 +155,17 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
     const profileDisplayName = getDisplayFirstName(form.full_name);
 
+    function updateField<K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) {
+        setForm((current) => ({ ...current, [key]: value }));
+        if (errors[key as string]) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                delete next[key as string];
+                return next;
+            });
+        }
+    }
+
     const steps = [
         // STEP 0: Basics
         {
@@ -148,18 +173,18 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             description: 'Tell us who this profile is for, basic demographics, and location.',
             content: (
                 <>
-                    <Field label="Full Name *">
+                    <Field label="Full Name" required error={errors.full_name}>
                         <TextInput
                             placeholder="Aarav Sharma"
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                            style={[styles.input, errors.full_name && styles.inputError]}
                             value={form.full_name}
                             onChangeText={(value) => updateField('full_name', value)}
                         />
                     </Field>
 
-                    <Field label="Profile Managed By">
-                        <View style={styles.choiceRow}>
+                    <Field label="Profile Managed By" required error={errors.profile_owner}>
+                        <View style={[styles.choiceRow, errors.profile_owner && styles.choiceRowError]}>
                             {owners.map((owner) => (
                                 <Chip
                                     key={owner}
@@ -171,8 +196,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="I'm a *">
-                        <View style={styles.choiceRow}>
+                    <Field label="I'm a" required error={errors.gender}>
+                        <View style={[styles.choiceRow, errors.gender && styles.choiceRowError]}>
                             {profileGenders.map((gender) => (
                                 <Chip
                                     key={gender}
@@ -184,8 +209,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Looking for a *">
-                        <View style={styles.choiceRow}>
+                    <Field label="Looking for a" required error={errors.partner_gender_preference}>
+                        <View style={[styles.choiceRow, errors.partner_gender_preference && styles.choiceRowError]}>
                             {partnerGenderPreferences.map((preference) => (
                                 <Chip
                                     key={preference}
@@ -197,33 +222,34 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Date of Birth (YYYY-MM-DD) *">
-                        <TextInput
-                            placeholder="1997-08-14"
-                            placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                    <Field label="Date of Birth" required error={errors.dob}>
+                        <DatePickerField
                             value={form.dob}
-                            onChangeText={(value) => updateField('dob', value)}
+                            onChange={(value) => updateField('dob', value)}
+                            hasError={Boolean(errors.dob)}
+                            errorMessage={errors.dob}
+                            minAge={18}
+                            maxAge={100}
                         />
                     </Field>
 
-                    <Field label="Location (City, State) *">
+                    <Field label="Location (City, State)" required error={errors.location}>
                         <TextInput
                             placeholder="Pune, Maharashtra"
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                            style={[styles.input, errors.location && styles.inputError]}
                             value={form.location}
                             onChangeText={(value) => updateField('location', value)}
                         />
                     </Field>
 
-                    <Field label="Height (cm)">
+                    <Field label="Height (cm)" required error={errors.height_cm}>
                         <TextInput
                             keyboardType="number-pad"
                             placeholder="165"
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
-                            value={String(form.height_cm || '')}
+                            style={[styles.input, errors.height_cm && styles.inputError]}
+                            value={form.height_cm ? String(form.height_cm) : ''}
                             onChangeText={(value) => updateField('height_cm', Number(value || 0))}
                         />
                     </Field>
@@ -237,8 +263,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             description: 'Add clear photos and confirm your verified phone number.',
             content: (
                 <>
-                    <Field label="Profile Photos (At least 1 required) *">
-                        <View style={styles.photoGrid}>
+                    <Field label="Profile Photos (At least 1 required)" required error={errors.photos}>
+                        <View style={[styles.photoGrid, errors.photos && styles.photoGridError]}>
                             {selectedPhotos.map((photo) => (
                                 <View key={photo.id} style={styles.photoCard}>
                                     <Image source={{ uri: photo.uri }} style={styles.photoImage} />
@@ -270,18 +296,25 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </Text>
                     </Field>
 
-                    <Field label="Phone Number (Verified)">
+                    <Field label="Phone Number (Verified)" required error={errors.phone}>
                         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                             <TextInput
                                 keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                                 placeholder="+91 98765 43210"
                                 placeholderTextColor="#7b8d96"
-                                style={[styles.input, { flex: 1 }]}
+                                style={[styles.input, { flex: 1 }, errors.phone && styles.inputError]}
                                 value={phoneNumber}
                                 editable={!isPhoneVerified}
                                 onChangeText={(val) => {
                                     setPhoneNumber(val);
                                     setIsPhoneVerified(false);
+                                    if (errors.phone) {
+                                        setErrors((prev) => {
+                                            const n = { ...prev };
+                                            delete n.phone;
+                                            return n;
+                                        });
+                                    }
                                 }}
                             />
                             {isPhoneVerified ? (
@@ -297,14 +330,23 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="WhatsApp Number (Optional)">
+                    <Field label="WhatsApp Number" required error={errors.whatsapp}>
                         <TextInput
                             keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                             placeholder="+91 98765 43210"
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                            style={[styles.input, errors.whatsapp && styles.inputError]}
                             value={whatsappNumber}
-                            onChangeText={setWhatsappNumber}
+                            onChangeText={(val) => {
+                                setWhatsappNumber(val);
+                                if (errors.whatsapp) {
+                                    setErrors((prev) => {
+                                        const n = { ...prev };
+                                        delete n.whatsapp;
+                                        return n;
+                                    });
+                                }
+                            }}
                         />
                         <Text style={styles.helper}>Shared only after mutual escrow unlock.</Text>
                     </Field>
@@ -318,8 +360,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             description: 'Share your academic background, profession, and marital status.',
             content: (
                 <>
-                    <Field label="Religion">
-                        <View style={styles.choiceRowWrap}>
+                    <Field label="Religion" required error={errors.religion}>
+                        <View style={[styles.choiceRowWrap, errors.religion && styles.choiceRowError]}>
                             {RELIGIONS.map((rel) => (
                                 <Chip
                                     key={rel}
@@ -331,18 +373,18 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Mother Tongue">
+                    <Field label="Mother Tongue" required error={errors.mother_tongue}>
                         <TextInput
                             placeholder="Hindi, Punjabi, Marathi..."
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                            style={[styles.input, errors.mother_tongue && styles.inputError]}
                             value={form.mother_tongue || ''}
                             onChangeText={(value) => updateField('mother_tongue', value)}
                         />
                     </Field>
 
-                    <Field label="Education Level">
-                        <View style={styles.choiceRowWrap}>
+                    <Field label="Education Level" required error={errors.education}>
+                        <View style={[styles.choiceRowWrap, errors.education && styles.choiceRowError]}>
                             {EDUCATIONS.map((edu) => (
                                 <Chip
                                     key={edu}
@@ -354,28 +396,28 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Occupation / Designation">
+                    <Field label="Occupation / Designation" required error={errors.occupation}>
                         <TextInput
                             placeholder="Software Engineer, Business Owner, Doctor..."
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                            style={[styles.input, errors.occupation && styles.inputError]}
                             value={form.occupation || ''}
                             onChangeText={(value) => updateField('occupation', value)}
                         />
                     </Field>
 
-                    <Field label="Company / Employer Name">
+                    <Field label="Company / Employer Name" required error={errors.company}>
                         <TextInput
                             placeholder="Tech Corp / Self-Employed"
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                            style={[styles.input, errors.company && styles.inputError]}
                             value={form.company || ''}
                             onChangeText={(value) => updateField('company', value)}
                         />
                     </Field>
 
-                    <Field label="Annual Income Band">
-                        <View style={styles.choiceRowWrap}>
+                    <Field label="Annual Income Band" required error={errors.income_band}>
+                        <View style={[styles.choiceRowWrap, errors.income_band && styles.choiceRowError]}>
                             {INCOME_BANDS.map((band) => (
                                 <Chip
                                     key={band}
@@ -387,8 +429,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Marital Status">
-                        <View style={styles.choiceRowWrap}>
+                    <Field label="Marital Status" required error={errors.marital_status}>
+                        <View style={[styles.choiceRowWrap, errors.marital_status && styles.choiceRowError]}>
                             {MARITAL_STATUSES.map((status) => (
                                 <Chip
                                     key={status}
@@ -409,8 +451,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             description: 'Tell candidates about your family background and daily habits.',
             content: (
                 <>
-                    <Field label="Family Type">
-                        <View style={styles.choiceRow}>
+                    <Field label="Family Type" required error={errors.family_type}>
+                        <View style={[styles.choiceRow, errors.family_type && styles.choiceRowError]}>
                             {FAMILY_TYPES.map((type) => (
                                 <Chip
                                     key={type}
@@ -422,8 +464,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Family Status">
-                        <View style={styles.choiceRow}>
+                    <Field label="Family Status" required error={errors.family_status}>
+                        <View style={[styles.choiceRow, errors.family_status && styles.choiceRowError]}>
                             {FAMILY_STATUSES.map((status) => (
                                 <Chip
                                     key={status}
@@ -435,19 +477,19 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Number of Siblings">
+                    <Field label="Number of Siblings" required error={errors.num_siblings}>
                         <TextInput
                             keyboardType="number-pad"
-                            placeholder="1"
+                            placeholder="0"
                             placeholderTextColor="#7b8d96"
-                            style={styles.input}
+                            style={[styles.input, errors.num_siblings && styles.inputError]}
                             value={String(form.num_siblings ?? 0)}
                             onChangeText={(value) => updateField('num_siblings', Number(value || 0))}
                         />
                     </Field>
 
-                    <Field label="Diet Preference">
-                        <View style={styles.choiceRowWrap}>
+                    <Field label="Diet Preference" required error={errors.diet}>
+                        <View style={[styles.choiceRowWrap, errors.diet && styles.choiceRowError]}>
                             {DIETS.map((diet) => (
                                 <Chip
                                     key={diet}
@@ -459,7 +501,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Drinking Habits">
+                    <Field label="Drinking Habits" required error={errors.drinks_alcohol}>
                         <View style={styles.choiceRow}>
                             <Chip
                                 active={form.drinks_alcohol === false}
@@ -474,7 +516,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         </View>
                     </Field>
 
-                    <Field label="Smoking Habits">
+                    <Field label="Smoking Habits" required error={errors.smokes}>
                         <View style={styles.choiceRow}>
                             <Chip
                                 active={form.smokes === false}
@@ -498,24 +540,24 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             description: 'Write a short intro and describe your ideal partner expectations.',
             content: (
                 <>
-                    <Field label="Bio / About Me *">
+                    <Field label="Bio / About Me" required error={errors.bio}>
                         <TextInput
                             multiline
                             placeholder="Share your values, family background, work, and lifestyle."
                             placeholderTextColor="#7b8d96"
-                            style={[styles.input, styles.textarea]}
+                            style={[styles.input, styles.textarea, errors.bio && styles.inputError]}
                             textAlignVertical="top"
                             value={form.bio}
                             onChangeText={(value) => updateField('bio', value)}
                         />
                     </Field>
 
-                    <Field label="Partner Preferences / Expectations *">
+                    <Field label="Partner Preferences / Expectations" required error={errors.preferences}>
                         <TextInput
                             multiline
                             placeholder="Describe expected education, values, location, and lifestyle."
                             placeholderTextColor="#7b8d96"
-                            style={[styles.input, styles.textareaLarge]}
+                            style={[styles.input, styles.textareaLarge, errors.preferences && styles.inputError]}
                             textAlignVertical="top"
                             value={form.preferences}
                             onChangeText={(value) => updateField('preferences', value)}
@@ -531,10 +573,6 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         },
     ];
 
-    function updateField<K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) {
-        setForm((current) => ({ ...current, [key]: value }));
-    }
-
     async function handleAddPhoto() {
         if (addingPhoto || loading || selectedPhotos.length >= maxProfilePhotos) {
             return;
@@ -549,9 +587,15 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             }
 
             setSelectedPhotos((current) => [...current, pickedPhoto]);
+            if (errors.photos) {
+                setErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.photos;
+                    return n;
+                });
+            }
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Could not add this photo.';
-            Alert.alert('Photo unavailable', message);
+            showFriendlyAlert('Photo Unavailable', error, 'Could not add this photo. Please grant photo permissions and try another image.');
         } finally {
             setAddingPhoto(false);
         }
@@ -576,98 +620,122 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     : current.partner_gender_preference,
             };
         });
+        if (errors.gender) {
+            setErrors((prev) => {
+                const n = { ...prev };
+                delete n.gender;
+                return n;
+            });
+        }
     }
 
     const canUseCopilot = Boolean(form.full_name.trim() && form.location.trim());
 
-    function validateCurrentStep() {
+    function validateCurrentStep(): boolean {
+        const stepErrors: Record<string, string> = {};
+
         if (step === 0) {
-            if (!form.full_name.trim() || !form.location.trim()) {
-                Alert.alert('Missing details', 'Please complete Full Name and Location.');
-                return false;
+            if (!form.full_name.trim()) {
+                stepErrors.full_name = 'Full Name is required.';
             }
-
-            if (!form.gender.trim() || !form.partner_gender_preference.trim()) {
-                Alert.alert('Missing preferences', 'Please select both your gender and partner preference.');
-                return false;
+            if (!form.profile_owner) {
+                stepErrors.profile_owner = 'Please select who manages this profile.';
             }
-
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dob.trim())) {
-                Alert.alert('Invalid date', 'Please enter DOB in YYYY-MM-DD format (e.g. 1997-08-14).');
-                return false;
+            if (!form.gender) {
+                stepErrors.gender = 'Please select your gender.';
             }
-
-            // C4 FIX: Minimum age check (18 years) for legal compliance
-            const dob = new Date(form.dob.trim());
-            const today = new Date();
-            let age = today.getFullYear() - dob.getFullYear();
-            const monthDiff = today.getMonth() - dob.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-                age--;
+            if (!form.partner_gender_preference) {
+                stepErrors.partner_gender_preference = 'Please select partner preference.';
             }
-            if (isNaN(age) || age < 18) {
-                Alert.alert('Age Requirement', 'You must be at least 18 years old to register on this platform.');
-                return false;
+            if (!form.dob || !/^\d{4}-\d{2}-\d{2}$/.test(form.dob.trim())) {
+                stepErrors.dob = 'Please select your Date of Birth.';
+            } else {
+                const dob = new Date(form.dob.trim());
+                const today = new Date();
+                let age = today.getFullYear() - dob.getFullYear();
+                const monthDiff = today.getMonth() - dob.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                    age--;
+                }
+                if (isNaN(age) || age < 18) {
+                    stepErrors.dob = 'You must be at least 18 years old to register.';
+                } else if (age > 120) {
+                    stepErrors.dob = 'Please enter a valid date of birth.';
+                }
             }
-            if (age > 120) {
-                Alert.alert('Invalid Date', 'Please enter a valid date of birth.');
-                return false;
+            if (!form.location.trim()) {
+                stepErrors.location = 'Location (City, State) is required.';
             }
-        }
-
-        if (step === 1) {
+            if (!form.height_cm || form.height_cm < 100 || form.height_cm > 250) {
+                stepErrors.height_cm = 'Please enter a valid height between 100 cm and 250 cm.';
+            }
+        } else if (step === 1) {
             if (selectedPhotos.length === 0) {
-                Alert.alert('Add a photo', 'Please add at least one profile photo.');
-                return false;
+                stepErrors.photos = 'Please add at least one profile photo.';
             }
-
             if (!phoneNumber.trim()) {
-                Alert.alert('Phone Required', 'Please enter your phone number.');
-                return false;
+                stepErrors.phone = 'Phone number is required.';
+            } else if (!isPhoneVerified) {
+                stepErrors.phone = 'Please verify your phone number before proceeding.';
             }
-
-            if (!isPhoneVerified) {
-                Alert.alert('Phone Unverified', 'Please verify your phone number before proceeding.');
-                return false;
+            if (!whatsappNumber.trim()) {
+                stepErrors.whatsapp = 'WhatsApp number is required.';
             }
-        }
-
-        // M16 FIX: Add validation for step 2 (Education & Career)
-        if (step === 2) {
+        } else if (step === 2) {
             if (!form.religion) {
-                Alert.alert('Missing Religion', 'Please select your religion.');
-                return false;
+                stepErrors.religion = 'Please select your religion.';
+            }
+            if (!form.mother_tongue?.trim()) {
+                stepErrors.mother_tongue = 'Mother tongue is required.';
             }
             if (!form.education) {
-                Alert.alert('Missing Education', 'Please select your education level.');
-                return false;
+                stepErrors.education = 'Please select your education level.';
             }
-        }
-
-        // M16 FIX: Add validation for step 3 (Family & Lifestyle)
-        if (step === 3) {
+            if (!form.occupation?.trim()) {
+                stepErrors.occupation = 'Occupation / Designation is required.';
+            }
+            if (!form.company?.trim()) {
+                stepErrors.company = 'Company or employer name is required.';
+            }
+            if (!form.income_band) {
+                stepErrors.income_band = 'Please select your annual income band.';
+            }
+            if (!form.marital_status) {
+                stepErrors.marital_status = 'Please select your marital status.';
+            }
+        } else if (step === 3) {
             if (!form.family_type) {
-                Alert.alert('Missing Family Type', 'Please select your family type.');
-                return false;
+                stepErrors.family_type = 'Please select your family type.';
+            }
+            if (!form.family_status) {
+                stepErrors.family_status = 'Please select your family status.';
+            }
+            if (form.num_siblings === undefined || form.num_siblings === null || isNaN(form.num_siblings) || form.num_siblings < 0) {
+                stepErrors.num_siblings = 'Please enter number of siblings (0 or more).';
             }
             if (!form.diet) {
-                Alert.alert('Missing Diet', 'Please select your diet preference.');
-                return false;
+                stepErrors.diet = 'Please select your diet preference.';
             }
-        }
-
-        if (step === 4) {
+        } else if (step === 4) {
             if (!form.bio.trim()) {
-                Alert.alert('Missing Bio', 'Please add a short bio to introduce yourself.');
-                return false;
+                stepErrors.bio = 'Bio / About Me is required.';
+            } else if (form.bio.trim().length < 15) {
+                stepErrors.bio = 'Bio should be at least 15 characters to introduce yourself properly.';
             }
-
             if (!form.preferences.trim()) {
-                Alert.alert('Missing Preferences', 'Please describe your partner preferences.');
-                return false;
+                stepErrors.preferences = 'Partner Preferences are required.';
+            } else if (form.preferences.trim().length < 15) {
+                stepErrors.preferences = 'Preferences should be at least 15 characters.';
             }
         }
 
+        if (Object.keys(stepErrors).length > 0) {
+            setErrors(stepErrors);
+            Alert.alert('Required Fields Incomplete', 'Please fill in all mandatory fields highlighted in red to continue.');
+            return false;
+        }
+
+        setErrors({});
         return true;
     }
 
@@ -728,8 +796,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
             onComplete();
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Profile save failed.';
-            Alert.alert('Save failed', message);
+            showFriendlyAlert('Save Failed', error, 'Could not save your profile. Please check your network and try again.');
         } finally {
             setLoading(false);
             setIsSaving(false);
@@ -753,8 +820,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             }));
             setCopilotResult(result);
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'AI copilot is unavailable right now.';
-            Alert.alert('AI copilot unavailable', message);
+            showFriendlyAlert('AI Assistant Busy', error, 'AI profile assistant is temporarily unavailable. You can write your own bio or try again in a moment.');
         } finally {
             setCopilotLoading(false);
         }
@@ -894,13 +960,20 @@ function buildEmbeddingSource(form: ProfileInput) {
 type FieldProps = {
     label: string;
     children: React.ReactNode;
+    error?: string;
+    required?: boolean;
 };
 
-function Field({ label, children }: FieldProps) {
+function Field({ label, children, error, required }: FieldProps) {
     return (
         <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{label}</Text>
+            <View style={styles.fieldLabelRow}>
+                <Text style={styles.fieldLabel}>
+                    {label} {required ? <Text style={styles.requiredStar}>*</Text> : null}
+                </Text>
+            </View>
             {children}
+            {error ? <Text style={styles.errorText}>⚠️ {error}</Text> : null}
         </View>
     );
 }
@@ -994,20 +1067,52 @@ const styles = StyleSheet.create({
     field: {
         gap: 8,
     },
+    fieldLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     fieldLabel: {
         color: '#34505c',
         fontSize: 13,
         fontWeight: '700',
     },
+    requiredStar: {
+        color: '#e53935',
+        fontWeight: '800',
+    },
     input: {
         backgroundColor: '#f7fafb',
         borderColor: '#d7e3e6',
         borderRadius: 12,
-        borderWidth: 1,
+        borderWidth: 1.5,
         color: '#10232a',
         fontSize: 15,
         paddingHorizontal: 14,
         paddingVertical: 12,
+    },
+    inputError: {
+        borderColor: '#e53935',
+        backgroundColor: '#fff8f8',
+    },
+    choiceRowError: {
+        borderColor: '#e53935',
+        borderWidth: 1.5,
+        borderRadius: 12,
+        padding: 6,
+        backgroundColor: '#fff8f8',
+    },
+    photoGridError: {
+        borderColor: '#e53935',
+        borderWidth: 1.5,
+        borderRadius: 14,
+        padding: 8,
+        backgroundColor: '#fff8f8',
+    },
+    errorText: {
+        color: '#e53935',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 2,
     },
     textarea: {
         minHeight: 90,

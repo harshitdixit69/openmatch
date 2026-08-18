@@ -15,6 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BackButton } from '../components/BackButton';
 import type { ProfileViewer } from '../lib/profileViewsApi';
 import { fetchProfileViewers } from '../lib/profileViewsApi';
+import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 
 // ---------------------------------------------------------------------------
@@ -114,7 +115,7 @@ export function WhoViewedMeScreen({ onBack, onSelectViewer }: Props) {
             const data = await fetchProfileViewers();
             setViewers(data);
         } catch (e: any) {
-            setError(e?.message ?? 'Failed to load viewers');
+            setError(getFriendlyErrorMessage(e, 'Unable to load recent visitors right now. Please pull down to refresh.'));
         } finally {
             setLoading(false);
             setRefreshing(false);

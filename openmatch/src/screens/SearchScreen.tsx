@@ -28,6 +28,7 @@ import {
     type PrefReligion,
 } from '../lib/partnerPreferences';
 import { fetchFilteredMatches } from '../lib/partnerPreferencesApi';
+import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { fetchShortlistedIds } from '../lib/shortlistApi';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 
@@ -416,7 +417,7 @@ export function SearchScreen({ onBack, onSelectCandidate }: Props) {
                 setAllResults((data ?? []) as MatchCandidate[]);
             } catch (e: any) {
                 if (fetchId !== latestFetchId.current) return;
-                setError(e?.message ?? 'Search failed.');
+                setError(getFriendlyErrorMessage(e, 'Unable to load search results. Please adjust your filters or try again.'));
             } finally {
                 if (fetchId === latestFetchId.current) setLoading(false);
             }

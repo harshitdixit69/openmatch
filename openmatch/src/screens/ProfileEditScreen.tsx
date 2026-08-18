@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
+import { DatePickerField } from '../components/DatePickerField';
 import { ChipPicker } from '../components/prefs/ChipPicker';
 import { SectionCard } from '../components/prefs/SectionCard';
 import {
@@ -32,6 +33,7 @@ import {
     fetchProfileRevisions,
     saveProfileRevision,
 } from '../lib/aiApi';
+import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 
 // ---------------------------------------------------------------------------
 // Option constants
@@ -227,7 +229,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                 summary: res.summary || '',
             });
         } catch (e: any) {
-            Alert.alert('AI Ghostwriter Error', e?.message ?? 'Failed to generate rewrite.');
+            showFriendlyAlert('AI Ghostwriter Error', e, 'AI Ghostwriter is temporarily busy. Please try generating again.');
         } finally {
             setGenerating(false);
         }
@@ -341,7 +343,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
             onSaved?.();
             onBack();
         } catch (e: any) {
-            Alert.alert('Save Failed', e?.message ?? 'Please try again.');
+            showFriendlyAlert('Save Failed', e, 'Could not save your profile changes. Please try again.');
         } finally {
             setSaving(false);
         }
@@ -519,10 +521,13 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                                     </View>
                                 )}
                             </View>
-                            <Field label="Date of birth *  (YYYY-MM-DD)">
-                                <TextInput style={styles.input} value={form.dob}
-                                    onChangeText={(t) => set('dob', t)} placeholder="1995-06-15"
-                                    placeholderTextColor="#bbb" keyboardType="numbers-and-punctuation" />
+                            <Field label="Date of birth *">
+                                <DatePickerField
+                                    value={form.dob}
+                                    onChange={(t) => set('dob', t)}
+                                    minAge={18}
+                                    maxAge={100}
+                                />
                             </Field>
                             <Field label="Location *">
                                 <TextInput style={styles.input} value={form.location}

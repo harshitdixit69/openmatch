@@ -15,6 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BackButton } from '../components/BackButton';
 import type { ChatMatch } from '../lib/chat';
 import { fetchChatMatches } from '../lib/chatApi';
+import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 
 // ---------------------------------------------------------------------------
@@ -152,7 +153,7 @@ export function MyMatchesScreen({ onBack, onOpenChat }: Props) {
             const relevant = data.filter((m) => m.status !== 'rejected');
             setAllMatches(relevant);
         } catch (e: any) {
-            setError(e?.message ?? 'Failed to load matches');
+            setError(getFriendlyErrorMessage(e, 'Unable to load your matches right now. Please pull down to refresh.'));
         } finally {
             setLoading(false);
             setRefreshing(false);

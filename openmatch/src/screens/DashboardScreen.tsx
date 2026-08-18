@@ -15,6 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BackButton } from '../components/BackButton';
 import type { ActivityStats } from '../lib/activityStatsApi';
 import { fetchActivityStats } from '../lib/activityStatsApi';
+import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 
 // ---------------------------------------------------------------------------
@@ -119,7 +120,7 @@ export function DashboardScreen({ onBack }: Props) {
         try {
             setStats(await fetchActivityStats());
         } catch (e: any) {
-            setError(e?.message ?? 'Failed to load stats');
+            setError(getFriendlyErrorMessage(e, 'Unable to load activity stats right now. Please pull down to refresh.'));
         } finally {
             setLoading(false);
             setRefreshing(false);

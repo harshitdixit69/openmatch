@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { updateUserPresence } from '../lib/chatApi';
+import { showFriendlyAlert } from '../lib/errorUtils';
 
 export default function PremiumSettingsScreen({
     onBack,
@@ -31,7 +32,7 @@ export default function PremiumSettingsScreen({
             await supabase.auth.signOut();
             onSignedOut();
         } catch (e: any) {
-            Alert.alert('Sign Out Error', e.message || 'Could not sign out.');
+            showFriendlyAlert('Sign Out Error', e, 'Could not complete sign out. Please try again.');
         } finally {
             setSigningOut(false);
         }

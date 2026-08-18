@@ -21,6 +21,7 @@ import {
     markNotificationRead,
     subscribeToNotifications,
 } from '../lib/notificationsApi';
+import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { supabase } from '../lib/supabase';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 
@@ -120,7 +121,7 @@ export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
             const data = await fetchNotifications();
             setItems(data);
         } catch (e: any) {
-            setError(e?.message ?? 'Failed to load notifications');
+            setError(getFriendlyErrorMessage(e, 'Unable to load notifications right now. Please pull down to refresh.'));
         } finally {
             setLoading(false);
             setRefreshing(false);

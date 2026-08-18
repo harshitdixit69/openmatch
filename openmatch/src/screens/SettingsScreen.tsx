@@ -17,6 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { supabase } from '../lib/supabase';
+import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { updateUserPresence } from '../lib/chatApi';
 import { pickProfilePhotoFromLibrary } from '../lib/profilePhotoApi';
@@ -141,7 +142,7 @@ function ChangePasswordRow() {
             setConfirm('');
             setExpanded(false);
         } catch (e: any) {
-            Alert.alert('Error', e?.message ?? 'Failed to update password.');
+            showFriendlyAlert('Password Update Failed', e, 'Could not update password. Please check requirements and try again.');
         } finally {
             setSaving(false);
         }
@@ -322,7 +323,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                         await supabase.auth.signOut();
                         onSignedOut();
                     } catch (e: any) {
-                        Alert.alert('Error', e?.message ?? 'Sign out failed.');
+                        showFriendlyAlert('Sign Out Failed', e, 'Could not complete sign out. Please try again.');
                         setSigningOut(false);
                     }
                 },

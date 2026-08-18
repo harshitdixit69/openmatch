@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { captureLiveSelfie, pickGovtIdDocument } from '../lib/profilePhotoApi';
 import { submitVerification } from '../lib/profileApi';
+import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 
 interface Props {
     onBack: () => void;
@@ -51,9 +52,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
             }
         } catch (err: any) {
             console.error('Failed to capture selfie photo:', err);
-            const msg = err?.message || 'Could not open the camera. Please allow camera access and try again.';
-            if (Platform.OS === 'web') alert(msg);
-            else Alert.alert('Camera unavailable', msg);
+            showFriendlyAlert('Camera Unavailable', err, 'Could not open the camera. Please enable camera access in your device settings.');
         }
     }
 
@@ -77,23 +76,18 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
 
             // Allow React to paint the UI (hiding spinner) before showing blocking browser alert
             setTimeout(() => {
-                const showAlert = (title: string, body: string) => {
-                    if (Platform.OS === 'web') alert(body);
-                    else Alert.alert(title, body);
-                };
-
                 if (result.status === 'approved') {
-                    showAlert('Identity Verified! 🎉', `AI Identity Verification Successful! ✅\n\n• Document Confidence: ${result.similarityScore.toFixed(0)}%\n• Facial Recognition Match: Confirmed\n• Verified Badge (✅) is now active on your profile.`);
+                    showFriendlyAlert('Identity Verified! 🎉', `AI Identity Verification Successful! ✅\n\n• Document Confidence: ${result.similarityScore.toFixed(0)}%\n• Facial Recognition Match: Confirmed\n• Verified Badge (✅) is now active on your profile.`);
                     onCompleted('verified');
                 } else if (result.status === 'pending') {
-                    showAlert('Verification Under Review', result.reason || 'Your documents look genuine but need a quick manual review. Your verified badge will appear once approved — no need to resubmit.');
+                    showFriendlyAlert('Verification Under Review', result.reason || 'Your documents look genuine but need a quick manual review. Your verified badge will appear once approved — no need to resubmit.');
                     onCompleted('pending');
                 } else if (result.status === 'error') {
                     // Transient failure — do NOT mark the user rejected. Let them retry.
-                    showAlert('Verification Unavailable', result.reason || 'The verification service is temporarily unavailable. Please try again in a moment.');
+                    showFriendlyAlert('Verification Unavailable', result.reason || 'The verification service is temporarily unavailable. Please try again in a moment.');
                     // Intentionally no onCompleted() — status is unchanged so the user can retry.
                 } else {
-                    showAlert('Verification Failed', result.reason || 'Verification could not confirm identity. Please upload a clearer Govt ID and capture a well-lit live selfie.');
+                    showFriendlyAlert('Verification Failed', result.reason || 'Verification could not confirm identity. Please upload a clearer Govt ID and capture a well-lit live selfie.');
                     onCompleted('rejected');
                 }
             }, 100);
@@ -102,11 +96,8 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
             clearTimeout(t2);
             setSubmitting(false);
             console.error('Verification failed:', err);
-            // Unexpected client/network error → treat as retryable, not a rejection.
-            const msg = err?.message || 'Verification upload failed. Please try again.';
             setTimeout(() => {
-                if (Platform.OS === 'web') alert(msg);
-                else Alert.alert('Verification Error', msg);
+                showFriendlyAlert('Verification Error', err, 'Verification upload failed. Please check your document and try again.');
             }, 100);
         }
     }

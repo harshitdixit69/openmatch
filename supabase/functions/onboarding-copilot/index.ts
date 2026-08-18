@@ -17,6 +17,19 @@ type OnboardingCopilotRequest = {
     preferences?: string;
     height_cm?: number;
     profile_owner?: string;
+    religion?: string;
+    marital_status?: string;
+    education?: string;
+    diet?: string;
+    mother_tongue?: string;
+    income_band?: string;
+    occupation?: string;
+    company?: string;
+    family_type?: string;
+    family_status?: string;
+    num_siblings?: number;
+    drinks_alcohol?: boolean;
+    smokes?: boolean;
 };
 
 Deno.serve(async (request) => {
@@ -59,12 +72,12 @@ Deno.serve(async (request) => {
             apiVersion: env.azureApiVersion,
             endpoint: env.azureEndpoint,
             deployment: env.chatDeployment,
-            maxTokens: 700,
+            maxTokens: 800,
             messages: [
                 {
                     role: 'system',
                     content:
-                        'You are an onboarding copilot for a matrimonial app. Rewrite the user draft into a respectful, clear, and authentic profile. Return only JSON with keys bio, preferences, summary, and missingTopics. bio should be 3-5 sentences. preferences should be 3-5 sentences. summary should be 1 sentence explaining the profile direction. missingTopics should be an array of 0-4 short missing-detail prompts such as "career goals" or "preferred city".',
+                        'You are an expert matrimonial profile ghostwriter and AI copilot. Rewrite the user\'s details into a highly personalized, articulate, warm, and authentic matrimonial profile. Incorporate their career, education, religion, cultural background, family values, and lifestyle naturally. Return ONLY valid JSON with keys: "bio", "preferences", "summary", and "missingTopics".\n- bio: 3-5 complete, engaging sentences covering their career, personality, family background, and values.\n- preferences: 3-5 specific, thoughtful sentences describing their ideal partner, shared values, and life vision.\n- summary: 1 crisp sentence summarizing the profile strengths.\n- missingTopics: Array of 0-3 short prompt strings for details they could add.',
                 },
                 {
                     role: 'user',
@@ -74,10 +87,23 @@ Deno.serve(async (request) => {
                         `Looking for a: ${payload.partner_gender_preference ?? ''}`,
                         `Date of birth: ${payload.dob ?? ''}`,
                         `Location: ${payload.location ?? ''}`,
-                        `Profile owner: ${payload.profile_owner ?? ''}`,
+                        `Profile managed by: ${payload.profile_owner ?? 'self'}`,
                         `Height (cm): ${typeof payload.height_cm === 'number' ? payload.height_cm : ''}`,
-                        `Current bio draft: ${payload.bio ?? ''}`,
-                        `Current partner preferences draft: ${payload.preferences ?? ''}`,
+                        `Religion: ${payload.religion ?? ''}`,
+                        `Mother tongue: ${payload.mother_tongue ?? ''}`,
+                        `Education: ${payload.education ?? ''}`,
+                        `Occupation / Designation: ${payload.occupation ?? ''}`,
+                        `Company / Employer: ${payload.company ?? ''}`,
+                        `Annual Income Band: ${payload.income_band ?? ''}`,
+                        `Marital Status: ${payload.marital_status ?? ''}`,
+                        `Family Type: ${payload.family_type ?? ''}`,
+                        `Family Status: ${payload.family_status ?? ''}`,
+                        `Number of Siblings: ${typeof payload.num_siblings === 'number' ? payload.num_siblings : ''}`,
+                        `Diet: ${payload.diet ?? ''}`,
+                        `Drinking: ${payload.drinks_alcohol === false ? 'No / Never' : payload.drinks_alcohol === true ? 'Yes / Socially' : 'Not specified'}`,
+                        `Smoking: ${payload.smokes === false ? 'No / Never' : payload.smokes === true ? 'Yes / Socially' : 'Not specified'}`,
+                        `Current bio notes: ${payload.bio ?? ''}`,
+                        `Current partner preferences notes: ${payload.preferences ?? ''}`,
                     ].join('\n'),
                 },
             ],

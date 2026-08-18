@@ -20,6 +20,7 @@ import { ChatMatch } from '../lib/chat';
 import { fetchChatMatches } from '../lib/chatApi';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { activateSpotlight, fetchCurrentProfile } from '../lib/profileApi';
+import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import PremiumNotificationsScreen from './PremiumNotificationsScreen';
 import PremiumPartnerPreferencesScreen from './PremiumPartnerPreferencesScreen';
 import PremiumProfileEditScreen from './PremiumProfileEditScreen';
@@ -336,7 +337,7 @@ export default function PremiumHubScreen({
                 await refreshData();
             }
         } catch (err: any) {
-            Alert.alert('Activation Failed', err.message || 'Failed to activate Spotlight.');
+            showFriendlyAlert('Activation Failed', err, 'Failed to activate Spotlight. Please check your credits and try again.');
         } finally {
             setActivatingSpotlight(false);
         }
@@ -405,7 +406,7 @@ export default function PremiumHubScreen({
                 throw new Error('No checkout URL returned.');
             }
         } catch (err: any) {
-            Alert.alert('Payment Failed', err.message || 'Unable to start Stripe checkout session.');
+            showFriendlyAlert('Payment Failed', err, 'Unable to start Stripe checkout session. Please try again.');
         } finally {
             setCheckoutLoading(false);
         }

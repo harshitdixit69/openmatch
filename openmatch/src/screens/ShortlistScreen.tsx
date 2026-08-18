@@ -20,6 +20,7 @@ import {
     shortlistToCandidate,
     type ShortlistedProfile,
 } from '../lib/shortlistApi';
+import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 
 function calcAge(dob: string): number {
@@ -106,7 +107,7 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
             const data = await fetchShortlist();
             setItems(data);
         } catch (e: any) {
-            setError(e?.message ?? 'Failed to load saved profiles.');
+            setError(getFriendlyErrorMessage(e, 'Unable to load saved profiles right now. Please pull down to refresh.'));
         } finally {
             setLoading(false);
             setRefreshing(false);

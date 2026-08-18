@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { fetchPartnerPreferences, upsertPartnerPreferences } from '../lib/partnerPreferencesApi';
+import { showFriendlyAlert } from '../lib/errorUtils';
 
 export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: () => void }) {
     const [loading, setLoading] = useState(true);
@@ -68,7 +69,7 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
             Alert.alert('Preferences Saved', 'Your partner match criteria have been updated.');
             onBack();
         } catch (e: any) {
-            Alert.alert('Save Failed', e.message || 'Could not save partner preferences.');
+            showFriendlyAlert('Save Failed', e, 'Could not save partner preferences. Please check your inputs and try again.');
         } finally {
             setSaving(false);
         }

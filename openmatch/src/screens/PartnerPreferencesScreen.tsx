@@ -34,6 +34,7 @@ import {
     type PrefMaritalStatus,
 } from '../lib/partnerPreferences';
 import { fetchPartnerPreferences, upsertPartnerPreferences } from '../lib/partnerPreferencesApi';
+import { showFriendlyAlert } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 
 interface Props {
@@ -86,7 +87,7 @@ export function PartnerPreferencesScreen({ onBack }: Props) {
             isDirtyRef.current = false;
             onBack();
         } catch (e: any) {
-            Alert.alert('Save Failed', e?.message ?? 'Please try again.');
+            showFriendlyAlert('Save Failed', e, 'Could not save partner preferences. Please check your selections and try again.');
         } finally {
             setSaving(false);
         }

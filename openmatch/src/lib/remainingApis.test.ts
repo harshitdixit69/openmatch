@@ -89,24 +89,18 @@ describe('OpenMatch Core Library API Tests', () => {
 
   // --- aiApi tests ---
   describe('aiApi unit tests', () => {
-    it('runOnboardingCopilot should call Edge Function and parse response', async () => {
-      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
-        data: {
-          bio: 'My Bio',
-          preferences: 'My Prefs',
-          summary: 'My Summary',
-          missingTopics: ['hobbies'],
-        },
-        error: null,
+    it('runOnboardingCopilot should generate rich personalized bio with user input', async () => {
+      const result = await runOnboardingCopilot({
+        full_name: 'Harshit Dixit',
+        location: 'Lucknow',
+        occupation: 'Software Engineer',
+        religion: 'Hindu',
       });
 
-      const result = await runOnboardingCopilot({ full_name: 'Test' });
-
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('onboarding-copilot', {
-        body: { full_name: 'Test' },
-      });
-      expect(result.bio).toBe('My Bio');
-      expect(result.missingTopics).toEqual(['hobbies']);
+      expect(result.bio).toContain('Harshit Dixit');
+      expect(result.bio).toContain('Software Engineer');
+      expect(result.bio).toContain('Lucknow');
+      expect(result.preferences).toContain('Hindu');
     });
 
     it('fetchFitFrictionBreakdown should return compatibility fit breakdown data', async () => {

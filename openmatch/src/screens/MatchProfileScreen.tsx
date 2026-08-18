@@ -26,6 +26,7 @@ import { supabase } from '../lib/supabase';
 import { PartnerPreferences, cmToFeetInches, PREF_MARITAL_STATUS_LABELS } from '../lib/partnerPreferences';
 import { fetchPartnerPreferences } from '../lib/partnerPreferencesApi';
 import { fetchCurrentProfile, fetchCurrentProfileContactDetails } from '../lib/profileApi';
+import { showFriendlyAlert } from '../lib/errorUtils';
 
 type MatchProfileScreenProps = {
     candidate: MatchCandidate;
@@ -148,7 +149,7 @@ export function MatchProfileScreen({
             setRelationshipStatus('accepted');
             Alert.alert('Request Accepted', 'You are now connected! Open chat to start talking.');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to accept request.');
+            showFriendlyAlert('Accept Request Failed', err, 'Unable to accept this request right now. Please try again.');
         } finally {
             setActionLoading(false);
         }
@@ -165,7 +166,7 @@ export function MatchProfileScreen({
             setRelationshipStatus('none');
             Alert.alert('Request Declined', 'Request declined successfully.');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to decline request.');
+            showFriendlyAlert('Decline Request Failed', err, 'Unable to decline this request right now. Please try again.');
         } finally {
             setActionLoading(false);
         }
@@ -176,10 +177,7 @@ export function MatchProfileScreen({
 
         const remaining = viewerProfile.super_interest_remaining ?? 0;
         if (remaining <= 0) {
-            Alert.alert(
-                'No Super Interests Remaining',
-                'You do not have any Super Interests left. Upgrade your tier to get more!'
-            );
+            Alert.alert('No Super Interests Left', 'Upgrade to Premium or buy additional Super Interests to stand out!');
             return;
         }
 
@@ -211,7 +209,7 @@ export function MatchProfileScreen({
             setRelationshipStatus('sent');
             Alert.alert('Super Interest Sent!', result.notice ?? 'Your Super Interest was successfully sent!');
         } catch (err: any) {
-            Alert.alert('Send Failed', err.message || 'Failed to send Super Interest.');
+            showFriendlyAlert('Send Failed', err, 'Failed to send Super Interest. Please check your connection and try again.');
         } finally {
             setActionLoading(false);
         }

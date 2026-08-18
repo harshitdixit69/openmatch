@@ -10,6 +10,7 @@ import {
     View,
 } from 'react-native';
 
+import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
 
@@ -146,11 +147,10 @@ export function AuthForm() {
             setStatusMessage(`Verification code sent to ${formattedPhone}`);
         } catch (err: any) {
             console.error('[Auth] Error sending phone OTP:', err);
-            const msg = err?.message || 'Could not send verification code. Please check your phone number.';
+            const msg = getFriendlyErrorMessage(err, 'Could not send verification code. Please check your phone number.');
             setStatusType('error');
             setStatusMessage(msg);
-            if (Platform.OS === 'web') alert(msg);
-            else Alert.alert('Verification Error', msg);
+            showFriendlyAlert('Verification Error', msg);
         } finally {
             setLoading(false);
         }
@@ -161,8 +161,7 @@ export function AuthForm() {
         const code = otpCode.trim();
         if (code.length < 4) {
             const msg = 'Please enter the 6-digit verification code.';
-            if (Platform.OS === 'web') alert(msg);
-            else Alert.alert('Invalid Code', msg);
+            showFriendlyAlert('Invalid Code', msg);
             return;
         }
 
@@ -220,11 +219,10 @@ export function AuthForm() {
             setStatusMessage('Phone verified! Signing you in...');
         } catch (err: any) {
             console.error('[Auth] Error verifying OTP:', err);
-            const msg = err?.message || 'Invalid verification code. Please try again.';
+            const msg = getFriendlyErrorMessage(err, 'Invalid verification code. Please try again.');
             setStatusType('error');
             setStatusMessage(msg);
-            if (Platform.OS === 'web') alert(msg);
-            else Alert.alert('Verification Failed', msg);
+            showFriendlyAlert('Verification Failed', msg);
         } finally {
             setLoading(false);
         }
@@ -233,7 +231,7 @@ export function AuthForm() {
     // Email Password Fallback Login
     async function handleEmailAuth(isSignUp: boolean) {
         if (!email.trim() || !password.trim()) {
-            Alert.alert('Missing Info', 'Please enter email and password.');
+            showFriendlyAlert('Missing Info', 'Please enter your email and password.');
             return;
         }
 
@@ -248,8 +246,10 @@ export function AuthForm() {
                 });
                 if (error) throw error;
                 if (data.session) {
+                    setStatusType('success');
                     setStatusMessage('Account created and signed in.');
                 } else {
+                    setStatusType('info');
                     setStatusMessage('Check your email for confirmation link.');
                 }
             } else {
@@ -258,11 +258,14 @@ export function AuthForm() {
                     password,
                 });
                 if (error) throw error;
+                setStatusType('success');
                 setStatusMessage('Signed in successfully.');
             }
         } catch (err: any) {
+            console.error('[Auth] Error in email auth:', err);
+            const msg = getFriendlyErrorMessage(err, 'Authentication failed. Please check your credentials.');
             setStatusType('error');
-            setStatusMessage(err?.message || 'Authentication failed.');
+            setStatusMessage(msg);
         } finally {
             setLoading(false);
         }

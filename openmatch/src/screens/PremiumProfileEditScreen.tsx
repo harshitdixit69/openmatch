@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { fetchCurrentProfile, upsertCurrentProfile } from '../lib/profileApi';
+import { showFriendlyAlert } from '../lib/errorUtils';
 import { ProfileRecord } from '../lib/profile';
 
 export default function PremiumProfileEditScreen({ onBack }: { onBack: () => void }) {
@@ -72,7 +73,7 @@ export default function PremiumProfileEditScreen({ onBack }: { onBack: () => voi
             Alert.alert('Profile Saved', 'Your profile details have been updated successfully.');
             onBack();
         } catch (e: any) {
-            Alert.alert('Save Failed', e.message || 'Could not update profile.');
+            showFriendlyAlert('Save Failed', e, 'Could not update your profile details. Please try again.');
         } finally {
             setSaving(false);
         }

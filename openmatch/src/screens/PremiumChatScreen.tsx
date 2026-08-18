@@ -28,6 +28,7 @@ import {
     unsubscribeFromChannel,
     updateMatchUnlock,
 } from '../lib/chatApi';
+import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { ProfileRecord } from '../lib/profile';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -187,7 +188,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                     : 'Contact exchange declined.'),
             );
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Could not update contact share request.');
+            showFriendlyAlert('Request Failed', e, 'Could not update contact share request. Please try again.');
         } finally {
             setUnlocking(false);
         }
@@ -208,7 +209,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                 await handleUnlockAction('request');
             }
         } catch (e: any) {
-            Alert.alert('Unlock Failed', e.message || 'Could not unlock contact details.');
+            showFriendlyAlert('Unlock Failed', e, 'Could not unlock contact details. Please check your credits and try again.');
         } finally {
             setUnlocking(false);
         }
