@@ -12,6 +12,7 @@ import {
 
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { supabase } from '../lib/supabase';
+import { trackEvent } from '../lib/analytics';
 import { useTheme } from '../lib/theme';
 
 type AuthStep = 'phone-input' | 'otp-verify' | 'email-fallback';
@@ -85,6 +86,8 @@ export function AuthForm() {
     async function handleSendPhoneOtp() {
         if (!validatePhone()) return;
 
+        trackEvent('signup_started', { method: 'phone' });
+
         // H2 FIX: Client-side OTP rate limiting
         const now = Date.now();
         otpRequestTimestamps.current = otpRequestTimestamps.current.filter(
@@ -145,6 +148,7 @@ export function AuthForm() {
             setResendCooldown(30);
             setStatusType('success');
             setStatusMessage(`Verification code sent to ${formattedPhone}`);
+            trackEvent('otp_sent', { method: 'phone' });
         } catch (err: any) {
             console.error('[Auth] Error sending phone OTP:', err);
             const msg = getFriendlyErrorMessage(err, 'Could not send verification code. Please check your phone number.');
@@ -217,6 +221,7 @@ export function AuthForm() {
 
             setStatusType('success');
             setStatusMessage('Phone verified! Signing you in...');
+            trackEvent('otp_verified', { method: 'phone' });
         } catch (err: any) {
             console.error('[Auth] Error verifying OTP:', err);
             const msg = getFriendlyErrorMessage(err, 'Invalid verification code. Please try again.');

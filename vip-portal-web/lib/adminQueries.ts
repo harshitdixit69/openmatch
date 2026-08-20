@@ -297,3 +297,102 @@ export async function getActiveUserStats(
 
   return { dau, wau, dailyHistory }
 }
+
+// ─── Visitor Funnel (anonymous top-of-funnel from app_events) ────────
+
+export interface VisitorFunnel {
+  stages: FunnelStage[]
+  totalOpens: number
+  windowDays: number
+}
+
+/**
+ * Anonymous top-of-funnel: how many devices opened the app and how far they
+ * progressed toward completing a profile. Reads the `app_events` firehose using
+ * the service-role key (only readable server-side).
+ */
+export async function getVisitorFunnel(windowDays = 7): Promise<VisitorFunnel> {
+  const supabase = createAdminClient()
+  const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data, error } = await supabase
+    .from('app_events')
+    .select('anon_id, event_name')
+    .gte('created_at', since)
+
+  const emptyStages: FunnelStage[] = [
+    { label: 'App opened', count: 0, percent: 0 },
+    { label: 'Auth screen viewed', count: 0, percent: 0 },
+    { label: 'Signup started', count: 0, percent: 0 },
+    { label: 'OTP verified', count: 0, percent: 0 },
+    { label: 'Profile completed', count: 0, percent: 0 },
+  ]
+
+  if (error || !data) {
+    return { stages: emptyStages, totalOpens: 0, windowDays }
+  }
+
+  // Count UNIQUE devices per event stage.
+  const stageEvents: Array<{ label: string; event: string }> = [
+    { label: 'App opened', event: 'app_opened' },
+    { label: 'Auth screen viewed', event: 'auth_screen_viewed' },
+    { label: 'Signup started', event: 'signup_started' },
+    { label: 'OTP verified', event: 'otp_verified' },
+    { label: 'Profile completed', event: 'profile_completed' },
+  ]
+
+  const uniqueByEvent = new Map<string, Set<string>>()
+  for (const row of data as Array<{ anon_id: string; event_name: string }>) {
+    if (!uniqueByEvent.has(row.event_name)) {
+      uniqueByEvent.set(row.event_name, new Set())
+    }
+    uniqueByEvent.get(row.event_name)!.add(row.anon_id)
+  }
+
+  const totalOpens = uniqueByEvent.get('app_opened')?.size ?? 0
+  const denominator = Math.max(totalOpens, 1)
+
+  const stages: FunnelStage[] = stageEvents.map(({ label, event }) => {
+    const count = uniqueByEvent.get(event)?.size ?? 0
+    return { label, count, percent: Math.round((count / denominator) * 100) }
+  })
+
+  return { stages, totalOpens, windowDays }
+}
+
+// ─── Recent Visitors (latest app_events) ─────────────────────────────
+
+export interface RecentVisitorEvent {
+  id: string
+  eventName: string
+  username: string | null
+  anonId: string
+  platform: string | null
+  utmSource: string | null
+  timestamp: string
+}
+
+/**
+ * Latest raw app_events for a live activity feed (readable via service role).
+ */
+export async function getRecentVisitors(limit = 30): Promise<RecentVisitorEvent[]> {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('app_events')
+    .select('id, event_name, username, anon_id, platform, utm_source, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+
+  return (data as Array<Record<string, any>>).map((row) => ({
+    id: row.id,
+    eventName: row.event_name,
+    username: row.username ?? null,
+    anonId: row.anon_id,
+    platform: row.platform ?? null,
+    utmSource: row.utm_source ?? null,
+    timestamp: row.created_at,
+  }))
+}

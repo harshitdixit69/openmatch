@@ -1,13 +1,19 @@
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
 
 import { AuthForm } from '../components/AuthForm';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { trackEvent } from '../lib/analytics';
 import { useTheme } from '../lib/theme';
 
 export function AuthScreen() {
     const { colors } = useTheme();
+
+    useEffect(() => {
+        trackEvent('auth_screen_viewed');
+    }, []);
 
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>

@@ -8,6 +8,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { supabase } from './src/lib/supabase';
+import { trackEvent, setAnalyticsUser, clearAnalyticsUser } from './src/lib/analytics';
 import { fetchCurrentProfile } from './src/lib/profileApi';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { MainTabsScreen } from './src/screens/MainTabsScreen';
@@ -20,8 +21,12 @@ export default function App() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+    useEffect(() => {
+        let isMounted = true;
+
+        // Anonymous top-of-funnel: record that the app was opened (fires even
+        // before signup, so we can see how many people land at all).
+        trackEvent('app_opened');
 
     async function syncSessionState(nextSession: Session | null) {
       console.log('[DEBUG] syncSessionState called! session user ID:', nextSession?.user?.id ?? 'none');
@@ -31,6 +36,7 @@ export default function App() {
 
       if (!nextSession) {
         setHasCompletedProfile(false);
+        void clearAnalyticsUser();
         return;
       }
 
@@ -40,6 +46,10 @@ export default function App() {
         console.log('[DEBUG] Profile fetched:', profile ? 'exists' : 'null');
         if (!isMounted) return;
         setHasCompletedProfile(Boolean(profile?.onboarding_completed_at));
+        // Attach a readable username to analytics events (falls back to phone/email).
+        void setAnalyticsUser(
+          profile?.full_name || nextSession.user.phone || nextSession.user.email,
+        );
       } catch (error) {
         console.error('Failed to load profile state during app bootstrap.', error);
         if (!isMounted) return;

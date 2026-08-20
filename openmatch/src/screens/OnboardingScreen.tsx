@@ -33,6 +33,7 @@ import {
 } from '../lib/profilePhotoApi';
 import { upsertCurrentProfile, upsertCurrentProfileContactDetails } from '../lib/profileApi';
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
+import { trackEvent, setAnalyticsUser } from '../lib/analytics';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { supabase } from '../lib/supabase';
 import { updateUserPresence } from '../lib/chatApi';
@@ -82,6 +83,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             }
         });
     }, []);
+
+    // Track onboarding funnel: which step people reach (and where they drop off).
+    useEffect(() => {
+        trackEvent('onboarding_step_viewed', { step: step + 1 });
+    }, [step]);
 
     async function handleVerifyPhone() {
         if (!phoneNumber.trim()) {
@@ -794,6 +800,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                 whatsapp_number: whatsappNumber,
             });
 
+            await setAnalyticsUser(form.full_name.trim());
+            trackEvent('profile_completed');
             onComplete();
         } catch (error) {
             showFriendlyAlert('Save Failed', error, 'Could not save your profile. Please check your network and try again.');
