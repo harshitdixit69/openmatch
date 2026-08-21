@@ -190,12 +190,60 @@ describe('AuthForm Phone OTP Unit Tests', () => {
         const toggleEmailBtn = getByText('Use Email & Password instead');
         fireEvent.press(toggleEmailBtn);
 
-        expect(getByPlaceholderText('Email Address')).toBeTruthy();
-        expect(getByPlaceholderText('Password')).toBeTruthy();
+        expect(getByPlaceholderText('you@example.com')).toBeTruthy();
+        expect(getByPlaceholderText('Enter your password')).toBeTruthy();
 
         const togglePhoneBtn = getByText('← Back to Phone Verification');
         fireEvent.press(togglePhoneBtn);
 
         expect(getByText('Enter your Mobile Number')).toBeTruthy();
+    });
+
+    it('handles email sign up form validation and submission', async () => {
+        (supabase.auth.signInWithOtp as jest.Mock).mockResolvedValue({
+            data: { user: null, session: null },
+            error: null,
+        });
+
+        const { getByText, getByPlaceholderText } = render(<AuthForm />);
+
+        fireEvent.press(getByText('Use Email & Password instead'));
+        // Switch to Sign Up tab
+        fireEvent.press(getByText('Sign Up'));
+
+        const emailInput = getByPlaceholderText('you@example.com');
+        const passInput = getByPlaceholderText('Create a secure password (8+ chars)');
+        const confirmPassInput = getByPlaceholderText('Re-enter your password');
+
+        fireEvent.changeText(emailInput, 'testuser@example.com');
+        fireEvent.changeText(passInput, 'Pass123456!');
+        fireEvent.changeText(confirmPassInput, 'Pass123456!');
+        fireEvent.press(getByText(/Terms of Service/));
+
+        await act(async () => {
+            fireEvent.press(getByText('Continue with Verification ➔'));
+        });
+
+        await waitFor(() => {
+            expect(getByText('Verify Email OTP Code')).toBeTruthy();
+            expect(getByPlaceholderText('1 2 3 4 5 6')).toBeTruthy();
+        });
+    });
+
+    it('switches between Sign Up and Sign In tabs in email mode', async () => {
+        const { getByText, getByPlaceholderText, queryByPlaceholderText } = render(<AuthForm />);
+
+        fireEvent.press(getByText('Use Email & Password instead'));
+        // Default is now Sign In (left tab)
+        expect(getByText('Email Sign In')).toBeTruthy();
+        expect(queryByPlaceholderText('Re-enter your password')).toBeNull();
+
+        fireEvent.press(getByText('Sign Up'));
+        expect(getByText('Create Account with Email')).toBeTruthy();
+        expect(getByPlaceholderText('Re-enter your password')).toBeTruthy();
+
+        fireEvent.press(getByText('Sign In'));
+        expect(getByText('Email Sign In')).toBeTruthy();
+        expect(queryByPlaceholderText('Re-enter your password')).toBeNull();
     });
 });

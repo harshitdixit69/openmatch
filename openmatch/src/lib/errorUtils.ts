@@ -106,6 +106,16 @@ export function getFriendlyErrorMessage(error: unknown, fallback = 'Something we
         return 'Incorrect or expired verification code. Please enter the code carefully or request a new one.';
     }
 
+    // 7b. Email Sending / SMTP Provider Errors
+    if (
+        lower.includes('error sending magic link email') ||
+        lower.includes('error sending confirmation email') ||
+        lower.includes('error sending email') ||
+        lower.includes('smtp')
+    ) {
+        return 'Unable to send verification email. Please check the email address, try again in a few minutes, or use phone verification.';
+    }
+
     // 8. SMS Provider Disabled in Dev Mode
     if (
         lower.includes('phone_provider_disabled') ||

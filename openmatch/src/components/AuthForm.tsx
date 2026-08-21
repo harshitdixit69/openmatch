@@ -15,11 +15,17 @@ import { supabase } from '../lib/supabase';
 import { trackEvent } from '../lib/analytics';
 import { useTheme } from '../lib/theme';
 
-type AuthStep = 'phone-input' | 'otp-verify' | 'email-fallback';
+type AuthStep = 'phone-input' | 'otp-verify' | 'email-fallback' | 'email-otp-verify';
 
 // H2 FIX: OTP rate limiting constants
 const OTP_MAX_REQUESTS = 3;
 const OTP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+// Email OTP mock: only used when explicitly enabled via env flag. This lets you
+// test the signup UI locally without SMTP. To send REAL OTP emails, leave this
+// unset (or set to 'false') and configure SMTP in the Supabase dashboard.
+const ENABLE_MOCK_EMAIL_OTP =
+    process.env.EXPO_PUBLIC_ENABLE_MOCK_EMAIL_OTP === 'true';
 
 export function AuthForm() {
     const [step, setStep] = useState<AuthStep>('phone-input');
@@ -43,6 +49,9 @@ export function AuthForm() {
     // Email fallback state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [emailMode, setEmailMode] = useState<'signin' | 'signup'>('signin');
+    const [emailOtpCode, setEmailOtpCode] = useState('');
 
     // C6 FIX: ToS/Privacy acceptance
     const [tosAccepted, setTosAccepted] = useState(false);
@@ -233,10 +242,115 @@ export function AuthForm() {
         }
     }
 
-    // Email Password Fallback Login
-    async function handleEmailAuth(isSignUp: boolean) {
-        if (!email.trim() || !password.trim()) {
-            showFriendlyAlert('Missing Info', 'Please enter your email and password.');
+    // Step 3: Handle Email Auth Submission (Sign Up / Sign In)
+    async function handleEmailSubmit() {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail) {
+            showFriendlyAlert('Missing Info', 'Please enter your email address.');
+            return;
+        }
+
+        if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+            showFriendlyAlert('Invalid Email', 'Please enter a valid email address.');
+            return;
+        }
+
+        if (!password.trim()) {
+            showFriendlyAlert('Missing Info', 'Please enter your password.');
+            return;
+        }
+
+        if (emailMode === 'signup') {
+            if (password.length < 8) {
+                showFriendlyAlert('Weak Password', 'Password must be at least 8 characters long.');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showFriendlyAlert('Password Mismatch', 'Passwords do not match. Please re-enter your password.');
+                return;
+            }
+
+            if (!tosAccepted) {
+                showFriendlyAlert('Terms of Service', 'Please accept the Terms of Service and Privacy Policy to continue.');
+                return;
+            }
+
+            trackEvent('signup_started', { method: 'email' });
+            setLoading(true);
+            setStatusMessage('');
+
+            try {
+                // Mock mode: only when explicitly enabled (no SMTP needed for UI testing).
+                if (ENABLE_MOCK_EMAIL_OTP) {
+                    setIsMockMode(true);
+                    setMockCode('123456');
+                    setStep('email-otp-verify');
+                    setResendCooldown(30);
+                    setStatusType('info');
+                    setStatusMessage('Email OTP simulated (Dev Mode). Use verification code: 123456');
+                    trackEvent('otp_sent', { method: 'email' });
+                    return;
+                }
+
+                // Send a REAL 6-digit OTP to the user's email for verification.
+                const { error: otpErr } = await supabase.auth.signInWithOtp({
+                    email: cleanEmail,
+                    options: {
+                        shouldCreateUser: true,
+                    },
+                });
+
+                if (otpErr) throw otpErr;
+
+                // Move to Email OTP verification screen
+                setIsMockMode(false);
+                setStep('email-otp-verify');
+                setResendCooldown(30);
+                setStatusType('info');
+                setStatusMessage(`Verification code sent to ${cleanEmail}`);
+                trackEvent('otp_sent', { method: 'email' });
+            } catch (err: any) {
+                console.error('[Auth] Error in email sign up:', err);
+                const msg = getFriendlyErrorMessage(err, 'Could not send verification code. Please check your email.');
+                setStatusType('error');
+                setStatusMessage(msg);
+                showFriendlyAlert('Sign Up Error', msg);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Sign In flow with Email + Password
+            setLoading(true);
+            setStatusMessage('');
+            try {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: cleanEmail,
+                    password,
+                });
+
+                if (error) throw error;
+
+                setStatusType('success');
+                setStatusMessage('Signed in successfully.');
+            } catch (err: any) {
+                console.error('[Auth] Error in email sign in:', err);
+                const msg = getFriendlyErrorMessage(err, 'Authentication failed. Please check your credentials.');
+                setStatusType('error');
+                setStatusMessage(msg);
+                showFriendlyAlert('Sign In Failed', msg);
+            } finally {
+                setLoading(false);
+            }
+        }
+    }
+
+    // Step 4: Verify Email OTP code and save password
+    async function handleVerifyEmailOtp() {
+        const cleanEmail = email.trim().toLowerCase();
+        const code = emailOtpCode.trim();
+        if (code.length < 4) {
+            showFriendlyAlert('Invalid Code', 'Please enter the verification code sent to your email.');
             return;
         }
 
@@ -244,33 +358,100 @@ export function AuthForm() {
         setStatusMessage('');
 
         try {
-            if (isSignUp) {
-                const { data, error } = await supabase.auth.signUp({
-                    email: email.trim().toLowerCase(),
+            // Mock mode check for dev testing
+            if (isMockMode && mockCode && code === mockCode) {
+                // Try to sign up the new account first.
+                const { error: signUpErr } = await supabase.auth.signUp({
+                    email: cleanEmail,
                     password,
                 });
-                if (error) throw error;
-                if (data.session) {
-                    setStatusType('success');
-                    setStatusMessage('Account created and signed in.');
-                } else {
-                    setStatusType('info');
-                    setStatusMessage('Check your email for confirmation link.');
+
+                // If the account already exists (e.g. a previous attempt), just sign in.
+                if (signUpErr) {
+                    const msg = (signUpErr.message || '').toLowerCase();
+                    const alreadyExists =
+                        msg.includes('already registered') ||
+                        msg.includes('already exists') ||
+                        msg.includes('user_already_exists');
+
+                    const { error: signInErr } = await supabase.auth.signInWithPassword({
+                        email: cleanEmail,
+                        password,
+                    });
+
+                    // Only surface an error if it wasn't simply a duplicate account.
+                    if (signInErr && !alreadyExists) throw signUpErr;
+                    if (signInErr && alreadyExists) throw signInErr;
                 }
-            } else {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email: email.trim().toLowerCase(),
-                    password,
-                });
-                if (error) throw error;
+
                 setStatusType('success');
-                setStatusMessage('Signed in successfully.');
+                setStatusMessage('Email verified! Signing you in...');
+                trackEvent('otp_verified', { method: 'email' });
+                return;
             }
+
+            // Verify email OTP token
+            const { error: verifyErr } = await supabase.auth.verifyOtp({
+                email: cleanEmail,
+                token: code,
+                type: 'email',
+            });
+
+            if (verifyErr) {
+                // Fallback attempt: verify as signup type
+                const { error: fallbackErr } = await supabase.auth.verifyOtp({
+                    email: cleanEmail,
+                    token: code,
+                    type: 'signup',
+                });
+                if (fallbackErr) throw fallbackErr;
+            }
+
+            // Once email is verified, set the user's password if provided during signup
+            if (password.trim()) {
+                await supabase.auth.updateUser({ password: password.trim() });
+            }
+
+            setStatusType('success');
+            setStatusMessage('Email verified successfully! Signing you in...');
+            trackEvent('otp_verified', { method: 'email' });
         } catch (err: any) {
-            console.error('[Auth] Error in email auth:', err);
-            const msg = getFriendlyErrorMessage(err, 'Authentication failed. Please check your credentials.');
+            console.error('[Auth] Error verifying email OTP:', err);
+            const msg = getFriendlyErrorMessage(err, 'Invalid or expired verification code. Please try again.');
             setStatusType('error');
             setStatusMessage(msg);
+            showFriendlyAlert('Verification Failed', msg);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Resend Email OTP
+    async function handleResendEmailOtp() {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail) return;
+
+        setLoading(true);
+        setStatusMessage('');
+
+        try {
+            const { error } = await supabase.auth.signInWithOtp({
+                email: cleanEmail,
+                options: {
+                    shouldCreateUser: true,
+                },
+            });
+
+            if (error) throw error;
+
+            setResendCooldown(30);
+            setStatusType('success');
+            setStatusMessage(`New verification code sent to ${cleanEmail}`);
+            trackEvent('otp_sent', { method: 'email' });
+        } catch (err: any) {
+            console.error('[Auth] Error resending email OTP:', err);
+            const msg = getFriendlyErrorMessage(err, 'Could not resend code. Please try again later.');
+            showFriendlyAlert('Error', msg);
         } finally {
             setLoading(false);
         }
@@ -280,16 +461,26 @@ export function AuthForm() {
         <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
             {/* Header Title */}
             <View style={styles.headerContainer}>
-                <Text style={[styles.badgeText, { color: colors.accent }]}>🔐 SECURE PHONE VERIFICATION</Text>
-                <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+                <Text style={[styles.badgeText, { color: colors.accent }]}>
+                    {step === 'email-fallback' || step === 'email-otp-verify'
+                        ? '✉️ SECURE EMAIL AUTHENTICATION'
+                        : '🔐 SECURE PHONE VERIFICATION'}
+                </Text>
+                <Text style={[styles.cardTitle, { color: colors.textPrimary }]}
+                >
                     {step === 'phone-input' && 'Enter your Mobile Number'}
                     {step === 'otp-verify' && 'Verify 6-Digit OTP Code'}
-                    {step === 'email-fallback' && 'Email Login'}
+                    {step === 'email-fallback' && (emailMode === 'signup' ? 'Create Account with Email' : 'Email Sign In')}
+                    {step === 'email-otp-verify' && 'Verify Email OTP Code'}
                 </Text>
                 <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
                     {step === 'phone-input' && 'We will send a 6-digit verification code via SMS to confirm your identity.'}
                     {step === 'otp-verify' && `Enter the verification code sent to ${getFormattedPhone()}`}
-                    {step === 'email-fallback' && 'Sign in using your account email and password.'}
+                    {step === 'email-fallback' &&
+                        (emailMode === 'signup'
+                            ? 'Enter your email, create a password, and verify via OTP.'
+                            : 'Sign in using your registered email and password.')}
+                    {step === 'email-otp-verify' && `Enter the verification code sent to ${email.trim()}`}
                 </Text>
             </View>
 
@@ -419,21 +610,68 @@ export function AuthForm() {
                 </View>
             )}
 
-            {/* STEP 3: Email Fallback (Optional) */}
+            {/* STEP 3: Email Fallback (Sign Up / Sign In) */}
             {step === 'email-fallback' && (
                 <View style={styles.formContainer}>
+                    {/* Toggle between Sign In (left) and Sign Up (right) */}
+                    <View style={styles.tabToggleRow}>
+                        <Pressable
+                            onPress={() => {
+                                setEmailMode('signin');
+                                setStatusMessage('');
+                            }}
+                            style={[
+                                styles.tabToggleBtn,
+                                emailMode === 'signin' && styles.tabToggleBtnActive,
+                            ]}
+                        >
+                            <Text
+                                style={[
+                                    styles.tabToggleText,
+                                    emailMode === 'signin' && styles.tabToggleTextActive,
+                                ]}
+                            >
+                                Sign In
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            onPress={() => {
+                                setEmailMode('signup');
+                                setStatusMessage('');
+                            }}
+                            style={[
+                                styles.tabToggleBtn,
+                                emailMode === 'signup' && styles.tabToggleBtnActive,
+                            ]}
+                        >
+                            <Text
+                                style={[
+                                    styles.tabToggleText,
+                                    emailMode === 'signup' && styles.tabToggleTextActive,
+                                ]}
+                            >
+                                Sign Up
+                            </Text>
+                        </Pressable>
+                    </View>
+
+                    <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Email Address</Text>
                     <TextInput
                         autoCapitalize="none"
+                        autoCorrect={false}
                         keyboardType="email-address"
-                        placeholder="Email Address"
+                        placeholder="you@example.com"
                         placeholderTextColor="#7b8d96"
                         style={styles.standardInput}
                         value={email}
                         onChangeText={setEmail}
                     />
+
+                    <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Password</Text>
                     <TextInput
                         autoCapitalize="none"
-                        placeholder="Password"
+                        autoCorrect={false}
+                        placeholder={emailMode === 'signup' ? 'Create a secure password (8+ chars)' : 'Enter your password'}
                         placeholderTextColor="#7b8d96"
                         secureTextEntry
                         style={styles.standardInput}
@@ -441,20 +679,119 @@ export function AuthForm() {
                         onChangeText={setPassword}
                     />
 
-                    <View style={styles.emailBtnRow}>
+                    {emailMode === 'signup' && (
+                        <>
+                            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Confirm Password</Text>
+                            <TextInput
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                placeholder="Re-enter your password"
+                                placeholderTextColor="#7b8d96"
+                                secureTextEntry
+                                style={styles.standardInput}
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                onSubmitEditing={handleEmailSubmit}
+                            />
+
+                            {/* Terms of Service acceptance */}
+                            <Pressable
+                                style={styles.tosRow}
+                                onPress={() => setTosAccepted((prev) => !prev)}
+                            >
+                                <View style={[styles.tosCheckbox, tosAccepted && styles.tosCheckboxChecked]}>
+                                    {tosAccepted ? <Text style={styles.tosCheckmark}>✓</Text> : null}
+                                </View>
+                                <Text style={[styles.tosText, { color: colors.textSecondary }]}>
+                                    I agree to the{' '}
+                                    <Text style={styles.tosLink}>Terms of Service</Text>
+                                    {' '}and{' '}
+                                    <Text style={styles.tosLink}>Privacy Policy</Text>
+                                </Text>
+                            </Pressable>
+                        </>
+                    )}
+
+                    {/* Submit Button */}
+                    <Pressable
+                        disabled={loading}
+                        onPress={handleEmailSubmit}
+                        style={[styles.primaryBtn, loading && styles.disabledBtn]}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#ffffff" size="small" />
+                        ) : (
+                            <Text style={styles.primaryBtnText}>
+                                {emailMode === 'signup' ? 'Continue with Verification ➔' : 'Sign In ➔'}
+                            </Text>
+                        )}
+                    </Pressable>
+                </View>
+            )}
+
+            {/* STEP 4: Email OTP Verification */}
+            {step === 'email-otp-verify' && (
+                <View style={styles.formContainer}>
+                    <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>6-Digit Email Code</Text>
+                    <TextInput
+                        autoFocus
+                        keyboardType="number-pad"
+                        maxLength={8}
+                        placeholder="1 2 3 4 5 6"
+                        placeholderTextColor="#7b8d96"
+                        style={styles.otpInput}
+                        value={emailOtpCode}
+                        onChangeText={setEmailOtpCode}
+                        onSubmitEditing={handleVerifyEmailOtp}
+                    />
+
+                    {/* Action Buttons Row */}
+                    <Pressable
+                        disabled={loading || emailOtpCode.trim().length < 4}
+                        onPress={handleVerifyEmailOtp}
+                        style={[
+                            styles.primaryBtn,
+                            (loading || emailOtpCode.trim().length < 4) && styles.disabledBtn,
+                        ]}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#ffffff" size="small" />
+                        ) : (
+                            <Text style={styles.primaryBtnText}>Verify Email & Continue ➔</Text>
+                        )}
+                    </Pressable>
+
+                    <View style={styles.otpFooterRow}>
+                        {/* Resend OTP */}
                         <Pressable
-                            disabled={loading}
-                            onPress={() => handleEmailAuth(false)}
-                            style={[styles.primaryBtn, { flex: 1 }]}
+                            disabled={resendCooldown > 0 || loading}
+                            onPress={handleResendEmailOtp}
+                            style={styles.resendBtn}
                         >
-                            <Text style={styles.primaryBtnText}>Sign In</Text>
+                            <Text
+                                style={[
+                                    styles.resendBtnText,
+                                    resendCooldown > 0 && styles.disabledText,
+                                ]}
+                            >
+                                {resendCooldown > 0
+                                    ? `Resend Code (${resendCooldown}s)`
+                                    : 'Resend Code'}
+                            </Text>
                         </Pressable>
+
+                        <Text style={styles.dividerDot}>•</Text>
+
+                        {/* Edit Email Address */}
                         <Pressable
-                            disabled={loading}
-                            onPress={() => handleEmailAuth(true)}
-                            style={[styles.secondaryBtn, { flex: 1 }]}
+                            onPress={() => {
+                                setStep('email-fallback');
+                                setEmailOtpCode('');
+                                setStatusMessage('');
+                            }}
+                            style={styles.editPhoneBtn}
                         >
-                            <Text style={styles.secondaryBtnText}>Sign Up</Text>
+                            <Text style={styles.editPhoneText}>Change Email</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -483,13 +820,19 @@ export function AuthForm() {
 
             {/* Footer Navigation / Mode Switch */}
             <View style={[styles.cardFooter, { borderTopColor: colors.cardBorder }]}>
-                {step !== 'email-fallback' ? (
-                    <Pressable onPress={() => setStep('email-fallback')}>
-                        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>Use Email & Password instead</Text>
+                {step === 'email-fallback' || step === 'email-otp-verify' ? (
+                    <Pressable onPress={() => {
+                        setStep('phone-input');
+                        setStatusMessage('');
+                    }}>
+                        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>← Back to Phone Verification</Text>
                     </Pressable>
                 ) : (
-                    <Pressable onPress={() => setStep('phone-input')}>
-                        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>← Back to Phone Verification</Text>
+                    <Pressable onPress={() => {
+                        setStep('email-fallback');
+                        setStatusMessage('');
+                    }}>
+                        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>Use Email & Password instead</Text>
                     </Pressable>
                 )}
             </View>
@@ -596,6 +939,37 @@ const styles = StyleSheet.create({
         fontSize: 15,
         paddingHorizontal: 16,
         paddingVertical: 12,
+    },
+    tabToggleRow: {
+        backgroundColor: '#f1f5f7',
+        borderRadius: 12,
+        flexDirection: 'row',
+        marginBottom: 6,
+        padding: 4,
+    },
+    tabToggleBtn: {
+        alignItems: 'center',
+        borderRadius: 10,
+        flex: 1,
+        justifyContent: 'center',
+        paddingVertical: 10,
+    },
+    tabToggleBtnActive: {
+        backgroundColor: '#ffffff',
+        shadowColor: '#0e2e3a',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    tabToggleText: {
+        color: '#5a717b',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    tabToggleTextActive: {
+        color: '#0e2e3a',
+        fontWeight: '800',
     },
     primaryBtn: {
         alignItems: 'center',

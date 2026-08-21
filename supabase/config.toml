@@ -1,0 +1,82 @@
+# Supabase project configuration
+# Docs: https://supabase.com/docs/guides/local-development/cli/config
+#
+# NOTE: Replace "openmatch" below with your actual project ref if you use
+# `supabase link`. This file is used by the Supabase CLI for local dev and can
+# be pushed to your hosted project's Auth settings.
+
+project_id = "openmatch"
+
+[auth]
+# The base URL of your site, used for email links and redirects.
+site_url = "https://openmatch.app"
+# Additional redirect URLs allowed after authentication (add your dev URLs).
+additional_redirect_urls = [
+  "http://localhost:8081",
+  "openmatch://",
+]
+# How long tokens/OTP codes are valid before expiring.
+jwt_expiry = 3600
+# Allow new users to sign up.
+enable_signup = true
+
+[auth.email]
+# Enable email/password + email OTP sign-in.
+enable_signup = true
+# Require users to confirm their email (this triggers the OTP/confirmation mail).
+enable_confirmations = true
+# Allow password-based auth in addition to OTP.
+# (Password sign-in is used by the app's "Sign In" tab.)
+secure_password_change = true
+# Length of the numeric OTP code emailed to users (6 digits).
+otp_length = 6
+# How long the emailed OTP code stays valid (in seconds).
+otp_expiry = 3600
+
+# ---------------------------------------------------------------------------
+# Email templates: deliver a 6-digit {{ .Token }} code instead of a magic link.
+# These files live in supabase/templates/ and are applied on `supabase db push`
+# / `supabase config push` (or copy their contents into the dashboard).
+# ---------------------------------------------------------------------------
+[auth.email.template.confirmation]
+subject = "Your OpenMatch verification code"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.magic_link]
+subject = "Your OpenMatch sign-in code"
+content_path = "./templates/magic_link.html"
+
+[auth.email.template.recovery]
+subject = "Reset your OpenMatch password"
+content_path = "./templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new OpenMatch email"
+content_path = "./templates/email_change.html"
+
+# ---------------------------------------------------------------------------
+# Custom SMTP — REQUIRED to reliably send real OTP emails to real users.
+# The built-in Supabase email service is heavily rate-limited (a few per hour)
+# and is only meant for testing. Use a provider like Resend / SendGrid / SES.
+#
+# Values are read from environment variables so you never commit secrets.
+# Set them in your shell or a .env consumed by the Supabase CLI, e.g.:
+#   export SMTP_HOST="smtp.resend.com"
+#   export SMTP_PORT="465"
+#   export SMTP_USER="resend"
+#   export SMTP_PASS="re_xxxxxxxxxxxxxxxxxxxx"
+#   export SMTP_ADMIN_EMAIL="no-reply@yourdomain.com"
+#   export SMTP_SENDER_NAME="OpenMatch"
+# ---------------------------------------------------------------------------
+[auth.email.smtp]
+enabled = true
+host = "env(SMTP_HOST)"
+port = "env(SMTP_PORT)"
+user = "env(SMTP_USER)"
+pass = "env(SMTP_PASS)"
+admin_email = "env(SMTP_ADMIN_EMAIL)"
+sender_name = "env(SMTP_SENDER_NAME)"
+
+# Rate limits (per hour) to protect against abuse.
+[auth.rate_limit]
+email_sent = 30
