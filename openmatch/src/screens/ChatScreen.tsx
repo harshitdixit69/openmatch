@@ -145,7 +145,7 @@ export function ChatScreen({
     onConversationOpenChange,
     initialActiveMatchId = null,
 }: ChatScreenProps) {
-    const { width: windowWidth } = useWindowDimensions();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
     const isCompactHeader = isCompactChatHeader(windowWidth);
     const initialCachedMatches = getCachedChatMatches();
@@ -186,7 +186,9 @@ export function ChatScreen({
     const [premiumPopup, setPremiumPopup] = useState<PremiumPromoVariant | null>(null);
     const [otherUserTyping, setOtherUserTyping] = useState(false);
     const [dropdownVisible, setDropdownVisible] = useState(false);
+    const [dropdownAnchor, setDropdownAnchor] = useState<{ top: number; left: number } | null>(null);
     const [otherUserPresence, setOtherUserPresence] = useState<{ user_id: string; status: string; last_seen_at: string; is_online: boolean } | null>(null);
+    const moreButtonRef = useRef<View>(null);
     const lastSentTypingAt = useRef<number>(0);
 
     useEffect(() => {
@@ -1356,6 +1358,31 @@ export function ChatScreen({
         setContactShareBlocked(false);
     }
 
+    function toggleHeaderDropdown() {
+        if (dropdownVisible) {
+            setDropdownVisible(false);
+            return;
+        }
+
+        const menuWidth = 140;
+        const menuHeight = 94;
+        const screenGutter = 12;
+
+        moreButtonRef.current?.measureInWindow((x, y, width, height) => {
+            const left = Math.min(
+                Math.max(screenGutter, x + width - menuWidth),
+                windowWidth - menuWidth - screenGutter,
+            );
+            const spaceBelow = windowHeight - (y + height);
+            const top = spaceBelow >= menuHeight + screenGutter
+                ? y + height + 8
+                : Math.max(screenGutter, y - menuHeight - 8);
+
+            setDropdownAnchor({ top, left });
+            setDropdownVisible(true);
+        });
+    }
+
     async function refreshUnlockedMatch(matchId: string) {
         const nextMatch = await fetchChatMatchById(matchId);
         if (nextMatch) {
@@ -1503,46 +1530,58 @@ export function ChatScreen({
                                     )}
                                     <View style={{ position: 'relative', zIndex: 1100 }}>
                                         <Pressable
+                                            ref={moreButtonRef}
                                             style={({ pressed }) => [
                                                 styles.moreHeaderButton,
                                                 pressed && styles.headerButtonPressed,
                                             ]}
-                                            onPress={() => setDropdownVisible(!dropdownVisible)}
+                                            onPress={toggleHeaderDropdown}
                                             accessibilityRole="button"
                                             accessibilityLabel="More options"
                                         >
                                             <Text style={styles.moreHeaderButtonText}>⋮</Text>
                                         </Pressable>
 
-                                        {dropdownVisible && (
-                                            <>
+                                        <Modal
+                                            transparent
+                                            visible={dropdownVisible}
+                                            animationType="fade"
+                                            presentationStyle="overFullScreen"
+                                            statusBarTranslucent
+                                            onRequestClose={() => setDropdownVisible(false)}
+                                        >
+                                            <View style={styles.dropdownModalLayer}>
                                                 <Pressable
                                                     style={styles.dropdownBackdrop}
                                                     onPress={() => setDropdownVisible(false)}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel="Close more options"
                                                 />
-                                                <View style={styles.headerDropdownMenu}>
-                                                    <Pressable
-                                                        style={styles.headerDropdownItem}
-                                                        onPress={() => {
-                                                            setDropdownVisible(false);
-                                                            confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                        }}
-                                                    >
-                                                        <Text style={styles.headerDropdownItemText}>Block User</Text>
-                                                    </Pressable>
-                                                    <View style={styles.headerDropdownDivider} />
-                                                    <Pressable
-                                                        style={styles.headerDropdownItem}
-                                                        onPress={() => {
-                                                            setDropdownVisible(false);
-                                                            promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                        }}
-                                                    >
-                                                        <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
-                                                    </Pressable>
-                                                </View>
-                                            </>
-                                        )}
+                                                {dropdownAnchor ? (
+                                                    <View style={[styles.headerDropdownMenu, dropdownAnchor]}>
+                                                        <Pressable
+                                                            style={styles.headerDropdownItem}
+                                                            onPress={() => {
+                                                                setDropdownVisible(false);
+                                                                confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                            }}
+                                                        >
+                                                            <Text style={styles.headerDropdownItemText}>Block User</Text>
+                                                        </Pressable>
+                                                        <View style={styles.headerDropdownDivider} />
+                                                        <Pressable
+                                                            style={styles.headerDropdownItem}
+                                                            onPress={() => {
+                                                                setDropdownVisible(false);
+                                                                promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                            }}
+                                                        >
+                                                            <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
+                                                        </Pressable>
+                                                    </View>
+                                                ) : null}
+                                            </View>
+                                        </Modal>
                                     </View>
                                 </View>
                             ) : (
@@ -5004,17 +5043,17 @@ const styles = StyleSheet.create({
     },
     dropdownBackdrop: {
         position: 'absolute',
-        top: -3000,
-        left: -3000,
-        right: -3000,
-        bottom: -3000,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: 'transparent',
-        zIndex: 1,
+    },
+    dropdownModalLayer: {
+        flex: 1,
     },
     headerDropdownMenu: {
         position: 'absolute',
-        top: 40,
-        right: 0,
         backgroundColor: '#ffffff',
         borderRadius: 8,
         borderWidth: 1,
@@ -5025,7 +5064,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 6,
-        elevation: 5,
+        elevation: 24,
         zIndex: 1500,
     },
     headerDropdownItem: {
