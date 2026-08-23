@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal,
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { subscribeToNotifications } from '../lib/notificationsApi';
+import { subscribeToNotifications, type AppNotification } from '../lib/notificationsApi';
 import { supabase } from '../lib/supabase';
 
 import { ChatMatch } from '../lib/chat';
@@ -81,6 +81,9 @@ export function MainTabsScreen() {
     const [showNotifications, setShowNotifications] = useState(false);
     const [showDashboard, setShowDashboard] = useState(false);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    // Deep-link target: when a notification tap should open a specific chat, we
+    // stash the matchId here and pass it to the ChatScreen for that tab.
+    const [pendingChatMatchId, setPendingChatMatchId] = useState<string | null>(null);
     const [conciergeRefreshCounter, setConciergeRefreshCounter] = useState(0);
     const [showAssistedChat, setShowAssistedChat] = useState(false);
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -319,6 +322,74 @@ export function MainTabsScreen() {
         setActiveTab(tab);
     }
 
+    // Opens the right destination when a notification is tapped, based on its
+    // type + metadata. Most events relate to a specific match/conversation, so
+    // they deep-link into that chat; the rest fall back to the most relevant tab
+    // or screen. Unknown/informational types simply close the notifications view.
+    function openChatForMatch(matchId: string, tab: 'chat' | 'inbox' = 'chat') {
+        setShowNotifications(false);
+        setPendingChatMatchId(matchId);
+        setActiveTab(tab);
+    }
+
+    function routeFromNotification(n: AppNotification) {
+        const matchId = n.metadata?.matchId ?? n.metadata?.match_id ?? null;
+
+        switch (n.type) {
+            case 'message_received':
+            case 'request_accepted':
+            case 'request_ghosted':
+            case 'contact_unlocked':
+            case 'new_match':
+                if (matchId) {
+                    openChatForMatch(matchId, 'chat');
+                } else {
+                    setShowNotifications(false);
+                    setActiveTab('chat');
+                }
+                break;
+
+            case 'request_received':
+                // A new interest request lands in the Inbox (received) list.
+                if (matchId) {
+                    openChatForMatch(matchId, 'inbox');
+                } else {
+                    setShowNotifications(false);
+                    setActiveTab('inbox');
+                }
+                break;
+
+            case 'request_declined':
+                // No conversation to open; surface the Inbox so they can move on.
+                setShowNotifications(false);
+                setActiveTab('inbox');
+                break;
+
+            case 'profile_viewed': {
+                const viewerId = n.metadata?.viewerId ?? n.metadata?.profileId ?? null;
+                setShowNotifications(false);
+                if (viewerId) {
+                    setSelectedProfileId(viewerId);
+                } else {
+                    setShowWhoViewedMe(true);
+                }
+                break;
+            }
+
+            case 'reliability_badge':
+                // Sends the user to their own profile to see the new badge.
+                setShowNotifications(false);
+                setShowProfileEdit(true);
+                break;
+
+            case 'system':
+            default:
+                // Informational — just dismiss the notifications screen.
+                setShowNotifications(false);
+                break;
+        }
+    }
+
     function renderActiveTab() {
         if (activeTab === 'home') {
             return (
@@ -360,10 +431,14 @@ export function MainTabsScreen() {
                     initialMatchListFilter="received"
                     initialVisibilityFilter="all"
                     isChatScreen={false}
+                    initialActiveMatchId={pendingChatMatchId}
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                     onOpenNotifications={() => setShowNotifications(true)}
                     unreadNotificationsCount={shellCounts.unreadNotifications}
-                    onConversationOpenChange={setIsChatConversationOpen}
+                    onConversationOpenChange={(isOpen) => {
+                        setIsChatConversationOpen(isOpen);
+                        if (!isOpen) setPendingChatMatchId(null);
+                    }}
                 />
             );
         }
@@ -376,10 +451,14 @@ export function MainTabsScreen() {
                     initialMatchListFilter="accepted"
                     initialVisibilityFilter={shellCounts.unread > 0 ? 'unread' : 'all'}
                     isChatScreen={true}
+                    initialActiveMatchId={pendingChatMatchId}
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                     onOpenNotifications={() => setShowNotifications(true)}
                     unreadNotificationsCount={shellCounts.unreadNotifications}
-                    onConversationOpenChange={setIsChatConversationOpen}
+                    onConversationOpenChange={(isOpen) => {
+                        setIsChatConversationOpen(isOpen);
+                        if (!isOpen) setPendingChatMatchId(null);
+                    }}
                 />
             );
         }
@@ -450,6 +529,7 @@ export function MainTabsScreen() {
         return (
             <NotificationsScreen
                 onBack={() => setShowNotifications(false)}
+                onNotificationPress={routeFromNotification}
             />
         );
     }

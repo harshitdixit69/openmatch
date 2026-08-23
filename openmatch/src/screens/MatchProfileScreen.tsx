@@ -47,6 +47,39 @@ type MatchProfileScreenProps = {
     unlockState?: MatchUnlockState | null;
 };
 
+function profileFromMatchCandidate(candidate: MatchCandidate): ProfileRecord {
+    return {
+        id: candidate.id,
+        full_name: candidate.full_name,
+        gender: candidate.gender,
+        partner_gender_preference: candidate.partner_gender_preference,
+        photo_urls: candidate.photo_urls,
+        dob: candidate.dob,
+        location: candidate.location,
+        bio: candidate.bio,
+        preferences: candidate.preferences,
+        height_cm: candidate.height_cm,
+        profile_owner: candidate.profile_owner,
+        onboarding_completed_at: null,
+        religion: null,
+        marital_status: null,
+        education: null,
+        diet: null,
+        mother_tongue: null,
+        income_band: null,
+        occupation: null,
+        company: null,
+        complexion: null,
+        family_type: null,
+        family_status: null,
+        num_siblings: null,
+        drinks_alcohol: null,
+        smokes: null,
+        verification_status: candidate.verification_status,
+        subscription_tier: candidate.subscription_tier as ProfileRecord['subscription_tier'],
+    };
+}
+
 export function MatchProfileScreen({
     candidate,
     viewerProfile,
@@ -68,8 +101,10 @@ export function MatchProfileScreen({
     const [trustLoading, setTrustLoading] = useState(false);
     const [trustDrawerVisible, setTrustDrawerVisible] = useState(false);
     const [viewerPrefs, setViewerPrefs] = useState<PartnerPreferences | null>(null);
-    const [candidateProfile, setCandidateProfile] = useState<ProfileRecord | null>(null);
-    const [profileLoading, setProfileLoading] = useState(true);
+    // The match feed already contains enough data to render the first paint.
+    // Enrich it with the full profile in the background instead of blocking
+    // the entire profile screen on another request.
+    const [candidateProfile, setCandidateProfile] = useState<ProfileRecord>(() => profileFromMatchCandidate(candidate));
     const [contactDetails, setContactDetails] = useState<ProfileContactDetails | null>(null);
     const [contactDetailsLoading, setContactDetailsLoading] = useState(true);
     const [relationshipStatus, setRelationshipStatus] = useState<'none' | 'sent' | 'received' | 'accepted' | 'loading'>('loading');
@@ -89,11 +124,19 @@ export function MatchProfileScreen({
 
         async function fetchRelationship() {
             try {
-                const { data: reqs, error: reqsErr } = await supabase
-                    .from('interest_requests')
-                    .select('*')
-                    .or(`and(sender_id.eq.${viewerProfileId},receiver_id.eq.${candidateId}),and(sender_id.eq.${candidateId},receiver_id.eq.${viewerProfileId})`)
-                    .order('created_at', { ascending: false });
+                const [requestsResult, matchesResult] = await Promise.all([
+                    supabase
+                        .from('interest_requests')
+                        .select('*')
+                        .or(`and(sender_id.eq.${viewerProfileId},receiver_id.eq.${candidateId}),and(sender_id.eq.${candidateId},receiver_id.eq.${viewerProfileId})`)
+                        .order('created_at', { ascending: false }),
+                    supabase
+                        .from('matches')
+                        .select('id')
+                        .or(`and(user_1_id.eq.${viewerProfileId},user_2_id.eq.${candidateId}),and(user_1_id.eq.${candidateId},user_2_id.eq.${viewerProfileId})`),
+                ]);
+
+                const { data: reqs, error: reqsErr } = requestsResult;
 
                 if (reqsErr) throw reqsErr;
 
@@ -115,11 +158,7 @@ export function MatchProfileScreen({
                         return;
                     }
 
-                    const { data: matches, error: matchesErr } = await supabase
-                        .from('matches')
-                        .select('*')
-                        .or(`and(user_1_id.eq.${viewerProfileId},user_2_id.eq.${candidateId}),and(user_1_id.eq.${candidateId},user_2_id.eq.${viewerProfileId})`);
-
+                    const { data: matches, error: matchesErr } = matchesResult;
                     if (matchesErr) throw matchesErr;
 
                     if (matches && matches.length > 0) {
@@ -245,21 +284,16 @@ export function MatchProfileScreen({
 
     // Load full candidate profile record
     useEffect(() => {
-        setCandidateProfile(null);
-        setProfileLoading(true);
+        setCandidateProfile(profileFromMatchCandidate(candidate));
         let active = true;
         async function loadCandidateProfile() {
             try {
                 const profile = await fetchCurrentProfile(candidate.id);
-                if (active) {
+                if (active && profile) {
                     setCandidateProfile(profile);
                 }
             } catch (err) {
                 console.warn('Failed to load full candidate profile:', err);
-            } finally {
-                if (active) {
-                    setProfileLoading(false);
-                }
             }
         }
         void loadCandidateProfile();
@@ -578,34 +612,6 @@ export function MatchProfileScreen({
     const matchedCount = checklistItems.filter(item => item.isMatched).length;
     const totalCount = checklistItems.length;
     const commonGround = getCommonIntersections();
-
-    if (profileLoading) {
-        return (
-            <SafeAreaView style={styles.safeArea}>
-                <View style={styles.notFoundContainer}>
-                    <ActivityIndicator size="large" color="#11313c" />
-                    <Text style={[styles.notFoundSubtitle, { marginTop: 12 }]}>Loading profile...</Text>
-                </View>
-            </SafeAreaView>
-        );
-    }
-
-    if (!candidateProfile) {
-        return (
-            <SafeAreaView style={styles.safeArea}>
-                <View style={styles.notFoundContainer}>
-                    <Text style={styles.notFoundEmoji}>🚫</Text>
-                    <Text style={styles.notFoundTitle}>Profile Unavailable</Text>
-                    <Text style={styles.notFoundSubtitle}>
-                        This profile is no longer available or does not exist.
-                    </Text>
-                    <Pressable style={styles.notFoundButton} onPress={onClose}>
-                        <Text style={styles.notFoundButtonText}>Go Back</Text>
-                    </Pressable>
-                </View>
-            </SafeAreaView>
-        );
-    }
 
     return (
         <SafeAreaView style={styles.safeArea}>

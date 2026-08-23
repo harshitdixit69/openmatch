@@ -128,50 +128,26 @@ export async function fetchCurrentProfile(userId?: string): Promise<ProfileRecor
 }
 
 export async function fetchCurrentProfileContactDetails(userId?: string): Promise<ProfileContactDetails | null> {
-    const user = await getCurrentSessionUser();
-    const targetUserId = userId ?? user?.id;
+    // A candidate id is already known by the caller, so avoid an extra auth
+    // request. The RPC validates auth.uid() server-side.
+    const targetUserId = userId ?? (await getCurrentSessionUser())?.id;
 
     if (!targetUserId) {
         return null;
     }
 
-    if (user && targetUserId !== user.id) {
-        // C3 FIX: Check for block
-        const { data: block } = await supabase
-            .from('user_blocks')
-            .select('id')
-            .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${targetUserId}),and(blocker_id.eq.${targetUserId},blocked_id.eq.${user.id})`)
-            .maybeSingle();
-        if (block) {
-            return null;
-        }
-
-        // C3 FIX: Verify mutual match/escrow unlock before exposing contact details
-        const { data: mutualMatch } = await supabase
-            .from('matches')
-            .select('id')
-            .or(
-                `and(user_a.eq.${user.id},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${user.id})`
-            )
-            .maybeSingle();
-
-        if (!mutualMatch) {
-            // No mutual match — deny access to contact details
-            return null;
-        }
-    }
-
-    const { data, error } = await supabase
-        .from('profile_contact_details')
-        .select(profileContactSelect)
-        .eq('profile_id', targetUserId)
-        .maybeSingle();
+    // Access checks and the contact lookup run inside one database function.
+    // This avoids a session -> block -> match -> contact request waterfall.
+    const { data, error } = await supabase.rpc('get_contact_details_if_unlocked', {
+        target_profile_id: targetUserId,
+    });
 
     if (error) {
         throw error;
     }
 
-    return mapProfileContactDetails(data as ({ profile_id: string } & ProfileContactDetails) | null);
+    const row = Array.isArray(data) ? data[0] ?? null : data;
+    return mapProfileContactDetails(row as ({ profile_id: string } & ProfileContactDetails) | null);
 }
 
 export async function upsertCurrentProfileContactDetails(input: ProfileContactInput): Promise<ProfileContactDetails> {

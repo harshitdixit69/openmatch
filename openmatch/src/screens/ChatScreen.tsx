@@ -98,6 +98,11 @@ type ChatScreenProps = {
     isPremium?: boolean;
     hideHeaderRowIfNoActiveMatch?: boolean;
     onConversationOpenChange?: (isOpen: boolean) => void;
+    /**
+     * When set, the chat opens straight into this match's conversation once the
+     * match list has loaded. Used for deep-linking from a notification tap.
+     */
+    initialActiveMatchId?: string | null;
 };
 
 type RecoverySuggestionAction = 'request_unlock' | 'accept_unlock' | 'pay_unlock' | 'call' | 'whatsapp';
@@ -138,6 +143,7 @@ export function ChatScreen({
     isPremium = false,
     hideHeaderRowIfNoActiveMatch = false,
     onConversationOpenChange,
+    initialActiveMatchId = null,
 }: ChatScreenProps) {
     const { width: windowWidth } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
@@ -186,6 +192,24 @@ export function ChatScreen({
     useEffect(() => {
         onConversationOpenChange?.(Boolean(activeMatch));
     }, [activeMatch, onConversationOpenChange]);
+
+    // Deep-link: when opened from a notification tap we receive an
+    // `initialActiveMatchId`. As soon as the match list contains it, open that
+    // conversation exactly once. A ref makes this one-shot so a later background
+    // refresh of `matches` cannot yank the user back into a stale conversation.
+    const pendingInitialMatchIdRef = useRef<string | null>(initialActiveMatchId);
+    useEffect(() => {
+        pendingInitialMatchIdRef.current = initialActiveMatchId;
+    }, [initialActiveMatchId]);
+    useEffect(() => {
+        const pendingId = pendingInitialMatchIdRef.current;
+        if (!pendingId) return;
+        const target = matches.find((m) => m.id === pendingId);
+        if (target) {
+            pendingInitialMatchIdRef.current = null;
+            setActiveMatch(target);
+        }
+    }, [matches, initialActiveMatchId]);
 
     // Guards against overlapping / duplicate loadMatches runs (mount effect,
     // three realtime subscriptions and action handlers can all trigger it).
