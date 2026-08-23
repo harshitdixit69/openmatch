@@ -166,6 +166,50 @@ function normalizeIdNumber(raw: string | undefined | null): string {
   return (raw ?? '').replace(/[^a-z0-9]/gi, '').toUpperCase();
 }
 
+// Honorifics / prefixes that appear on Indian IDs and profiles but carry no identity
+// information. Stripped before comparing names so "Mr Harshit Dixit" == "Harshit Dixit".
+const NAME_HONORIFICS = new Set([
+  'mr', 'mrs', 'ms', 'miss', 'dr', 'shri', 'sri', 'smt', 'smti', 'kumari', 'km', 'kum',
+  'master', 'late', 'er', 'ca', 'adv', 'prof',
+]);
+
+function nameTokens(raw: string | undefined | null): string[] {
+  return (raw ?? '')
+    .toLowerCase()
+    .replace(/\b(s\/o|d\/o|w\/o|c\/o)\b/g, ' ') // son/daughter/wife/care-of markers
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2 && !NAME_HONORIFICS.has(t));
+}
+
+/**
+ * Deterministic, LLM-independent check that the name registered on the profile is
+ * consistent with the name printed on the government ID. This is the backstop for the
+ * AI's `nameMatches` flag, which can hallucinate `true` and let someone verify a
+ * profile whose display name differs from their own ID (impersonation / catfishing).
+ *
+ * Tolerant of middle names, honorifics, and token ordering (common in Indian names)
+ * but rejects genuinely different names. When both names carry a surname we require at
+ * least two shared tokens; a single-token profile name only needs one match.
+ */
+export function namesAreConsistent(
+  profileName: string | undefined | null,
+  idName: string | undefined | null,
+): boolean {
+  const profileTokens = nameTokens(profileName);
+  const idTokens = nameTokens(idName);
+
+  // Nothing to compare against — do not block on missing data (handled elsewhere).
+  if (profileTokens.length === 0 || idTokens.length === 0) return true;
+
+  const idSet = new Set(idTokens);
+  const shared = profileTokens.filter((t) => idSet.has(t)).length;
+
+  const required = Math.min(profileTokens.length, idTokens.length) >= 2 ? 2 : 1;
+  return shared >= required;
+}
+
 // One-way keyed hash of the ID number. We deliberately do NOT store the raw Govt ID
 // number anywhere — only a salted SHA-256 digest, which is enough to detect "this exact
 // ID already verified a different account" without holding sensitive KYC data at rest.
@@ -370,6 +414,22 @@ serve(async (req) => {
     // badge and flag it for review. We store only a salted hash, never the raw number.
     let finalStatus = status;
     let finalReason = reason;
+
+    // ---- 2a. Deterministic name-consistency backstop -----------------------------
+    // The AI's `nameMatches` boolean is unreliable and can hallucinate `true`, letting
+    // someone set a profile display name that differs from the name on their own real
+    // ID (impersonation / catfishing — genuine ID + genuine selfie, wrong name). We
+    // independently compare the AI-extracted ID name against the registered profile
+    // name; on any inconsistency we refuse to auto-approve and route to manual review.
+    if (finalStatus === 'approved' && !namesAreConsistent(fullName, result.extractedName)) {
+      console.warn(
+        `[verify-identity-ai] name mismatch: profile="${fullName ?? ''}" id="${result.extractedName ?? ''}" — downgrading to pending`,
+      );
+      finalStatus = 'pending';
+      finalReason =
+        'The name on your profile does not match the name printed on your government ID. ' +
+        'Please make sure your profile name matches your ID exactly — our team will review this manually.';
+    }
 
     const canonicalIdNumber = normalizeIdNumber(result.idNumber);
     // A salt keeps the hashes non-reversible even if the table leaks. Fall back to the

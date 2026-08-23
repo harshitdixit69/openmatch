@@ -223,6 +223,18 @@ async function handleSucceededPayment(
         throw updateUnlockError;
     }
 
+    // Ledger row for the payer's Payment history (contact unlock micro-transaction).
+    await safeRecordPayment(serviceClient, {
+        userId: payerUserId,
+        kind: 'unlock',
+        description: 'Contact unlock',
+        tier: null,
+        durationMonths: null,
+        amountMinor: typeof intent.amount === 'number' ? intent.amount : null,
+        currency: (intent.currency ?? 'inr').toUpperCase(),
+        stripeReference: intent.id,
+    });
+
     if (bothPaid) {
         if (!match.is_unlocked) {
             const { error: updateMatchError } = await serviceClient
@@ -479,6 +491,62 @@ async function handleSubscriptionCheckoutCompleted(
             duration_months: durationMonths.toString(),
         },
     });
+
+    // Ledger row for Settings > Payment history. Non-fatal: a failure here must never
+    // undo a paid-for entitlement that was already applied above.
+    await safeRecordPayment(serviceClient, {
+        userId,
+        kind: 'subscription',
+        description: `${targetTier.toUpperCase().replace('_', ' ')} — ${durationMonths} month${durationMonths === 1 ? '' : 's'}`,
+        tier: targetTier,
+        durationMonths,
+        amountMinor: typeof session.amount_total === 'number' ? session.amount_total : null,
+        currency: (session.currency ?? 'inr').toUpperCase(),
+        stripeReference: session.id,
+    });
+}
+
+/**
+ * Best-effort insert into public.payment_history. Uses onConflict on stripe_reference so a
+ * retried webhook never double-records, and swallows all errors so the payment ledger can
+ * never block or reverse fulfillment of a genuine purchase.
+ */
+async function safeRecordPayment(
+    serviceClient: ReturnType<typeof createClient>,
+    entry: {
+        userId: string;
+        kind: string;
+        description: string;
+        tier?: string | null;
+        durationMonths?: number | null;
+        amountMinor: number | null;
+        currency: string;
+        stripeReference: string | null;
+    },
+) {
+    try {
+        const { error } = await serviceClient
+            .from('payment_history')
+            .upsert(
+                {
+                    user_id: entry.userId,
+                    kind: entry.kind,
+                    description: entry.description,
+                    tier: entry.tier ?? null,
+                    duration_months: entry.durationMonths ?? null,
+                    amount_minor: entry.amountMinor,
+                    currency: entry.currency,
+                    status: 'succeeded',
+                    stripe_reference: entry.stripeReference,
+                },
+                { onConflict: 'stripe_reference', ignoreDuplicates: true },
+            );
+        if (error && error.code !== '23505') {
+            console.error('payment_history insert failed:', error.message);
+        }
+    } catch (err) {
+        console.error('payment_history insert threw:', err);
+    }
 }
 
 function json(body: unknown, status = 200) {

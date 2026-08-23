@@ -121,39 +121,132 @@ export async function pickGovtIdDocument(): Promise<PickedProfilePhoto | null> {
 }
 
 /**
- * Capture a live selfie using the front camera (liveness-lite for identity verification).
- * On web, falls back to the file picker with a camera capture hint. Forcing camera capture
- * (instead of letting the user pick any library photo) makes it materially harder to submit
- * a downloaded photo of someone else for verification.
+ * Web-only: open a live front-camera stream in a fullscreen overlay and let the user
+ * snap a frame. Returns null if the user cancels. Throws if no camera is available or
+ * permission is denied — the caller surfaces an actionable message and we NEVER fall
+ * back to a file picker (that is the exact impersonation hole we are closing: on desktop
+ * a file <input capture="user"> silently lets the user pick a saved photo of someone
+ * else, producing a fraudulent "verified" badge from a real ID + a downloaded selfie).
+ */
+async function captureLiveSelfieWeb(): Promise<PickedProfilePhoto | null> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error(
+            'Your browser does not support live camera capture. Please verify from the OpenMatch mobile app.',
+        );
+    }
+
+    let stream: MediaStream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+        });
+    } catch {
+        throw new Error(
+            'Camera access is required for a live selfie. Please allow camera permission, or verify from the OpenMatch mobile app.',
+        );
+    }
+
+    return new Promise<PickedProfilePhoto | null>((resolve) => {
+        const cleanup = (overlay: HTMLElement) => {
+            stream.getTracks().forEach((track) => track.stop());
+            overlay.remove();
+        };
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText =
+            'position:fixed;inset:0;z-index:99999;background:#0b1419;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;';
+
+        const video = document.createElement('video');
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = true;
+        video.srcObject = stream;
+        video.style.cssText =
+            'width:min(92vw,420px);aspect-ratio:3/4;object-fit:cover;border-radius:16px;transform:scaleX(-1);background:#000;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+
+        const hint = document.createElement('p');
+        hint.textContent = 'Center your face in the frame, then capture your live selfie.';
+        hint.style.cssText =
+            'color:#e6edf0;font-family:system-ui,sans-serif;font-size:15px;text-align:center;margin:0;max-width:420px;';
+
+        const buttonRow = document.createElement('div');
+        buttonRow.style.cssText = 'display:flex;gap:12px;';
+
+        const captureBtn = document.createElement('button');
+        captureBtn.textContent = '📸 Capture';
+        captureBtn.style.cssText =
+            'background:#d1354c;color:#fff;border:none;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;font-family:system-ui,sans-serif;';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.cssText =
+            'background:transparent;color:#e6edf0;border:1px solid #3a4a52;border-radius:10px;padding:14px 24px;font-size:16px;font-weight:600;cursor:pointer;font-family:system-ui,sans-serif;';
+
+        captureBtn.onclick = () => {
+            const width = video.videoWidth || 720;
+            const height = video.videoHeight || 960;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                cleanup(overlay);
+                resolve(null);
+                return;
+            }
+            // Draw the raw (un-mirrored) frame so the stored image matches how a camera
+            // actually sees the person, consistent with the ID photo orientation.
+            ctx.drawImage(video, 0, 0, width, height);
+            canvas.toBlob(
+                (blob) => {
+                    cleanup(overlay);
+                    if (!blob) {
+                        resolve(null);
+                        return;
+                    }
+                    resolve({
+                        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        uri: URL.createObjectURL(blob),
+                        fileName: 'live-selfie.jpg',
+                        mimeType: 'image/jpeg',
+                    });
+                },
+                'image/jpeg',
+                0.9,
+            );
+        };
+
+        cancelBtn.onclick = () => {
+            cleanup(overlay);
+            resolve(null);
+        };
+
+        buttonRow.appendChild(captureBtn);
+        buttonRow.appendChild(cancelBtn);
+        overlay.appendChild(video);
+        overlay.appendChild(hint);
+        overlay.appendChild(buttonRow);
+        document.body.appendChild(overlay);
+    });
+}
+
+/**
+ * Capture a live selfie using the front camera (liveness for identity verification).
+ * On native this is the front camera only (no gallery). On web this is a live
+ * getUserMedia capture (no file picker) so a downloaded photo of someone else cannot
+ * be submitted. The server (verify-identity-ai) additionally flags photo-of-a-photo /
+ * screen recaptures and routes them to manual review.
  */
 export async function captureLiveSelfie(): Promise<PickedProfilePhoto | null> {
     if (Platform.OS === 'web') {
-        return new Promise((resolve) => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            // `capture` asks mobile browsers to open the camera directly. Desktop browsers
-            // ignore it, so this is NOT real liveness on web — it only raises the bar. The
-            // authoritative anti-spoof check is server-side: verify-identity-ai flags
-            // photo-of-a-photo / screen recaptures and routes them to manual review, so a
-            // downloaded still of someone else cannot auto-approve even from the web.
-            input.setAttribute('capture', 'user');
-            input.onchange = (e: any) => {
-                const file = e.target?.files?.[0];
-                if (!file) {
-                    resolve(null);
-                    return;
-                }
-                resolve({
-                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    uri: URL.createObjectURL(file),
-                    fileName: file.name ?? 'selfie.jpg',
-                    mimeType: file.type || 'image/jpeg',
-                });
-            };
-            input.onerror = () => resolve(null);
-            input.click();
-        });
+        // Real liveness on web: capture a frame from a live getUserMedia camera stream.
+        // We deliberately DO NOT fall back to a file <input>, because desktop browsers
+        // ignore the `capture` attribute and would let an impersonator pick a saved photo
+        // of someone else from disk (real ID + a downloaded selfie of the ID's owner ==
+        // a fraudulent "verified" badge). If the camera is unavailable we fail closed and
+        // ask the user to use the mobile app instead.
+        return captureLiveSelfieWeb();
     }
 
     const permission = await ImagePicker.requestCameraPermissionsAsync();

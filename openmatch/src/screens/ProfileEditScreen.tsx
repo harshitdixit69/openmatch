@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Image,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -26,7 +27,13 @@ import {
     type ProfileRevision,
     type ProfileVariantTone,
 } from '../lib/profile';
-import { fetchCurrentProfile, upsertCurrentProfile } from '../lib/profileApi';
+import { fetchCurrentProfile, updateCurrentProfilePhotoUrls, upsertCurrentProfile } from '../lib/profileApi';
+import {
+    deleteCurrentUserProfilePhotos,
+    maxProfilePhotos,
+    pickProfilePhotoFromLibrary,
+    uploadCurrentUserProfilePhotos,
+} from '../lib/profilePhotoApi';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import {
     generateProfileVariants,
@@ -154,6 +161,8 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
     const [form, setForm] = useState<EditableProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+    const [photoMutationPending, setPhotoMutationPending] = useState(false);
     const isDirtyRef = useRef(false);
 
     // Ghostwriter States
@@ -186,6 +195,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
             .then((p) => {
                 if (p) {
                     setForm(profileToEditable(p));
+                    setPhotoUrls(p.photo_urls ?? []);
                 }
             })
             .catch(() => { })
@@ -202,6 +212,96 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
         isDirtyRef.current = true;
         setForm((prev) => prev ? { ...prev, [key]: value } : prev);
     }, []);
+
+    const handleAddPhoto = useCallback(async () => {
+        if (photoMutationPending || photoUrls.length >= maxProfilePhotos) {
+            return;
+        }
+
+        setPhotoMutationPending(true);
+        try {
+            const pickedPhoto = await pickProfilePhotoFromLibrary();
+            if (!pickedPhoto) {
+                return;
+            }
+
+            const uploadedPhotoUrls = await uploadCurrentUserProfilePhotos([pickedPhoto]);
+            const updatedProfile = await updateCurrentProfilePhotoUrls([...photoUrls, ...uploadedPhotoUrls]);
+            setPhotoUrls(updatedProfile.photo_urls ?? [...photoUrls, ...uploadedPhotoUrls]);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not add this photo.';
+            showFriendlyAlert('Photo Upload Failed', error, message);
+        } finally {
+            setPhotoMutationPending(false);
+        }
+    }, [photoMutationPending, photoUrls]);
+
+    const handleReplacePhoto = useCallback(async (index: number) => {
+        const currentPhotoUrl = photoUrls[index];
+        if (photoMutationPending || !currentPhotoUrl) {
+            return;
+        }
+
+        setPhotoMutationPending(true);
+        try {
+            const pickedPhoto = await pickProfilePhotoFromLibrary();
+            if (!pickedPhoto) {
+                return;
+            }
+
+            const uploadedPhotoUrls = await uploadCurrentUserProfilePhotos([pickedPhoto]);
+            const nextPhotoUrls = [...photoUrls];
+            nextPhotoUrls[index] = uploadedPhotoUrls[0];
+            const updatedProfile = await updateCurrentProfilePhotoUrls(nextPhotoUrls);
+            setPhotoUrls(updatedProfile.photo_urls ?? nextPhotoUrls);
+
+            try {
+                await deleteCurrentUserProfilePhotos([currentPhotoUrl]);
+            } catch (cleanupError) {
+                console.warn('Photo replaced, but the old storage object could not be deleted.', cleanupError);
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not replace this photo.';
+            showFriendlyAlert('Photo Update Failed', error, message);
+        } finally {
+            setPhotoMutationPending(false);
+        }
+    }, [photoMutationPending, photoUrls]);
+
+    const handleRemovePhoto = useCallback((photoUrl: string) => {
+        if (photoMutationPending) {
+            return;
+        }
+
+        Alert.alert('Remove photo?', 'This photo will be removed from your profile.', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Remove',
+                style: 'destructive',
+                onPress: () => {
+                    void (async () => {
+                        setPhotoMutationPending(true);
+                        try {
+                            const nextPhotoUrls = photoUrls.filter((url) => url !== photoUrl);
+                            const updatedProfile = await updateCurrentProfilePhotoUrls(nextPhotoUrls);
+                            setPhotoUrls(updatedProfile.photo_urls ?? nextPhotoUrls);
+
+                            try {
+                                await deleteCurrentUserProfilePhotos([photoUrl]);
+                            } catch (cleanupError) {
+                                console.warn('Photo removed from the profile, but the storage object could not be deleted.', cleanupError);
+                            }
+                        } catch (error) {
+                            const message = error instanceof Error ? error.message : 'Could not remove this photo.';
+                            showFriendlyAlert('Photo Removal Failed', error, message);
+                        } finally {
+                            setPhotoMutationPending(false);
+                        }
+                    })();
+                },
+            },
+        ]);
+    }, [photoMutationPending, photoUrls]);
 
     const handleGenerate = async () => {
         if (!form) return;
@@ -302,7 +402,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
     };
 
     const handleSave = useCallback(async () => {
-        if (!form) return;
+        if (!form || photoMutationPending) return;
         const err = validate(form);
         if (err) { Alert.alert('Validation Error', err); return; }
         setSaving(true);
@@ -315,7 +415,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                 location: form.location.trim(),
                 bio: form.bio.trim(),
                 preferences: form.preferences.trim(),
-                photo_urls: [],
+                photo_urls: photoUrls,
                 height_cm: form.height_cm ? Number(form.height_cm) : 0,
                 profile_owner: form.profile_owner,
                 religion: form.religion || null,
@@ -347,13 +447,32 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
         } finally {
             setSaving(false);
         }
-    }, [form, onBack, onSaved]);
+    }, [form, onBack, onSaved, photoMutationPending, photoUrls]);
 
     const handleBack = useCallback(() => {
         if (!isDirtyRef.current) { onBack(); return; }
+
+        // React Native Web maps Alert.alert to a browser alert and does not
+        // expose the native action buttons. Use confirm so the user can
+        // actually choose whether to discard edits on localhost/web.
+        if (Platform.OS === 'web') {
+            if (window.confirm('You have unsaved changes. Discard them and go back?')) {
+                isDirtyRef.current = false;
+                onBack();
+            }
+            return;
+        }
+
         Alert.alert('Unsaved Changes', 'Discard changes?', [
             { text: 'Keep Editing', style: 'cancel' },
-            { text: 'Discard', style: 'destructive', onPress: onBack },
+            {
+                text: 'Discard',
+                style: 'destructive',
+                onPress: () => {
+                    isDirtyRef.current = false;
+                    onBack();
+                },
+            },
         ]);
     }, [onBack]);
 
@@ -385,6 +504,67 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.inner}>
+
+                        {/* ── Profile photos ── */}
+                        <SectionCard title="Profile photos">
+                            <Text style={styles.photoManagerDescription}>
+                                Add up to {maxProfilePhotos} photos. The first photo is shown as your primary profile photo.
+                            </Text>
+
+                            {photoUrls.length > 0 ? (
+                                <View style={styles.photoEditorGrid}>
+                                    {photoUrls.map((photoUrl, index) => (
+                                        <View key={photoUrl} style={styles.photoEditorTile}>
+                                            <Image source={{ uri: photoUrl }} style={styles.photoEditorImage} />
+                                            <View style={styles.photoEditorBadge}>
+                                                <Text style={styles.photoEditorBadgeText}>
+                                                    {index === 0 ? 'Primary' : `Photo ${index + 1}`}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.photoEditorActions}>
+                                                <Pressable
+                                                    style={styles.photoEditorAction}
+                                                    onPress={() => void handleReplacePhoto(index)}
+                                                    disabled={photoMutationPending}
+                                                >
+                                                    <Text style={styles.photoEditorActionText}>Update</Text>
+                                                </Pressable>
+                                                <Pressable
+                                                    style={[styles.photoEditorAction, styles.photoEditorRemoveAction]}
+                                                    onPress={() => handleRemovePhoto(photoUrl)}
+                                                    disabled={photoMutationPending}
+                                                >
+                                                    <Text style={[styles.photoEditorActionText, styles.photoEditorRemoveText]}>Remove</Text>
+                                                </Pressable>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : (
+                                <View style={styles.photoEditorEmptyState}>
+                                    <Text style={styles.photoEditorEmptyTitle}>No photos added yet</Text>
+                                    <Text style={styles.photoEditorEmptyText}>
+                                        Add a clear photo so people can recognize your profile.
+                                    </Text>
+                                </View>
+                            )}
+
+                            {photoUrls.length < maxProfilePhotos ? (
+                                <Pressable
+                                    style={[styles.photoEditorAddButton, photoMutationPending && styles.photoEditorButtonDisabled]}
+                                    onPress={() => void handleAddPhoto()}
+                                    disabled={photoMutationPending}
+                                >
+                                    {photoMutationPending ? (
+                                        <ActivityIndicator color="#fff" size="small" />
+                                    ) : (
+                                        <Text style={styles.photoEditorAddButtonText}>Add photo</Text>
+                                    )}
+                                </Pressable>
+                            ) : (
+                                <Text style={styles.photoEditorLimitText}>You have reached the {maxProfilePhotos}-photo limit.</Text>
+                            )}
+                        </SectionCard>
 
                         {/* ── About ── */}
                         <SectionCard title="About You">
@@ -689,9 +869,9 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
 
             <View style={[styles.saveBar, { paddingBottom: insets.bottom + 12 }]}>
                 <Pressable
-                    style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                    style={[styles.saveButton, (saving || photoMutationPending) && styles.saveButtonDisabled]}
                     onPress={handleSave}
-                    disabled={saving}
+                    disabled={saving || photoMutationPending}
                 >
                     {saving
                         ? <ActivityIndicator color="#fff" size="small" />
@@ -755,6 +935,61 @@ const styles = StyleSheet.create({
         fontSize: 15, color: '#111', backgroundColor: '#fafafa',
     },
     textArea: { height: 100, textAlignVertical: 'top', paddingTop: 12 },
+    photoManagerDescription: { color: '#66777d', fontSize: 13, lineHeight: 18, marginBottom: 12 },
+    photoEditorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+    photoEditorTile: {
+        width: '48%',
+        minWidth: 130,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#f1f5f5',
+        borderWidth: 1,
+        borderColor: '#dbe4e5',
+    },
+    photoEditorImage: { width: '100%', aspectRatio: 0.82, backgroundColor: '#dfe9ea' },
+    photoEditorBadge: {
+        position: 'absolute',
+        left: 8,
+        top: 8,
+        borderRadius: 8,
+        paddingHorizontal: 7,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(18, 51, 64, 0.88)',
+    },
+    photoEditorBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+    photoEditorActions: { flexDirection: 'row', gap: 6, padding: 7 },
+    photoEditorAction: {
+        flex: 1,
+        alignItems: 'center',
+        borderRadius: 7,
+        paddingVertical: 7,
+        backgroundColor: '#123340',
+    },
+    photoEditorRemoveAction: { backgroundColor: '#f8e6e0' },
+    photoEditorActionText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+    photoEditorRemoveText: { color: '#a44932' },
+    photoEditorEmptyState: {
+        alignItems: 'center',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#dbe4e5',
+        borderStyle: 'dashed',
+        padding: 18,
+        marginBottom: 12,
+    },
+    photoEditorEmptyTitle: { color: '#123340', fontSize: 14, fontWeight: '800', marginBottom: 4 },
+    photoEditorEmptyText: { color: '#718287', fontSize: 12, textAlign: 'center' },
+    photoEditorAddButton: {
+        alignItems: 'center',
+        backgroundColor: '#123340',
+        borderRadius: 10,
+        minHeight: 44,
+        justifyContent: 'center',
+        paddingHorizontal: 16,
+    },
+    photoEditorButtonDisabled: { opacity: 0.6 },
+    photoEditorAddButtonText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+    photoEditorLimitText: { color: '#718287', fontSize: 12, textAlign: 'center', paddingVertical: 8 },
     toggleRow: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0',

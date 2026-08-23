@@ -882,13 +882,6 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                             </View>
                         </View>
 
-                        <View style={styles.card}>
-                            <Text style={styles.stepTitle}>
-                                Step {step + 1} of {steps.length}: {steps[step].title}
-                            </Text>
-                            {steps[step].content}
-                        </View>
-
                         {step === 4 ? (
                             <View style={styles.copilotCard}>
                                 <Text style={styles.copilotTitle}>AI onboarding copilot</Text>
@@ -934,6 +927,13 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                                 ) : null}
                             </View>
                         ) : null}
+
+                        <View style={styles.card}>
+                            <Text style={styles.stepTitle}>
+                                Step {step + 1} of {steps.length}: {steps[step].title}
+                            </Text>
+                            {steps[step].content}
+                        </View>
                     </View>
                 </ScrollView>
 

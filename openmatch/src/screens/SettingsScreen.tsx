@@ -39,6 +39,8 @@ import { clearSearchHistory } from '../lib/searchHistory';
 import { IdentityVerificationScreen } from './IdentityVerificationScreen';
 import { BlockedProfilesScreen } from './BlockedProfilesScreen';
 import { SafetyCenterScreen } from './SafetyCenterScreen';
+import { ManageSubscriptionScreen } from './ManageSubscriptionScreen';
+import { restorePurchases, tierLabel } from '../lib/paymentsApi';
 
 interface Props {
     onBack: () => void;
@@ -204,6 +206,8 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
     const [discoveryPending, setDiscoveryPending] = useState<keyof DiscoverySettings | null>(null);
     const [showBlockedScreen, setShowBlockedScreen] = useState(false);
     const [showSafetyScreen, setShowSafetyScreen] = useState(false);
+    const [showManageSubscription, setShowManageSubscription] = useState(false);
+    const [restoring, setRestoring] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -318,6 +322,33 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
         Alert.alert(title, message);
     }
 
+    const handleRestorePurchases = useCallback(() => {
+        if (restoring) return;
+        setRestoring(true);
+        void (async () => {
+            try {
+                const summary = await restorePurchases();
+                if (summary.isActive) {
+                    showSettingsNotice(
+                        'Purchases restored',
+                        `Your ${tierLabel(summary.tier)} plan is active${summary.expiresAt ? ` until ${new Date(summary.expiresAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.`,
+                    );
+                } else if (summary.isExpired) {
+                    showSettingsNotice(
+                        'No active plan',
+                        `Your ${tierLabel(summary.tier)} plan has expired. Upgrade again to restore premium features.`,
+                    );
+                } else {
+                    showSettingsNotice('Nothing to restore', 'No previous purchases were found on this account.');
+                }
+            } catch (error) {
+                showFriendlyAlert('Restore failed', error, 'We could not check your purchases. Please try again.');
+            } finally {
+                setRestoring(false);
+            }
+        })();
+    }, [restoring]);
+
     const handleClearSearchHistory = useCallback(() => {
         if (!userId) {
             showSettingsNotice('Clear search history', 'Please wait for your account to finish loading and try again.');
@@ -416,6 +447,21 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
 
     if (showSafetyScreen) {
         return <SafetyCenterScreen onBack={() => setShowSafetyScreen(false)} />;
+    }
+
+    if (showManageSubscription) {
+        return (
+            <ManageSubscriptionScreen
+                onBack={() => setShowManageSubscription(false)}
+                onUpgrade={() => {
+                    setShowManageSubscription(false);
+                    showSettingsNotice(
+                        'Upgrade your plan',
+                        'Open the Membership tab from the home screen to choose a plan and complete your upgrade.',
+                    );
+                }}
+            />
+        );
     }
 
     if (showVerifyScreen) {
@@ -617,19 +663,20 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                         <SettingsRow
                             label="Manage subscription"
                             subtitle="View your plan and billing details"
-                            onPress={() => showSettingsNotice('Manage subscription', 'Subscription management will open here when a plan is active.')}
+                            onPress={() => setShowManageSubscription(true)}
                         />
                         <Divider />
                         <SettingsRow
                             label="Restore purchases"
                             subtitle="Restore a previous premium purchase"
-                            onPress={() => showSettingsNotice('Restore purchases', 'No previous purchases were found on this account.')}
+                            onPress={handleRestorePurchases}
+                            right={restoring ? <ActivityIndicator size="small" color="#d1354c" /> : undefined}
                         />
                         <Divider />
                         <SettingsRow
                             label="Payment history"
                             subtitle="View invoices and completed payments"
-                            onPress={() => showSettingsNotice('Payment history', 'Your payment history will appear here.')}
+                            onPress={() => setShowManageSubscription(true)}
                         />
                     </SettingsSection>
 

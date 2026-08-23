@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -875,7 +875,7 @@ function HomeHubTab({
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionTitle}>Profile settings</Text>
                     <View style={styles.quickActionGrid}>
-                        <QuickActionButton label="Edit profile" subtitle="Update your details" tone="neutral" onPress={onOpenProfileEdit} />
+                        <QuickActionButton label="Edit profile" subtitle="Update details & photos" tone="neutral" onPress={onOpenProfileEdit} />
                         <QuickActionButton label="Edit preferences" subtitle="Refine match filters" tone="neutral" onPress={onOpenPartnerPrefs} />
                     </View>
                 </View>
@@ -966,7 +966,11 @@ const EXCLUSIVE_PACKAGES: SubscriptionPackage[] = [
 
 function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatches: () => void; onOpenInbox: () => void; viewerProfile: ProfileRecord | null }) {
     const { width: viewportWidth } = useWindowDimensions();
-    const useTwoColumnDurationGrid = viewportWidth < 390;
+    const tabBarSpacing = useContext(TabBarSpacingContext);
+    // Four cards become too narrow on phones: labels and prices wrap or get
+    // clipped. A two-column layout keeps every duration readable at phone
+    // widths while retaining the compact four-column layout on larger screens.
+    const useTwoColumnDurationGrid = viewportWidth <= 430;
     const isPremium = 
         viewerProfile?.subscription_tier === 'plus' || 
         viewerProfile?.subscription_tier === 'vip' || 
@@ -1160,7 +1164,13 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
 
     return (
         <SafeAreaView style={styles.panelSafeArea} edges={['top', 'left', 'right']}>
-            <ScrollView contentContainerStyle={styles.panelScrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={[
+                    styles.panelScrollContent,
+                    { paddingBottom: Math.max(32, tabBarSpacing + 32) },
+                ]}
+                showsVerticalScrollIndicator={false}
+            >
                 
                 {/* Header Row */}
                 <View style={styles.headerRow}>
@@ -1362,7 +1372,7 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
                             const priceText = `₹${pkg.priceINR.toLocaleString('en-IN')}`;
                             const origPriceText = pkg.originalPriceINR ? `₹${pkg.originalPriceINR.toLocaleString('en-IN')}` : null;
                             const durationLabel = pkg.months === 12 && activeTab === 'self-service' ? 'Till Marriage' : `${pkg.months} ${pkg.months === 1 ? 'month' : 'months'}`;
-                            const durationDisplayLabel = durationLabel.replace(' ', '\n');
+                            const durationDisplayLabel = durationLabel;
 
                             return (
                                 <Pressable
@@ -1389,7 +1399,12 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
                                     }}
                                 >
                                     <View style={styles.newPackageCardHeader}>
-                                        <Text style={[styles.newPackageDuration, isSelected && styles.newPackageDurationSelected]}>
+                                        <Text
+                                            style={[styles.newPackageDuration, isSelected && styles.newPackageDurationSelected]}
+                                            numberOfLines={2}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.8}
+                                        >
                                             {durationDisplayLabel}
                                         </Text>
                                         <View style={[styles.radioButtonOuter, styles.newPackageRadio, isSelected && styles.radioButtonOuterActive]}>
@@ -1400,7 +1415,14 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
                                         {origPriceText && (
                                             <Text style={styles.newPackageOriginalPrice}>{origPriceText}</Text>
                                         )}
-                                        <Text style={styles.newPackagePrice}>{priceText}</Text>
+                                        <Text
+                                            style={styles.newPackagePrice}
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.8}
+                                        >
+                                            {priceText}
+                                        </Text>
                                     </View>
                                 </Pressable>
                             );
@@ -2360,7 +2382,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 12,
         position: 'relative',
-        minHeight: 84,
+        minHeight: 96,
         justifyContent: 'space-between',
     },
     newPackageCardNarrow: {
@@ -2373,20 +2395,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#fffafb',
     },
     newPackageCardHeader: {
-        minHeight: 32,
-        position: 'relative',
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 6,
+        minHeight: 38,
         width: '100%',
     },
     newPackageDuration: {
-        flexShrink: 1,
-        fontSize: 13,
+        flex: 1,
+        fontSize: 14,
+        lineHeight: 17,
         fontWeight: '800',
         color: '#6c7d84',
     },
     newPackageRadio: {
-        position: 'absolute',
-        right: 0,
-        top: -2,
+        marginTop: 1,
+        flexShrink: 0,
     },
     newPackageDurationSelected: {
         color: '#d1354c',
