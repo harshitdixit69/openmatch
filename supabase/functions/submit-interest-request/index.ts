@@ -215,6 +215,12 @@ Deno.serve(async (request) => {
             });
         }
 
+        await safeInsertNotification(serviceClient, receiverId, 'request_received', {
+            title: 'New interest request',
+            body: 'Someone is interested in connecting with you.',
+            metadata: { matchId: match.id },
+        });
+
         return json({
             requestId: requestRecord?.id ?? null,
             matchId: match.id,
@@ -509,6 +515,28 @@ async function safeInsertInterestRequestEvent(
 
 function isMissingDatabaseObject(message: string | undefined) {
     return /does not exist|relation .* does not exist|function .* does not exist/i.test(message ?? '');
+}
+
+async function safeInsertNotification(
+    serviceClient: ReturnType<typeof createClient>,
+    userId: string,
+    type: string,
+    opts: { title: string; body: string; metadata: Record<string, string> },
+) {
+    const { error } = await serviceClient.from('notifications').insert({
+        user_id: userId,
+        type,
+        title: opts.title,
+        body: opts.body,
+        metadata: opts.metadata,
+        is_read: false,
+    });
+
+    // Non-fatal: a missing notifications table or any transient error must
+    // never block the primary request-submission flow.
+    if (error && !isMissingDatabaseObject(error.message)) {
+        console.warn('safeInsertNotification failed:', error.message);
+    }
 }
 
 function getEnv() {
