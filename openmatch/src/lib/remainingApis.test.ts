@@ -430,17 +430,17 @@ describe('OpenMatch Core Library API Tests', () => {
       expect(result?.uri).toBe('ph-uri');
     });
 
-    it('uploadCurrentUserProfilePhotos should upload picked photos and return public URLs', async () => {
+    it('uploadCurrentUserProfilePhotos should upload picked photos and return signed URLs', async () => {
       (supabase.auth.getUser as jest.Mock).mockResolvedValue({
         data: { user: { id: 'user-123' } },
         error: null,
       });
 
       const mockUpload = jest.fn().mockResolvedValue({ error: null });
-      const mockGetPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn/photo.jpg' } });
+      const mockCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'https://cdn/photo.jpg?token=abc' }, error: null });
       (supabase.storage.from as jest.Mock).mockReturnValue({
         upload: mockUpload,
-        getPublicUrl: mockGetPublicUrl,
+        createSignedUrl: mockCreateSignedUrl,
       });
 
       // Mock native global fetch
@@ -452,7 +452,7 @@ describe('OpenMatch Core Library API Tests', () => {
         { id: '1', uri: 'file://photo.jpg', fileName: 'photo.jpg', mimeType: 'image/jpeg' },
       ]);
 
-      expect(result).toEqual(['https://cdn/photo.jpg']);
+      expect(result).toEqual(['https://cdn/photo.jpg?token=abc']);
       expect(supabase.storage.from).toHaveBeenCalledWith('profile-photos');
     });
   });
@@ -466,10 +466,10 @@ describe('OpenMatch Core Library API Tests', () => {
       });
 
       const mockUpload = jest.fn().mockResolvedValue({ error: null });
-      const mockGetPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn/voice.m4a' } });
+      const mockCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'https://cdn/voice.m4a?token=abc' }, error: null });
       (supabase.storage.from as jest.Mock).mockReturnValue({
         upload: mockUpload,
-        getPublicUrl: mockGetPublicUrl,
+        createSignedUrl: mockCreateSignedUrl,
       });
 
       global.fetch = jest.fn().mockResolvedValue({
@@ -482,7 +482,7 @@ describe('OpenMatch Core Library API Tests', () => {
         mimeType: 'audio/m4a',
       });
 
-      expect(result).toBe('https://cdn/voice.m4a');
+      expect(result).toBe('https://cdn/voice.m4a?token=abc');
       expect(supabase.storage.from).toHaveBeenCalledWith('intent-voice-intros');
     });
 
@@ -493,10 +493,10 @@ describe('OpenMatch Core Library API Tests', () => {
       });
 
       const mockUpload = jest.fn().mockResolvedValue({ error: null });
-      const mockGetPublicUrl = jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn/voice.mp3' } });
+      const mockCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'https://cdn/voice.mp3?token=abc' }, error: null });
       (supabase.storage.from as jest.Mock).mockReturnValue({
         upload: mockUpload,
-        getPublicUrl: mockGetPublicUrl,
+        createSignedUrl: mockCreateSignedUrl,
       });
 
       global.fetch = jest.fn().mockResolvedValue({
@@ -529,7 +529,7 @@ describe('OpenMatch Core Library API Tests', () => {
       });
       (supabase.storage.from as jest.Mock).mockReturnValue({
         upload: jest.fn().mockResolvedValue({ error: new Error('Upload fail') }),
-        getPublicUrl: jest.fn(),
+        createSignedUrl: jest.fn(),
       });
       await expect(uploadCurrentUserVoiceIntro({ uri: 'file://v.m4a', durationSeconds: 5 })).rejects.toThrow('Upload fail');
     });

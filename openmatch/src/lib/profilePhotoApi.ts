@@ -6,6 +6,14 @@ import { supabase } from './supabase';
 export const maxProfilePhotos = 4;
 const profilePhotosBucket = 'profile-photos';
 
+// The profile-photos bucket is PRIVATE (see 20260823030000_private_media_buckets.sql),
+// so we hand out signed URLs instead of public ones. A signed URL carries an unguessable
+// token and cannot be fabricated by anonymous visitors, which closes the "anyone on the
+// internet can open a guessable /object/public/<uid>/<file> URL" gap. The TTL is long
+// because these URLs are persisted in profiles.photo_urls and echoed by server RPCs;
+// a shorter, on-read-refreshed signing scheme is the eventual hardening step.
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 365 * 5; // ~5 years
+
 // Keep uploads comfortably under the Supabase Storage bucket file-size limit.
 const maxUploadDimension = 1600; // px on the longest edge
 const uploadJpegQuality = 0.82;
@@ -237,8 +245,15 @@ export async function uploadCurrentUserProfilePhotos(photos: PickedProfilePhoto[
             throw uploadError;
         }
 
-        const { data } = supabase.storage.from(profilePhotosBucket).getPublicUrl(path);
-        uploadedPhotoUrls.push(data.publicUrl);
+        const { data, error: signError } = await supabase.storage
+            .from(profilePhotosBucket)
+            .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+
+        if (signError || !data?.signedUrl) {
+            throw signError ?? new Error('Could not generate a URL for the uploaded photo.');
+        }
+
+        uploadedPhotoUrls.push(data.signedUrl);
     }
 
     return uploadedPhotoUrls;
@@ -284,18 +299,26 @@ function resolveFileExtension(photo: PickedProfilePhoto) {
 }
 
 function resolveStoragePathFromPublicUrl(publicUrl: string) {
-    const marker = `/storage/v1/object/public/${profilePhotosBucket}/`;
-    const markerIndex = publicUrl.indexOf(marker);
+    // Handle both legacy public URLs (/object/public/<bucket>/) and the signed URLs
+    // (/object/sign/<bucket>/) we issue now that the bucket is private.
+    const markers = [
+        `/storage/v1/object/public/${profilePhotosBucket}/`,
+        `/storage/v1/object/sign/${profilePhotosBucket}/`,
+    ];
 
-    if (markerIndex < 0) {
-        return null;
+    for (const marker of markers) {
+        const markerIndex = publicUrl.indexOf(marker);
+        if (markerIndex < 0) {
+            continue;
+        }
+
+        const pathStartIndex = markerIndex + marker.length;
+        const pathWithQuery = publicUrl.slice(pathStartIndex);
+        const [path] = pathWithQuery.split('?');
+        return path ? decodeURIComponent(path) : null;
     }
 
-    const pathStartIndex = markerIndex + marker.length;
-    const pathWithQuery = publicUrl.slice(pathStartIndex);
-    const [path] = pathWithQuery.split('?');
-
-    return path ? decodeURIComponent(path) : null;
+    return null;
 }
 
 function normalizeExtension(value: string) {
