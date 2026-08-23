@@ -15,9 +15,12 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 
 import { BackButton } from '../components/BackButton';
 import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
+import { palette, gradients, glow } from '../lib/designSystem';
 import { fetchFitFrictionBreakdown } from '../lib/aiApi';
 import { MatchCandidate, ViewerEmbeddingStatus } from '../lib/matchmaking';
 import { getDisplayFirstName, ProfileContactDetails, ProfileRecord } from '../lib/profile';
@@ -1195,6 +1198,32 @@ function ActionButton({ label, tone, compact = false, emphasis = false, onPress 
                 ? styles.actionButtonTextAccent
                 : styles.actionButtonTextPrimary;
 
+    // The primary affirmative choice gets a warm coral->magenta gradient with a glow.
+    if (tone === 'primary') {
+        return (
+            <Pressable
+                style={({ pressed }) => [
+                    styles.actionButtonPrimaryWrap,
+                    emphasis ? styles.actionButtonEmphasis : null,
+                    glow(palette.magenta, 0.45, 18),
+                    pressed ? styles.actionButtonPressed : null,
+                ]}
+                onPress={onPress}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+            >
+                <LinearGradient
+                    colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.actionButton, compact ? styles.actionButtonCompact : null]}
+                >
+                    <Text style={[styles.actionButtonText, styles.actionButtonTextPrimary]} numberOfLines={1}>{label}</Text>
+                </LinearGradient>
+            </Pressable>
+        );
+    }
+
     return (
         <Pressable
             style={({ pressed }) => [
@@ -1345,7 +1374,7 @@ function HomeFeedSkeleton() {
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: palette.cloud50,
         flex: 1,
         minHeight: 0,
     },
@@ -1379,7 +1408,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     title: {
-        color: '#14313a',
+        color: palette.slate800,
         fontSize: 30,
         fontWeight: '800',
     },
@@ -1395,18 +1424,19 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     searchCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        backgroundColor: palette.white,
+        borderColor: palette.cloud200,
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
         marginTop: 8,
         padding: 14,
+        ...glow(palette.violet, 0.1, 22),
     },
     searchInput: {
-        backgroundColor: '#f4f8f7',
+        backgroundColor: palette.cloud100,
         borderRadius: 16,
-        color: '#14313a',
+        color: palette.slate800,
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -1422,7 +1452,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     filterChipActive: {
-        backgroundColor: '#14313a',
+        backgroundColor: palette.slate800,
     },
     filterChipText: {
         color: '#4a646b',
@@ -1550,13 +1580,14 @@ const styles = StyleSheet.create({
     },
     premiumPromoCard: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: palette.ink700,
         borderRadius: 22,
         flexDirection: 'row',
         gap: 12,
         marginBottom: 12,
         paddingHorizontal: 14,
         paddingVertical: 14,
+        ...glow(palette.violet, 0.35, 20),
     },
     premiumPromoCopy: {
         flex: 1,
@@ -1629,10 +1660,11 @@ const styles = StyleSheet.create({
     },
     refreshButton: {
         alignSelf: 'flex-start',
-        backgroundColor: '#d9643d',
+        backgroundColor: palette.coral,
         borderRadius: 999,
         paddingHorizontal: 18,
         paddingVertical: 12,
+        ...glow(palette.magenta, 0.4, 16),
     },
     refreshButtonText: {
         color: '#ffffff',
@@ -1676,9 +1708,9 @@ const styles = StyleSheet.create({
     },
     activeCard: {
         elevation: 8,
-        shadowColor: '#14313a',
+        shadowColor: palette.violet,
         shadowOffset: { width: 0, height: 18 },
-        shadowOpacity: 0.12,
+        shadowOpacity: 0.22,
         shadowRadius: 30,
     },
     cardPressable: {
@@ -1830,7 +1862,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#f0e2d2',
     },
     actionButtonPrimary: {
-        backgroundColor: '#d9643d',
+        backgroundColor: palette.coral,
+    },
+    actionButtonPrimaryWrap: {
+        borderRadius: 18,
+        flex: 1,
+        overflow: 'hidden',
     },
     actionButtonText: {
         fontSize: 13,
