@@ -21,6 +21,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 }
 
 const PROFILE_PHOTOS_BUCKET = 'profile-photos';
+const VOICE_INTROS_BUCKET = 'intent-voice-intros';
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 365 * 5; // ~5 years — matches the client.
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -128,4 +129,70 @@ for (;;) {
     from += pageSize;
 }
 
-console.log(`\nDone. scanned=${scanned} updated=${updated} skipped=${skipped} dryRun=${dryRun}`);
+console.log(`\nProfiles done. scanned=${scanned} updated=${updated} skipped=${skipped} dryRun=${dryRun}`);
+
+// ---- Voice intros: interest_requests.media_url (media_type = 'voice') --------------
+let vScanned = 0;
+let vUpdated = 0;
+let vSkipped = 0;
+let vFrom = 0;
+
+for (;;) {
+    const { data: rows, error } = await supabase
+        .from('interest_requests')
+        .select('id, media_url, media_type')
+        .eq('media_type', 'voice')
+        .not('media_url', 'is', null)
+        .order('id', { ascending: true })
+        .range(vFrom, vFrom + pageSize - 1);
+
+    if (error) throw error;
+    if (!rows || rows.length === 0) break;
+
+    for (const row of rows) {
+        vScanned += 1;
+        const url = row.media_url;
+
+        if (isAlreadySigned(url)) {
+            vSkipped += 1;
+            continue;
+        }
+
+        const path = storagePathFromUrl(VOICE_INTROS_BUCKET, url);
+        if (!path) {
+            vSkipped += 1;
+            continue;
+        }
+
+        let signed;
+        try {
+            signed = await signPath(VOICE_INTROS_BUCKET, path);
+        } catch (e) {
+            console.warn(`  ! could not sign voice intro for request ${row.id}:`, e.message);
+            vSkipped += 1;
+            continue;
+        }
+
+        if (dryRun) {
+            console.log(`[dry-run] would update interest_request ${row.id}`);
+            vUpdated += 1;
+            continue;
+        }
+
+        const { error: updateError } = await supabase
+            .from('interest_requests')
+            .update({ media_url: signed })
+            .eq('id', row.id);
+
+        if (updateError) {
+            console.warn(`  ! failed to update interest_request ${row.id}:`, updateError.message);
+        } else {
+            vUpdated += 1;
+            console.log(`updated interest_request ${row.id}`);
+        }
+    }
+
+    vFrom += pageSize;
+}
+
+console.log(`Voice intros done. scanned=${vScanned} updated=${vUpdated} skipped=${vSkipped} dryRun=${dryRun}`);
