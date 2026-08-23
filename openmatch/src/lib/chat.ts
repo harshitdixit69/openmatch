@@ -49,6 +49,9 @@ export type ChatMatch = {
     otherUserPhoneNumber: string | null;
     otherUserWhatsappNumber: string | null;
     otherUserLocation: string;
+    otherUserAge?: number | null;
+    otherUserHeightCm?: number | null;
+    otherUserOccupation?: string | null;
     otherUserBio: string | null;
     otherUserPreferences: string | null;
     otherUserProfileOwner: ProfileOwner | null;
@@ -61,9 +64,20 @@ export type ChatMatch = {
     unreadCount: number;
     unlockState: MatchUnlockState;
     createdAt: string;
+    /** Most recent user-visible activity in this conversation. */
+    lastActivityAt: string;
     otherUserVerificationStatus: 'unverified' | 'pending' | 'verified' | 'rejected';
     otherUserSubscriptionTier: string | null;
 };
+
+export function getProfileFacts(match: Pick<ChatMatch, 'otherUserAge' | 'otherUserHeightCm' | 'otherUserOccupation' | 'otherUserLocation'>) {
+    return [
+        match.otherUserAge ? `${match.otherUserAge} yrs` : null,
+        match.otherUserHeightCm ? `${match.otherUserHeightCm} cm` : null,
+        match.otherUserOccupation?.trim() || null,
+        match.otherUserLocation?.trim() || null,
+    ].filter((fact): fact is string => Boolean(fact));
+}
 
 export type ChatMessage = {
     id: string;

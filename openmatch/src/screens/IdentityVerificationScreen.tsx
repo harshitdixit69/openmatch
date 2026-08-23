@@ -25,7 +25,6 @@ interface Props {
 export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
     const insets = useSafeAreaInsets();
     const [idPhotoUri, setIdPhotoUri] = useState<string | null>(null);
-    const [idIsPdf, setIdIsPdf] = useState(false);
     const [selfiePhotoUri, setSelfiePhotoUri] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
@@ -33,9 +32,20 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
         try {
             const doc = await pickGovtIdDocument();
             if (doc?.uri) {
+                // A PDF can still arrive via a renamed file or a stubborn native picker.
+                // Reject it here with an actionable message rather than letting Gemini
+                // fail later with an opaque 400.
+                const isPdf = doc.mimeType === 'application/pdf'
+                    || doc.fileName?.toLowerCase().endsWith('.pdf')
+                    || doc.uri.toLowerCase().includes('.pdf');
+                if (isPdf) {
+                    showFriendlyAlert(
+                        'Photo Required',
+                        'PDF files can\'t be verified — official Aadhaar PDFs are password-protected and the photo inside is too small to match your selfie.\n\nPlease take a clear photo of your physical ID card instead, or upload a screenshot of it.',
+                    );
+                    return;
+                }
                 setIdPhotoUri(doc.uri);
-                const isPdf = doc.mimeType === 'application/pdf' || doc.fileName?.toLowerCase().endsWith('.pdf') || doc.uri.toLowerCase().includes('.pdf');
-                setIdIsPdf(Boolean(isPdf));
             }
         } catch (err: any) {
             console.error('Failed to select ID photo:', err);
@@ -125,15 +135,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                     >
                         {idPhotoUri ? (
                             <View style={styles.previewContainer}>
-                                {idIsPdf ? (
-                                    <View style={[styles.placeholderContainer, { backgroundColor: '#FFF5F5', height: '100%', justifyContent: 'center' }]}>
-                                        <Text style={{ fontSize: 36, marginBottom: 6 }}>📄</Text>
-                                        <Text style={{ fontSize: 15, fontWeight: '700', color: '#D9363E' }}>PDF Document Attached</Text>
-                                        <Text style={{ fontSize: 12, color: '#666666', marginTop: 2 }}>Official Aadhaar / PAN PDF</Text>
-                                    </View>
-                                ) : (
-                                    <Image source={{ uri: idPhotoUri }} style={styles.previewImage} resizeMode="cover" />
-                                )}
+                                <Image source={{ uri: idPhotoUri }} style={styles.previewImage} resizeMode="cover" />
                                 <View style={styles.cardOverlay}>
                                     <Text style={styles.cardOverlayText}>Tap to Change ID</Text>
                                 </View>
@@ -142,7 +144,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
                             <View style={styles.placeholderContainer}>
                                 <Text style={styles.placeholderIcon}>🪪</Text>
                                 <Text style={styles.placeholderTitle}>Government ID Document</Text>
-                                <Text style={styles.placeholderSubtitle}>Image (JPG, PNG) or PDF Document</Text>
+                                <Text style={styles.placeholderSubtitle}>Clear photo of your ID (JPG or PNG)</Text>
                             </View>
                         )}
                     </Pressable>

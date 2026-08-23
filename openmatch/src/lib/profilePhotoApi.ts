@@ -18,7 +18,7 @@ const uploadJpegQuality = 0.82;
  * full-resolution original). On native we fall back to the already-fetched
  * ArrayBuffer (expo-image-picker already applies `quality`).
  */
-async function compressImageToArrayBuffer(uri: string, fallbackBuffer: ArrayBuffer): Promise<ArrayBuffer> {
+export async function compressImageToArrayBuffer(uri: string, fallbackBuffer: ArrayBuffer): Promise<ArrayBuffer> {
     if (Platform.OS !== 'web' || typeof document === 'undefined') {
         return fallbackBuffer;
     }
@@ -82,20 +82,22 @@ export async function pickGovtIdDocument(): Promise<PickedProfilePhoto | null> {
         return new Promise((resolve) => {
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = 'image/*,application/pdf';
+            // Images only. PDFs are deliberately not accepted: verification face-matches
+            // the photo on the ID against the live selfie, and UIDAI e-Aadhaar PDFs are
+            // password-encrypted (Gemini returns 400 "Unable to process input image").
+            // Even unencrypted, the embedded portrait is too small to match reliably.
+            input.accept = 'image/*';
             input.onchange = (e: any) => {
                 const file = e.target?.files?.[0];
                 if (!file) {
                     resolve(null);
                     return;
                 }
-                const uri = URL.createObjectURL(file);
-                const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
                 resolve({
                     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                    uri,
-                    fileName: file.name ?? 'document.pdf',
-                    mimeType: isPdf ? 'application/pdf' : (file.type || 'image/jpeg'),
+                    uri: URL.createObjectURL(file),
+                    fileName: file.name ?? 'id.jpg',
+                    mimeType: file.type || 'image/jpeg',
                 });
             };
             input.onerror = () => resolve(null);
@@ -122,6 +124,11 @@ export async function captureLiveSelfie(): Promise<PickedProfilePhoto | null> {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
+            // `capture` asks mobile browsers to open the camera directly. Desktop browsers
+            // ignore it, so this is NOT real liveness on web — it only raises the bar. The
+            // authoritative anti-spoof check is server-side: verify-identity-ai flags
+            // photo-of-a-photo / screen recaptures and routes them to manual review, so a
+            // downloaded still of someone else cannot auto-approve even from the web.
             input.setAttribute('capture', 'user');
             input.onchange = (e: any) => {
                 const file = e.target?.files?.[0];

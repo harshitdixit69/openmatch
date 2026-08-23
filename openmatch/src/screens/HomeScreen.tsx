@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '../components/BackButton';
+import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
 import { fetchFitFrictionBreakdown } from '../lib/aiApi';
 import { MatchCandidate, ViewerEmbeddingStatus } from '../lib/matchmaking';
 import { getDisplayFirstName, ProfileContactDetails, ProfileRecord } from '../lib/profile';
@@ -53,6 +54,15 @@ import {
     shouldShowPremiumPopup,
 } from '../lib/premiumPopup';
 import { PremiumPromoModal } from '../components/PremiumPromoModal';
+import { VerificationPromptModal } from '../components/VerificationPromptModal';
+import {
+    loadPromptState,
+    recordPromptAccepted,
+    recordPromptDismissed,
+    recordPromptShown,
+    shouldShowVerificationPrompt,
+} from '../lib/verificationPrompt';
+import { IdentityVerificationScreen } from './IdentityVerificationScreen';
 
 const swipeThreshold = 120;
 const offscreenDistance = 420;
@@ -78,9 +88,11 @@ function validateContactNumber(rawValue: string, fieldLabel: string): string | n
 export function HomeScreen({
     onOpenNotifications,
     unreadNotificationsCount = 0,
+    initialPhotoManagerOpen = false,
 }: {
     onOpenNotifications?: () => void;
     unreadNotificationsCount?: number;
+    initialPhotoManagerOpen?: boolean;
 } = {}) {
     const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -104,9 +116,11 @@ export function HomeScreen({
     const [contactPhoneNumber, setContactPhoneNumber] = useState('');
     const [contactWhatsappNumber, setContactWhatsappNumber] = useState('');
     const [contactSaving, setContactSaving] = useState(false);
-    const [photoManagerVisible, setPhotoManagerVisible] = useState(false);
+    const [photoManagerVisible, setPhotoManagerVisible] = useState(initialPhotoManagerOpen);
     const [photoMutationPending, setPhotoMutationPending] = useState(false);
     const [premiumPopup, setPremiumPopup] = useState<PremiumPromoVariant | null>(null);
+    const [verificationPromptVisible, setVerificationPromptVisible] = useState(false);
+    const [verifyScreenVisible, setVerifyScreenVisible] = useState(false);
     const pan = useRef(new Animated.ValueXY()).current;
     const { height: windowHeight, width: windowWidth } = useWindowDimensions();
     const viewerPhotoUrls = viewerProfile?.photo_urls ?? [];
@@ -412,6 +426,56 @@ export function HomeScreen({
         setCurrentIndex((value) => value + 1);
     }
 
+    /**
+     * Runs after an interest request is sent. The verification nudge takes
+     * priority over the premium promo — they compete for the same slot, and
+     * stacking two modals after one action is hostile.
+     */
+    async function handleRequestSent() {
+        if (await maybeShowVerificationPrompt()) {
+            return;
+        }
+        await maybeShowPremiumPopup();
+    }
+
+    /** Returns true when the prompt was shown, so the caller can stand down. */
+    async function maybeShowVerificationPrompt(): Promise<boolean> {
+        try {
+            const { data } = await supabase.auth.getUser();
+            const userId = data.user?.id;
+            if (!userId) return false;
+
+            const state = await loadPromptState(userId);
+            if (!shouldShowVerificationPrompt(viewerProfile?.verification_status, state)) {
+                return false;
+            }
+
+            setVerificationPromptVisible(true);
+            await recordPromptShown(userId);
+            return true;
+        } catch (error) {
+            console.warn('Verification prompt could not be evaluated.', error);
+            return false;
+        }
+    }
+
+    function handleVerificationPromptAccept() {
+        setVerificationPromptVisible(false);
+        setVerifyScreenVisible(true);
+        void (async () => {
+            const { data } = await supabase.auth.getUser();
+            if (data.user?.id) await recordPromptAccepted(data.user.id);
+        })();
+    }
+
+    function handleVerificationPromptDismiss() {
+        setVerificationPromptVisible(false);
+        void (async () => {
+            const { data } = await supabase.auth.getUser();
+            if (data.user?.id) await recordPromptDismissed(data.user.id);
+        })();
+    }
+
     async function maybeShowPremiumPopup() {
         try {
             const variant = await resolvePremiumPromoVariant('home_feed');
@@ -709,7 +773,11 @@ export function HomeScreen({
                                 autoCorrect={false}
                             />
 
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsRow}>
+                            <HorizontalScrollAffordance
+                                contentContainerStyle={styles.filterChipsRow}
+                                fadeColor="#ffffff"
+                                arrowAccessibilityLabelPrefix="filters"
+                            >
                                 {feedFilters.map((filter) => (
                                     <FilterChip
                                         key={filter.value}
@@ -719,7 +787,7 @@ export function HomeScreen({
                                         onPress={() => setActiveFeedFilter(filter.value)}
                                     />
                                 ))}
-                            </ScrollView>
+                            </HorizontalScrollAffordance>
                         </View>
                     </View>
                 </View>
@@ -793,8 +861,7 @@ export function HomeScreen({
 
                         <View style={[styles.actionsRow, useCompactFeedLayout ? styles.actionsRowCompact : null]}>
                             <ActionButton compact={useCompactFeedLayout} label="Pass" tone="muted" onPress={() => commitSwipe('left')} />
-                            <ActionButton compact={useCompactFeedLayout} label="Why you match" tone="accent" onPress={() => void openCompatibility(activeCandidate)} />
-                            <ActionButton compact={useCompactFeedLayout} label="Interested" tone="primary" onPress={() => commitSwipe('right')} />
+                            <ActionButton compact={useCompactFeedLayout} label="Interested" tone="primary" emphasis onPress={() => commitSwipe('right')} />
                         </View>
                     </>
                 )}
@@ -944,9 +1011,33 @@ export function HomeScreen({
                     if (candidate.id === activeCandidate?.id) {
                         advanceCard();
                     }
-                    void maybeShowPremiumPopup();
+                    void handleRequestSent();
                 }}
             />
+
+            <VerificationPromptModal
+                visible={verificationPromptVisible}
+                previouslyRejected={viewerProfile?.verification_status === 'rejected'}
+                onVerify={handleVerificationPromptAccept}
+                onDismiss={handleVerificationPromptDismiss}
+            />
+
+            <Modal
+                transparent={false}
+                animationType="slide"
+                visible={verifyScreenVisible}
+                onRequestClose={() => setVerifyScreenVisible(false)}
+            >
+                <IdentityVerificationScreen
+                    onBack={() => setVerifyScreenVisible(false)}
+                    onCompleted={(status) => {
+                        setVerifyScreenVisible(false);
+                        // Keep the local copy in step so the prompt does not
+                        // reappear before the next profile refresh.
+                        setViewerProfile((prev) => (prev ? { ...prev, verification_status: status } : prev));
+                    }}
+                />
+            </Modal>
 
             {premiumPopup ? (
                 <PremiumPromoModal
@@ -1084,10 +1175,12 @@ type ActionButtonProps = {
     label: string;
     tone: 'muted' | 'accent' | 'primary';
     compact?: boolean;
+    /** Gives the button extra width so the primary choice reads as primary. */
+    emphasis?: boolean;
     onPress: () => void;
 };
 
-function ActionButton({ label, tone, compact = false, onPress }: ActionButtonProps) {
+function ActionButton({ label, tone, compact = false, emphasis = false, onPress }: ActionButtonProps) {
     const toneStyle =
         tone === 'muted'
             ? styles.actionButtonMuted
@@ -1103,8 +1196,19 @@ function ActionButton({ label, tone, compact = false, onPress }: ActionButtonPro
                 : styles.actionButtonTextPrimary;
 
     return (
-        <Pressable style={[styles.actionButton, compact ? styles.actionButtonCompact : null, toneStyle]} onPress={onPress}>
-            <Text style={[styles.actionButtonText, toneTextStyle]}>{label}</Text>
+        <Pressable
+            style={({ pressed }) => [
+                styles.actionButton,
+                compact ? styles.actionButtonCompact : null,
+                toneStyle,
+                emphasis ? styles.actionButtonEmphasis : null,
+                pressed ? styles.actionButtonPressed : null,
+            ]}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+        >
+            <Text style={[styles.actionButtonText, toneTextStyle]} numberOfLines={1}>{label}</Text>
         </Pressable>
     );
 }
@@ -1710,8 +1814,17 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         paddingVertical: 12,
     },
+    // The affirmative choice gets more width than the dismissive one.
+    actionButtonEmphasis: {
+        flex: 1.5,
+    },
+    actionButtonPressed: {
+        opacity: 0.85,
+    },
     actionButtonMuted: {
-        backgroundColor: '#d7e1e2',
+        backgroundColor: 'transparent',
+        borderColor: '#c3d2d4',
+        borderWidth: 1.5,
     },
     actionButtonAccent: {
         backgroundColor: '#f0e2d2',
@@ -1724,7 +1837,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     actionButtonTextMuted: {
-        color: '#35525b',
+        color: '#4a646b',
     },
     actionButtonTextAccent: {
         color: '#7a4a2c',

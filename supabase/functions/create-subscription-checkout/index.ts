@@ -96,8 +96,13 @@ Deno.serve(async (request) => {
             httpClient: Stripe.createFetchHttpClient(),
         });
 
-        const successUrl = payload.successUrl || env.supabaseUrl;
-        const cancelUrl = payload.cancelUrl || env.supabaseUrl;
+        // Build success/cancel URLs so the app can tell the two outcomes apart and
+        // verify the purchase on return. Stripe substitutes {CHECKOUT_SESSION_ID}.
+        const successUrl = appendQuery(
+            payload.successUrl || env.supabaseUrl,
+            'checkout=success&session_id={CHECKOUT_SESSION_ID}',
+        );
+        const cancelUrl = appendQuery(payload.cancelUrl || env.supabaseUrl, 'checkout=cancelled');
 
         const displayName = packageTier === 'plus'
             ? `OpenMatch ${subTier === 'pro_max' ? 'Pro Max' : subTier === 'pro_supreme' ? 'Pro Supreme' : 'Pro'} Upgrade`
@@ -132,6 +137,9 @@ Deno.serve(async (request) => {
             },
             success_url: successUrl,
             cancel_url: cancelUrl,
+            // Expire the session after 30 minutes so abandoned links don't linger
+            // (Stripe requires between 30 min and 24 h from now).
+            expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
         });
 
         return json({ checkoutUrl: session.url });
@@ -166,3 +174,14 @@ function json(body: unknown, status = 200) {
         },
     });
 }
+
+// Appends query params to a URL without clobbering existing ones. Kept as raw
+// string concatenation because Stripe's {CHECKOUT_SESSION_ID} placeholder must
+// stay un-encoded, and this also works for custom deep-link schemes.
+function appendQuery(url: string, query: string) {
+    const [base, hash] = url.split('#');
+    const separator = base.includes('?') ? '&' : '?';
+    const withQuery = `${base}${separator}${query}`;
+    return hash ? `${withQuery}#${hash}` : withQuery;
+}
+

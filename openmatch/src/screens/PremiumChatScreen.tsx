@@ -15,7 +15,7 @@ import {
     View,
 } from 'react-native';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { ChatMatch, ChatMessage, MatchUnlockAction } from '../lib/chat';
+import { ChatMatch, ChatMessage, getProfileFacts, MatchUnlockAction } from '../lib/chat';
 import {
     consumeUnlockCredit,
     fetchChatMatches,
@@ -30,6 +30,7 @@ import {
 } from '../lib/chatApi';
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { ProfileRecord } from '../lib/profile';
+import { ExpandableMessageText } from '../components/ExpandableMessageText';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -406,9 +407,11 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                                                 </Pressable>
                                             ) : (
                                                 <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                                                    <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>
-                                                        {msg.content}
-                                                    </Text>
+                                                    <ExpandableMessageText
+                                                        content={msg.content}
+                                                        linkColor={isMe ? '#0d0c0f' : '#d4b373'}
+                                                        textStyle={[styles.bubbleText, isMe && styles.bubbleTextMe]}
+                                                    />
                                                     <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>
                                                         {formatTime(msg.createdAt)}
                                                     </Text>
@@ -515,7 +518,6 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                     showsVerticalScrollIndicator={false}
                     renderItem={({ item: match }) => {
                         const hasUnread = match.unreadCount > 0;
-                        const lastMsg = match.interestRequest?.personalizedReason ?? 'Start a conversation';
                         return (
                             <Pressable
                                 style={styles.matchCard}
@@ -552,18 +554,15 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                                                 </View>
                                             )}
                                             <Text style={styles.cardTime}>
-                                                {match.createdAt ? timeAgo(match.createdAt) : ''}
+                                                {match.lastActivityAt ? timeAgo(match.lastActivityAt) : ''}
                                             </Text>
                                         </View>
                                     </View>
-                                    <Text style={styles.cardLocation} numberOfLines={1}>
-                                        📍 {match.otherUserLocation}
+                                    <Text style={styles.cardFacts} numberOfLines={2}>
+                                        {getProfileFacts(match).join('  •  ')}
                                     </Text>
-                                    <Text
-                                        style={[styles.cardPreview, hasUnread && styles.cardPreviewBold]}
-                                        numberOfLines={1}
-                                    >
-                                        {lastMsg}
+                                    <Text style={styles.cardBio} numberOfLines={2} ellipsizeMode="tail">
+                                        {match.otherUserBio?.trim() || 'No bio added yet.'}
                                     </Text>
 
                                     {/* RM tag */}
@@ -743,11 +742,13 @@ const styles = StyleSheet.create({
     cardInfo: {
         flex: 1,
         gap: 3,
+        minWidth: 0,
     },
     cardRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        gap: 8,
     },
     cardName: {
         fontSize: 15,
@@ -758,6 +759,7 @@ const styles = StyleSheet.create({
     cardMeta: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexShrink: 1,
         gap: 6,
     },
     unreadBadge: {
@@ -781,6 +783,18 @@ const styles = StyleSheet.create({
     cardLocation: {
         fontSize: 12,
         color: TEXT_SUB,
+    },
+    cardFacts: {
+        color: TEXT_SUB,
+        fontSize: 12,
+        fontWeight: '600',
+        lineHeight: 18,
+        marginTop: 2,
+    },
+    cardBio: {
+        color: TEXT_MUTED,
+        fontSize: 12,
+        lineHeight: 18,
     },
     cardPreview: {
         fontSize: 13,

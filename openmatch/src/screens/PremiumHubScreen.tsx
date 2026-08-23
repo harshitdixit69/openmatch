@@ -1483,7 +1483,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 8,
     },
     pageHeaderTitle: {
         fontSize: 22,
@@ -1623,7 +1623,8 @@ const styles = StyleSheet.create({
     tableHeaderCell: {
         flex: 1,
         alignItems: 'center',
-        paddingVertical: 6,
+        paddingBottom: 6,
+        paddingTop: 24,
         position: 'relative',
     },
     selectedHeaderCell: {
@@ -1645,7 +1646,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 5,
         paddingVertical: 2,
         position: 'absolute',
-        top: -12,
+        top: 4,
     },
     topSellerTagText: {
         fontSize: 8,
@@ -1716,7 +1717,7 @@ const styles = StyleSheet.create({
         color: GOLD,
         textAlign: 'center',
         letterSpacing: 0.8,
-        marginBottom: 16,
+        marginBottom: 8,
     },
 
     // Duration Grid

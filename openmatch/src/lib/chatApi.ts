@@ -57,12 +57,28 @@ type ProfileRow = {
     full_name: string;
     photo_urls: string[] | null;
     location: string;
+    dob: string | null;
+    height_cm: number | null;
+    occupation: string | null;
     bio: string | null;
     preferences: string | null;
     profile_owner: ChatMatch['otherUserProfileOwner'];
     verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected';
     subscription_tier?: string | null;
 };
+
+function calculateAge(dob: string | null) {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    if (Number.isNaN(birthDate.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    if (
+        today.getMonth() < birthDate.getMonth() ||
+        (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
+    ) age -= 1;
+    return age > 0 ? age : null;
+}
 
 type ProfileContactRow = {
     profile_id: string;
@@ -500,7 +516,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
     ] = await Promise.all([
         supabase
             .from('profiles')
-            .select('id, full_name, photo_urls, location, bio, preferences, profile_owner, verification_status, subscription_tier')
+            .select('id, full_name, photo_urls, location, dob, height_cm, occupation, bio, preferences, profile_owner, verification_status, subscription_tier')
             .in('id', otherUserIds)
             .returns<ProfileRow[]>(),
         supabase
@@ -610,6 +626,7 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
     const unlocksByMatchId = new Map((unlocksResult.data ?? []).map((unlock) => [unlock.match_id, unlock]));
     const unreadCountByMatchId = new Map<string, number>();
     const firstMessageSenderByMatchId = new Map<string, string>();
+    const latestMessageAtByMatchId = new Map<string, string>();
     const interestRequestByMatchId = new Map<string, MatchInterestRequest>();
 
     for (const request of interestRequestsResult.data ?? []) {
@@ -621,6 +638,11 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
     for (const message of messagesResult.data ?? []) {
         if (!firstMessageSenderByMatchId.has(message.match_id)) {
             firstMessageSenderByMatchId.set(message.match_id, message.sender_id);
+        }
+
+        const latestMessageAt = latestMessageAtByMatchId.get(message.match_id);
+        if (!latestMessageAt || message.created_at > latestMessageAt) {
+            latestMessageAtByMatchId.set(message.match_id, message.created_at);
         }
 
         if (message.sender_id !== user.id && !message.read_at) {
@@ -660,6 +682,14 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
                 }
             }
 
+            const lastActivityAt = [
+                match.created_at,
+                interestRequest?.updatedAt,
+                latestMessageAtByMatchId.get(match.id),
+            ]
+                .filter((timestamp): timestamp is string => Boolean(timestamp))
+                .reduce((latest, timestamp) => (timestamp > latest ? timestamp : latest), match.created_at);
+
             return {
                 id: match.id,
                 otherUserId,
@@ -670,6 +700,9 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
                 otherUserPhoneNumber: contactDetails?.phone_number ?? null,
                 otherUserWhatsappNumber: contactDetails?.whatsapp_number ?? null,
                 otherUserLocation: profile.location,
+                otherUserAge: calculateAge(profile.dob),
+                otherUserHeightCm: profile.height_cm,
+                otherUserOccupation: profile.occupation,
                 otherUserBio: profile.bio,
                 otherUserPreferences: profile.preferences,
                 otherUserProfileOwner: profile.profile_owner,
@@ -684,11 +717,13 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
                 unreadCount: unreadCountByMatchId.get(match.id) ?? 0,
                 unlockState: buildUnlockState(match, unlocksByMatchId.get(match.id) ?? null, user.id),
                 createdAt: match.created_at,
+                lastActivityAt,
                 otherUserVerificationStatus: profile.verification_status || 'unverified',
                 otherUserSubscriptionTier: profile.subscription_tier || null,
             } satisfies ChatMatch;
         })
-        .filter((match): match is ChatMatch => match !== null);
+        .filter((match): match is NonNullable<typeof match> => match !== null)
+        .sort((left, right) => right.lastActivityAt.localeCompare(left.lastActivityAt));
 
     cachedChatMatches = result;
     return result;

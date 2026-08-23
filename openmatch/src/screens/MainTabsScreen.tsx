@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,6 +8,8 @@ import { supabase } from '../lib/supabase';
 
 import { ChatMatch } from '../lib/chat';
 import { fetchChatMatches, subscribeToInterestRequests, unsubscribeFromChannel, updateUserPresence } from '../lib/chatApi';
+import type { MatchUnlockState } from '../lib/chat';
+import { isNotificationEnabled, loadNotificationPrefs } from '../lib/notificationPrefs';
 import { fetchPremiumAnalyticsSummary, PremiumAnalyticsSummary, trackPremiumEvent } from '../lib/premiumAnalytics';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { fetchCurrentProfile, activateSpotlight } from '../lib/profileApi';
@@ -82,6 +84,7 @@ export function MainTabsScreen() {
     const [conciergeRefreshCounter, setConciergeRefreshCounter] = useState(0);
     const [showAssistedChat, setShowAssistedChat] = useState(false);
     const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+    const [isChatConversationOpen, setIsChatConversationOpen] = useState(false);
     const insets = useSafeAreaInsets();
     // Debounce ref: track the last time loadShellData was triggered by a tab
     // switch so rapid tab changes don't fire multiple heavy fetchChatMatches calls.
@@ -177,37 +180,15 @@ export function MainTabsScreen() {
             channel = subscribeToNotifications(user.id, async (n) => {
                 if (!mounted) return;
 
-                // Load notification settings from AsyncStorage
-                try {
-                    const saved = await AsyncStorage.getItem(`openmatch:notifPrefs:${user.id}`);
-                    const prefs = saved ? JSON.parse(saved) : null;
-                    
-                    // Map notification type to preference key
-                    let isEnabled = true;
-                    if (prefs) {
-                        if (n.type === 'message_received') {
-                            isEnabled = prefs.new_messages !== false;
-                        } else if (n.type === 'new_match') {
-                            isEnabled = prefs.new_matches !== false;
-                        } else if (n.type === 'request_accepted' || n.type === 'request_received') {
-                            isEnabled = prefs.request_accepted !== false;
-                        } else if (n.type === 'request_ghosted') {
-                            isEnabled = prefs.ghosting_reminders !== false;
-                        } else if (n.type === 'system') {
-                            isEnabled = prefs.broker_calls !== false;
-                        }
-                    }
+                const prefs = await loadNotificationPrefs(user.id);
 
-                    if (isEnabled) {
-                        // Alert foreground popup
-                        if (Platform.OS === 'web') {
-                            alert(`${n.title}\n\n${n.body}`);
-                        } else {
-                            Alert.alert(n.title, n.body);
-                        }
+                if (isNotificationEnabled(n.type, prefs)) {
+                    // Alert foreground popup
+                    if (Platform.OS === 'web') {
+                        alert(`${n.title}\n\n${n.body}`);
+                    } else {
+                        Alert.alert(n.title, n.body);
                     }
-                } catch (err) {
-                    console.warn('Failed to parse notification preferences in subscription:', err);
                 }
             });
         }
@@ -334,6 +315,7 @@ export function MainTabsScreen() {
     );
 
     function openTab(tab: AppTab) {
+        setIsChatConversationOpen(false);
         setActiveTab(tab);
     }
 
@@ -381,6 +363,7 @@ export function MainTabsScreen() {
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                     onOpenNotifications={() => setShowNotifications(true)}
                     unreadNotificationsCount={shellCounts.unreadNotifications}
+                    onConversationOpenChange={setIsChatConversationOpen}
                 />
             );
         }
@@ -396,6 +379,7 @@ export function MainTabsScreen() {
                     onViewProfile={(profileId) => setSelectedProfileId(profileId)}
                     onOpenNotifications={() => setShowNotifications(true)}
                     unreadNotificationsCount={shellCounts.unreadNotifications}
+                    onConversationOpenChange={setIsChatConversationOpen}
                 />
             );
         }
@@ -493,7 +477,7 @@ export function MainTabsScreen() {
     }
 
     return (
-        <TabBarSpacingContext.Provider value={tabBarSpacing}>
+        <TabBarSpacingContext.Provider value={isChatConversationOpen ? 0 : tabBarSpacing}>
             <View style={styles.shell}>
                 <View
                     style={[
@@ -518,19 +502,21 @@ export function MainTabsScreen() {
                     )}
                 </View>
 
-                <View style={[styles.tabBar, { paddingBottom: tabBarBottomPadding }]}>
-                    {tabItems.map((tab) => (
-                        <TabButton
-                            key={tab.value}
-                            label={tab.label}
-                            subtitle={tab.subtitle}
-                            badge={tab.badge}
-                            disabled={tab.disabled}
-                            active={activeTab === tab.value}
-                            onPress={() => openTab(tab.value)}
-                        />
-                    ))}
-                </View>
+                {!isChatConversationOpen && (
+                    <View style={[styles.tabBar, { paddingBottom: tabBarBottomPadding }]}>
+                        {tabItems.map((tab) => (
+                            <TabButton
+                                key={tab.value}
+                                label={tab.label}
+                                subtitle={tab.subtitle}
+                                badge={tab.badge}
+                                disabled={tab.disabled}
+                                active={activeTab === tab.value}
+                                onPress={() => openTab(tab.value)}
+                            />
+                        ))}
+                    </View>
+                )}
 
                 <Modal
                     transparent={false}
@@ -738,8 +724,8 @@ function HomeHubTab({
                         </Pressable>
                     </View>
                     <Text style={styles.heroBody}>
-                        Keep track of your match requests and unlocked conversations.
-                     </Text>
+                        Keep track of your requests and conversations.
+                    </Text>
                 </View>
 
                 {loading ? (
@@ -803,11 +789,25 @@ function HomeHubTab({
                         <QuickActionButton label="Search profiles" subtitle="Filter by age, religion…" tone="primary" onPress={onOpenSearch} />
                         <QuickActionButton label="Who viewed me" subtitle="Recent profile visitors" tone="accent" onPress={onOpenWhoViewedMe} />
                         <QuickActionButton label="Saved profiles" subtitle="Your bookmarks" tone="neutral" onPress={onOpenShortlist} />
-                        <QuickActionButton label="Edit profile" subtitle="Update your details" tone="neutral" onPress={onOpenProfileEdit} />
-                        <QuickActionButton label="Edit preferences" subtitle="Refine match filters" tone="neutral" onPress={onOpenPartnerPrefs} />
-                        <QuickActionButton label="Sign out" subtitle="Log out of your account" tone="accent" onPress={onSignOut} />
                     </View>
                 </View>
+
+                <View style={styles.sectionCard}>
+                    <Text style={styles.sectionTitle}>Profile settings</Text>
+                    <View style={styles.quickActionGrid}>
+                        <QuickActionButton label="Edit profile" subtitle="Update your details" tone="neutral" onPress={onOpenProfileEdit} />
+                        <QuickActionButton label="Edit preferences" subtitle="Refine match filters" tone="neutral" onPress={onOpenPartnerPrefs} />
+                    </View>
+                </View>
+
+                <Pressable style={styles.signOutButton} onPress={onSignOut}>
+                    <View style={styles.signOutIcon}><Text style={styles.signOutIconText}>↪</Text></View>
+                    <View style={styles.signOutCopy}>
+                        <Text style={styles.signOutTitle}>Sign out</Text>
+                        <Text style={styles.signOutSubtitle}>Log out of your account</Text>
+                    </View>
+                    <Text style={styles.quickActionArrow}>›</Text>
+                </Pressable>
             </ScrollView>
 
             <Modal
@@ -885,6 +885,8 @@ const EXCLUSIVE_PACKAGES: SubscriptionPackage[] = [
 ];
 
 function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatches: () => void; onOpenInbox: () => void; viewerProfile: ProfileRecord | null }) {
+    const { width: viewportWidth } = useWindowDimensions();
+    const useTwoColumnDurationGrid = viewportWidth < 390;
     const isPremium = 
         viewerProfile?.subscription_tier === 'plus' || 
         viewerProfile?.subscription_tier === 'vip' || 
@@ -907,6 +909,37 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
             surface: 'premium_tab',
             context: 'tab_open',
         });
+    }, []);
+
+    // Handle the redirect back from Stripe Checkout. Without this the user lands
+    // on the app with no feedback (or, on a stale link, Stripe's "You're all done
+    // here" dead end). We surface the outcome and clean the URL so a refresh or
+    // Back press doesn't replay the message.
+    useEffect(() => {
+        if (Platform.OS !== 'web') return;
+        if (typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        const checkoutStatus = params.get('checkout');
+        if (!checkoutStatus) return;
+
+        if (checkoutStatus === 'success') {
+            Alert.alert(
+                'Payment Successful',
+                'Your upgrade is being activated. Credits and premium features will appear shortly.',
+            );
+        } else if (checkoutStatus === 'cancelled') {
+            Alert.alert('Checkout Cancelled', 'No payment was taken. You can upgrade any time.');
+        }
+
+        params.delete('checkout');
+        params.delete('session_id');
+        const query = params.toString();
+        window.history.replaceState(
+            {},
+            '',
+            `${window.location.pathname}${query ? `?${query}` : ''}`,
+        );
     }, []);
 
     const syncSelection = (subTier: 'pro' | 'pro_max' | 'pro_supreme', duration: '1_month' | '3_months' | '6_months' | 'till_marriage') => {
@@ -952,20 +985,28 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
     const handleCheckout = async () => {
         setCheckoutLoading(true);
         try {
+            // Distinct success/cancel targets so the app can tell the outcomes
+            // apart when Stripe redirects back. On native we use the app's deep
+            // link scheme so the user returns to the app instead of a dead end.
+            const returnBase =
+                Platform.OS === 'web' ? window.location.origin : 'openmatch://premium';
+
             const { data, error } = await supabase.functions.invoke('create-subscription-checkout', {
                 body: {
                     packageTier: activeTab === 'self-service' ? 'plus' : 'vip',
                     subTier: activeTab === 'self-service' ? selfServiceSubTier : undefined,
                     durationMonths: selectedPackage.months,
-                    successUrl: Platform.OS === 'web' ? window.location.origin : undefined,
-                    cancelUrl: Platform.OS === 'web' ? window.location.origin : undefined,
+                    successUrl: returnBase,
+                    cancelUrl: returnBase,
                 },
             });
 
             if (error) throw error;
             if (data?.checkoutUrl) {
                 if (Platform.OS === 'web') {
-                    window.location.href = data.checkoutUrl;
+                    // Replace the history entry so pressing Back doesn't return
+                    // the user to an expired Stripe session ("You're all done here").
+                    window.location.replace(data.checkoutUrl);
                 } else {
                     const supported = await Linking.canOpenURL(data.checkoutUrl);
                     if (supported) {
@@ -1235,20 +1276,25 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
                         <View style={styles.bannerLine} />
                     </View>
 
-                    <View style={styles.choosePlansGrid}>
+                    <View style={[styles.choosePlansGrid, useTwoColumnDurationGrid && styles.choosePlansGridNarrow]}>
                         {packages.map((pkg) => {
                             const isSelected = pkg.id === selectedPackageId;
                             const priceText = `₹${pkg.priceINR.toLocaleString('en-IN')}`;
                             const origPriceText = pkg.originalPriceINR ? `₹${pkg.originalPriceINR.toLocaleString('en-IN')}` : null;
                             const durationLabel = pkg.months === 12 && activeTab === 'self-service' ? 'Till Marriage' : `${pkg.months} ${pkg.months === 1 ? 'month' : 'months'}`;
+                            const durationDisplayLabel = durationLabel.replace(' ', '\n');
 
                             return (
                                 <Pressable
                                     key={pkg.id}
                                     style={[
                                         styles.newPackageCard,
+                                        useTwoColumnDurationGrid && styles.newPackageCardNarrow,
                                         isSelected && styles.newPackageCardSelected,
                                     ]}
+                                    accessibilityRole="radio"
+                                    accessibilityLabel={durationLabel}
+                                    accessibilityState={{ checked: isSelected }}
                                     onPress={() => {
                                         setSelectedPackageId(pkg.id);
                                         const durMap: Record<number, '1_month' | '3_months' | '6_months' | 'till_marriage'> = {
@@ -1264,9 +1310,9 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
                                 >
                                     <View style={styles.newPackageCardHeader}>
                                         <Text style={[styles.newPackageDuration, isSelected && styles.newPackageDurationSelected]}>
-                                            {durationLabel}
+                                            {durationDisplayLabel}
                                         </Text>
-                                        <View style={[styles.radioButtonOuter, isSelected && styles.radioButtonOuterActive, { marginTop: -2 }]}>
+                                        <View style={[styles.radioButtonOuter, styles.newPackageRadio, isSelected && styles.radioButtonOuterActive]}>
                                             {isSelected && <View style={styles.radioButtonInner} />}
                                         </View>
                                     </View>
@@ -1364,32 +1410,29 @@ function QuickActionButton({
             ]}
             onPress={onPress}
         >
-            <Text
-                style={[
-                    styles.quickActionLabel,
-                    tone === 'primary'
-                        ? styles.quickActionLabelPrimary
-                        : tone === 'accent'
-                            ? styles.quickActionLabelAccent
-                            : styles.quickActionLabelNeutral,
-                ]}
-            >
-                {label}
-            </Text>
-            <Text
-                style={[
-                    styles.quickActionSubtitle,
-                    tone === 'primary'
-                        ? styles.quickActionSubtitlePrimary
-                        : tone === 'accent'
-                            ? styles.quickActionSubtitleAccent
-                            : styles.quickActionSubtitleNeutral,
-                ]}
-            >
-                {subtitle}
-            </Text>
+            <View style={[styles.quickActionIcon, tone === 'primary' ? styles.quickActionIconPrimary : tone === 'accent' ? styles.quickActionIconAccent : styles.quickActionIconNeutral]}>
+                <Text style={[styles.quickActionIconText, tone === 'primary' ? styles.quickActionIconTextPrimary : styles.quickActionIconTextNeutral]}>{getQuickActionIcon(label)}</Text>
+            </View>
+            <View style={styles.quickActionCopy}>
+                <Text style={[styles.quickActionLabel, tone === 'primary' ? styles.quickActionLabelPrimary : tone === 'accent' ? styles.quickActionLabelAccent : styles.quickActionLabelNeutral]}>{label}</Text>
+                <Text style={[styles.quickActionSubtitle, tone === 'primary' ? styles.quickActionSubtitlePrimary : tone === 'accent' ? styles.quickActionSubtitleAccent : styles.quickActionSubtitleNeutral]}>{subtitle}</Text>
+            </View>
+            <Text style={styles.quickActionArrow}>›</Text>
         </Pressable>
     );
+}
+
+function getQuickActionIcon(label: string) {
+    switch (label) {
+        case 'Search profiles': return '⌕';
+        case 'Who viewed me': return '◉';
+        case 'Saved profiles': return '♡';
+        case 'Edit profile': return '✎';
+        case 'Edit preferences': return '☷';
+        case 'Back to matches': return '♡';
+        case 'Back to inbox': return '✉';
+        default: return '•';
+    }
 }
 
 function FeatureRow({ title, body }: { title: string; body: string }) {
@@ -1622,16 +1665,16 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     panelScrollContent: {
-        gap: 10,
-        paddingBottom: 20,
+        gap: 12,
+        paddingBottom: 24,
         paddingHorizontal: 16,
-        paddingTop: 12,
+        paddingTop: 14,
     },
     heroCard: {
         backgroundColor: '#14313a',
-        borderRadius: 20,
+        borderRadius: 22,
         gap: 8,
-        padding: 16,
+        padding: 15,
     },
     premiumHeroCard: {
         backgroundColor: '#29464f',
@@ -1658,7 +1701,7 @@ const styles = StyleSheet.create({
     },
     heroTitle: {
         color: '#ffffff',
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: '800',
     },
     heroBody: {
@@ -1684,14 +1727,15 @@ const styles = StyleSheet.create({
     summaryGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: 10,
     },
     summaryCard: {
-        borderRadius: 16,
+        borderRadius: 15,
         flexBasis: '45%',
         flexGrow: 1,
         gap: 4,
-        padding: 12,
+        minHeight: 68,
+        padding: 11,
     },
     summaryCardPrimary: {
         backgroundColor: '#14313a',
@@ -1735,8 +1779,8 @@ const styles = StyleSheet.create({
         borderColor: '#d6e1df',
         borderRadius: 18,
         borderWidth: 1,
-        gap: 10,
-        padding: 14,
+        gap: 11,
+        padding: 13,
     },
     sectionTitle: {
         color: '#14313a',
@@ -1744,12 +1788,16 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     quickActionGrid: {
-        gap: 8,
+        gap: 7,
     },
     quickActionButton: {
+        alignItems: 'center',
         borderRadius: 14,
-        gap: 4,
-        padding: 12,
+        flexDirection: 'row',
+        gap: 10,
+        minHeight: 60,
+        paddingHorizontal: 11,
+        paddingVertical: 9,
     },
     quickActionButtonPrimary: {
         backgroundColor: '#14313a',
@@ -1761,7 +1809,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#edf3f2',
     },
     quickActionLabel: {
-        fontSize: 13.5,
+        fontSize: 13,
         fontWeight: '800',
     },
     quickActionLabelPrimary: {
@@ -1774,6 +1822,83 @@ const styles = StyleSheet.create({
         color: '#244049',
     },
     quickActionSubtitle: {
+        fontSize: 11.5,
+        lineHeight: 16,
+    },
+    quickActionIcon: {
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.16)',
+        borderRadius: 10,
+        height: 34,
+        justifyContent: 'center',
+        width: 34,
+    },
+    quickActionIconText: {
+        fontSize: 19,
+        fontWeight: '700',
+    },
+    quickActionIconPrimary: {
+        backgroundColor: 'rgba(255,255,255,0.16)',
+    },
+    quickActionIconAccent: {
+        backgroundColor: '#e5cdb3',
+    },
+    quickActionIconNeutral: {
+        backgroundColor: '#d7e5e3',
+    },
+    quickActionIconTextPrimary: {
+        color: '#ffffff',
+    },
+    quickActionIconTextNeutral: {
+        color: '#244049',
+    },
+    quickActionCopy: {
+        flex: 1,
+        gap: 1,
+    },
+    quickActionArrow: {
+        color: '#789096',
+        fontSize: 24,
+        fontWeight: '400',
+        lineHeight: 26,
+        paddingLeft: 4,
+    },
+    signOutButton: {
+        alignItems: 'center',
+        backgroundColor: '#fffaf5',
+        borderColor: '#ead7c4',
+        borderRadius: 15,
+        borderWidth: 1,
+        flexDirection: 'row',
+        gap: 10,
+        minHeight: 60,
+        paddingHorizontal: 11,
+        paddingVertical: 9,
+    },
+    signOutIcon: {
+        alignItems: 'center',
+        backgroundColor: '#f0e2d2',
+        borderRadius: 10,
+        height: 34,
+        justifyContent: 'center',
+        width: 34,
+    },
+    signOutIconText: {
+        color: '#8a5438',
+        fontSize: 19,
+        fontWeight: '700',
+    },
+    signOutCopy: {
+        flex: 1,
+        gap: 1,
+    },
+    signOutTitle: {
+        color: '#744a33',
+        fontSize: 13,
+        fontWeight: '800',
+    },
+    signOutSubtitle: {
+        color: '#8a6b5b',
         fontSize: 11.5,
         lineHeight: 16,
     },
@@ -2021,7 +2146,8 @@ const styles = StyleSheet.create({
     },
     tableHeaderCell: {
         width: '23%',
-        paddingVertical: 14,
+        paddingBottom: 14,
+        paddingTop: 28,
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
@@ -2034,7 +2160,7 @@ const styles = StyleSheet.create({
     },
     topSellerBadge: {
         position: 'absolute',
-        top: -8,
+        top: 6,
         backgroundColor: '#10cc9f',
         paddingHorizontal: 5,
         paddingVertical: 2,
@@ -2114,7 +2240,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        marginVertical: 16,
+        marginVertical: 8,
         width: '100%',
     },
     bannerLine: {
@@ -2143,6 +2269,9 @@ const styles = StyleSheet.create({
         gap: 10,
         width: '100%',
     },
+    choosePlansGridNarrow: {
+        flexWrap: 'wrap',
+    },
     newPackageCard: {
         flex: 1,
         backgroundColor: '#ffffff',
@@ -2154,20 +2283,30 @@ const styles = StyleSheet.create({
         minHeight: 84,
         justifyContent: 'space-between',
     },
+    newPackageCardNarrow: {
+        flexBasis: '47%',
+        flexGrow: 0,
+        flexShrink: 0,
+    },
     newPackageCardSelected: {
         borderColor: '#d1354c',
         backgroundColor: '#fffafb',
     },
     newPackageCardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        minHeight: 32,
+        position: 'relative',
         width: '100%',
     },
     newPackageDuration: {
+        flexShrink: 1,
         fontSize: 13,
         fontWeight: '800',
         color: '#6c7d84',
+    },
+    newPackageRadio: {
+        position: 'absolute',
+        right: 0,
+        top: -2,
     },
     newPackageDurationSelected: {
         color: '#d1354c',
@@ -2235,6 +2374,7 @@ function MatchProfileScreenModal({
     const [fitPoints, setFitPoints] = useState<string[]>([]);
     const [frictionPoints, setFrictionPoints] = useState<string[]>([]);
     const [summaryLoading, setSummaryLoading] = useState(false);
+    const [unlockState, setUnlockState] = useState<MatchUnlockState | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -2296,6 +2436,16 @@ function MatchProfileScreenModal({
                 }
 
                 if (vProfile && vProfile.id !== profileId) {
+                    // Mirror the chat header's unlock state so both surfaces agree.
+                    try {
+                        const chatMatches = await fetchChatMatches();
+                        const match = chatMatches.find((m) => m.otherUserId === profileId);
+                        if (active) setUnlockState(match?.unlockState ?? null);
+                    } catch (unlockErr) {
+                        console.warn('Failed to load unlock state for profile:', unlockErr);
+                        if (active) setUnlockState(null);
+                    }
+
                     setSummaryLoading(true);
                     const summary = await fetchCompatibilitySnapshot(profileId);
                     if (active) {
@@ -2348,6 +2498,7 @@ function MatchProfileScreenModal({
             onPass={onClose}
             onConnect={onClose}
             onOpenChat={onOpenChat}
+            unlockState={unlockState}
         />
     );
 }

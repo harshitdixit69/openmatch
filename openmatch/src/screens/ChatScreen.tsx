@@ -24,7 +24,7 @@ import { PhoneIcon } from '../components/PhoneIcon';
 import { RequestTrustDrawer } from '../components/RequestTrustDrawer';
 import { WhatsAppLogo } from '../components/WhatsAppLogo';
 import { fetchChatCopilot } from '../lib/aiApi';
-import { BrokerCallSummary, ChatChemistry, ChatMatch, ChatMessage, MatchUnlockAction } from '../lib/chat';
+import { BrokerCallSummary, ChatChemistry, ChatMatch, ChatMessage, getProfileFacts, MatchUnlockAction } from '../lib/chat';
 import { ProfileReliabilitySummary } from '../lib/intentEscrow';
 import { getRequestTrustSummary } from '../lib/intentEscrowApi';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
@@ -79,6 +79,13 @@ import {
 } from '../lib/premiumPopup';
 import { PremiumPromoModal } from '../components/PremiumPromoModal';
 import { PostAcceptanceCountdownBanner } from '../components/PostAcceptanceCountdownBanner';
+import { ExpandableMessageText } from '../components/ExpandableMessageText';
+import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
+import {
+    getShareContactAccessibilityLabel,
+    getShareContactLabel,
+    isCompactChatHeader,
+} from '../lib/chatHeaderLayout';
 
 type ChatScreenProps = {
     onClose: () => void;
@@ -90,6 +97,7 @@ type ChatScreenProps = {
     unreadNotificationsCount?: number;
     isPremium?: boolean;
     hideHeaderRowIfNoActiveMatch?: boolean;
+    onConversationOpenChange?: (isOpen: boolean) => void;
 };
 
 type RecoverySuggestionAction = 'request_unlock' | 'accept_unlock' | 'pay_unlock' | 'call' | 'whatsapp';
@@ -129,9 +137,11 @@ export function ChatScreen({
     unreadNotificationsCount = 0,
     isPremium = false,
     hideHeaderRowIfNoActiveMatch = false,
+    onConversationOpenChange,
 }: ChatScreenProps) {
     const { width: windowWidth } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
+    const isCompactHeader = isCompactChatHeader(windowWidth);
     const initialCachedMatches = getCachedChatMatches();
     const [matches, setMatches] = useState<ChatMatch[]>(initialCachedMatches ?? []);
     const [matchesLoading, setMatchesLoading] = useState(!initialCachedMatches);
@@ -172,6 +182,10 @@ export function ChatScreen({
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const [otherUserPresence, setOtherUserPresence] = useState<{ user_id: string; status: string; last_seen_at: string; is_online: boolean } | null>(null);
     const lastSentTypingAt = useRef<number>(0);
+
+    useEffect(() => {
+        onConversationOpenChange?.(Boolean(activeMatch));
+    }, [activeMatch, onConversationOpenChange]);
 
     // Guards against overlapping / duplicate loadMatches runs (mount effect,
     // three realtime subscriptions and action handlers can all trigger it).
@@ -1384,15 +1398,15 @@ export function ChatScreen({
                                             </View>
                                         )}
                                         <View style={styles.headerCopy}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                                            <View style={styles.headerNameRow}>
+                                                <Text style={[styles.title, styles.headerName, isCompactHeader && styles.headerNameCompact]} numberOfLines={1} ellipsizeMode="tail">
                                                     {activeMatch.otherUserName}
                                                 </Text>
                                                 {activeMatch.otherUserVerificationStatus === 'verified' ? (
-                                                    <Text style={{ fontSize: 14, marginLeft: 4, color: '#1a7a5e' }}>✅</Text>
+                                                    <Text style={styles.headerNameBadge}>✅</Text>
                                                 ) : null}
                                                 {activeMatch.otherUserSubscriptionTier && activeMatch.otherUserSubscriptionTier !== 'free' ? (
-                                                    <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
+                                                    <Text style={[styles.headerNameBadge, { color: '#c8a261' }]}>👑</Text>
                                                 ) : null}
                                             </View>
                                             <Text
@@ -1416,11 +1430,12 @@ export function ChatScreen({
                             </Pressable>
 
                             {activeMatch ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1000 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1000, flexShrink: 0 }}>
                                     {!activeMatch.isUnlocked && (
                                         <Pressable
                                             style={({ pressed }) => [
                                                 styles.shareContactHeaderButton,
+                                                isCompactHeader && styles.shareContactHeaderButtonCompact,
                                                 activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonPending,
                                                 pressed && styles.headerButtonPressed,
                                             ]}
@@ -1445,16 +1460,20 @@ export function ChatScreen({
                                                 }
                                             }}
                                             accessibilityRole="button"
-                                            accessibilityLabel="Share Contact"
+                                            accessibilityLabel={getShareContactAccessibilityLabel(
+                                                activeMatch.unlockState,
+                                                (currentUserProfile?.unlock_credits_remaining ?? 0) > 0
+                                            )}
                                         >
                                             <Text style={[
                                                 styles.shareContactHeaderButtonText,
                                                 activeMatch.unlockState.waitingOn === 'other_acceptance' && styles.shareContactHeaderButtonTextPending,
                                             ]}>
-                                                {activeMatch.unlockState.canAccept ? '🔑 Accept Share' :
-                                                 activeMatch.unlockState.canPay ? ((currentUserProfile?.unlock_credits_remaining ?? 0) > 0 ? '🔑 Use Credit' : '🔑 Pay ₹45') :
-                                                 activeMatch.unlockState.waitingOn === 'other_acceptance' ? '⏳ Pending' :
-                                                 activeMatch.unlockState.waitingOn === 'other_payment' ? '⏳ They Pay' : '🔑 Share Contact'}
+                                                {getShareContactLabel(
+                                                    activeMatch.unlockState,
+                                                    (currentUserProfile?.unlock_credits_remaining ?? 0) > 0,
+                                                    isCompactHeader
+                                                )}
                                             </Text>
                                         </Pressable>
                                     )}
@@ -1479,30 +1498,24 @@ export function ChatScreen({
                                                 />
                                                 <View style={styles.headerDropdownMenu}>
                                                     <Pressable
-                                                        style={styles.dropdownBackdrop}
-                                                        onPress={() => setDropdownVisible(false)}
-                                                    />
-                                                    <View style={styles.headerDropdownMenu}>
-                                                        <Pressable
-                                                            style={styles.headerDropdownItem}
-                                                            onPress={() => {
-                                                                setDropdownVisible(false);
-                                                                confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                            }}
-                                                        >
-                                                            <Text style={styles.headerDropdownItemText}>Block User</Text>
-                                                        </Pressable>
-                                                        <View style={styles.headerDropdownDivider} />
-                                                        <Pressable
-                                                            style={styles.headerDropdownItem}
-                                                            onPress={() => {
-                                                                setDropdownVisible(false);
-                                                                promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
-                                                            }}
-                                                        >
-                                                            <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
-                                                        </Pressable>
-                                                    </View>
+                                                        style={styles.headerDropdownItem}
+                                                        onPress={() => {
+                                                            setDropdownVisible(false);
+                                                            confirmBlockUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                        }}
+                                                    >
+                                                        <Text style={styles.headerDropdownItemText}>Block User</Text>
+                                                    </Pressable>
+                                                    <View style={styles.headerDropdownDivider} />
+                                                    <Pressable
+                                                        style={styles.headerDropdownItem}
+                                                        onPress={() => {
+                                                            setDropdownVisible(false);
+                                                            promptReportUser(activeMatch.otherUserId, activeMatch.otherUserName);
+                                                        }}
+                                                    >
+                                                        <Text style={styles.headerDropdownItemTextDestructive}>Report User</Text>
+                                                    </Pressable>
                                                 </View>
                                             </>
                                         )}
@@ -1608,29 +1621,33 @@ export function ChatScreen({
                                     />
 
                                     {!isChatScreen && (
-                                        <FlatList
-                                            data={chatListFilters}
-                                            horizontal
-                                            keyExtractor={(item) => item.value}
-                                            showsHorizontalScrollIndicator={false}
+                                        <HorizontalScrollAffordance
                                             contentContainerStyle={styles.matchFilterList}
-                                            renderItem={({ item }) => (
+                                            fadeColor={isPremium ? '#16151a' : '#ffffff'}
+                                            chevronColor={isPremium ? '#e8e4f0' : '#14313a'}
+                                            arrowBorderColor={isPremium ? '#26242e' : '#d7e1e2'}
+                                            arrowAccessibilityLabelPrefix="chat filters"
+                                        >
+                                            {chatListFilters.map((item) => (
                                                 <MatchFilterChip
+                                                    key={item.value}
                                                     label={item.label}
                                                     count={inboxTabCounts[item.value]}
                                                     active={matchListFilter === item.value}
                                                     onPress={() => setMatchListFilter(item.value)}
                                                     isPremium={isPremium}
                                                 />
-                                            )}
-                                        />
+                                            ))}
+                                        </HorizontalScrollAffordance>
                                     )}
 
-                                    <ScrollView
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
+                                    <HorizontalScrollAffordance
                                         contentContainerStyle={styles.messageVisibilityRow}
                                         style={styles.messageVisibilityScroller}
+                                        fadeColor={isPremium ? '#16151a' : '#ffffff'}
+                                        chevronColor={isPremium ? '#e8e4f0' : '#14313a'}
+                                        arrowBorderColor={isPremium ? '#26242e' : '#d7e1e2'}
+                                        arrowAccessibilityLabelPrefix="message filters"
                                     >
                                         <MatchFilterChip
                                             label="All"
@@ -1655,7 +1672,7 @@ export function ChatScreen({
                                                 isPremium={isPremium}
                                             />
                                         )}
-                                    </ScrollView>
+                                    </HorizontalScrollAffordance>
                                 </View>
 
                                 {visibleMatches.length === 0 ? (
@@ -2242,16 +2259,21 @@ export function ChatScreen({
 
                                         return (
                                             <WrapperComponent {...wrapperProps}>
-                                                <Text
-                                                    style={[
+                                                <ExpandableMessageText
+                                                    content={displayContent}
+                                                    disabled={Boolean(isFlaggedAndLocked)}
+                                                    linkColor={
+                                                        isPremium
+                                                            ? (isOwnMessage ? '#0d0c0f' : '#d4b373')
+                                                            : (isOwnMessage ? '#9fd0d8' : '#0b6b74')
+                                                    }
+                                                    textStyle={[
                                                         styles.messageText,
                                                         isOwnMessage ? styles.messageTextOwn : styles.messageTextOther,
                                                         isPremium && (isOwnMessage ? { color: '#0d0c0f' } : { color: '#ffffff' }),
                                                         isFlaggedAndLocked ? styles.messageTextFlagged : null,
                                                     ]}
-                                                >
-                                                    {displayContent}
-                                                </Text>
+                                                />
                                                 <Text
                                                     style={[
                                                         styles.messageMeta,
@@ -2513,8 +2535,14 @@ function ProfileListItemCard({
 
                     <View style={styles.matchCardContent}>
                         <View style={styles.matchCardHeader}>
-                            <Pressable onPress={() => onViewProfile?.(item.otherUserId)}>
-                                <Text style={[styles.matchName, isPremium && { color: '#ffffff' }]}>{item.otherUserName}</Text>
+                            <Pressable onPress={() => onViewProfile?.(item.otherUserId)} style={styles.matchNamePressable}>
+                                <Text
+                                    numberOfLines={1}
+                                    ellipsizeMode="tail"
+                                    style={[styles.matchName, isPremium && { color: '#ffffff' }]}
+                                >
+                                    {item.otherUserName}
+                                </Text>
                             </Pressable>
                             <View style={styles.matchCardHeaderBadges}>
                                 {item.unreadCount > 0 ? (
@@ -2522,64 +2550,29 @@ function ProfileListItemCard({
                                         {item.unreadCount > 99 ? '99+' : item.unreadCount}
                                     </Text>
                                 ) : null}
-                                <Text style={styles.matchStatusPill}>{getMatchStatusLabel(item)}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.matchTagRow}>
-                            <View style={[styles.matchTagPill, isPremium && { backgroundColor: '#26242e' }]}>
-                                <Text style={[styles.matchTagText, isPremium && { color: '#ffffff' }]}>{item.otherUserLocation}</Text>
-                            </View>
-
-                            <View style={[styles.matchTagPillMuted, isPremium && { backgroundColor: '#1c1b22', borderColor: '#26242e' }]}>
-                                <Text style={[styles.matchTagTextMuted, isPremium && { color: '#a19fb0' }]}>
-                                    {item.otherUserProfileOwner ? `Managed by ${item.otherUserProfileOwner}` : 'Self profile'}
+                                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.matchStatusPill}>
+                                    {getMatchStatusLabel(item)}
                                 </Text>
                             </View>
                         </View>
+
+                        <Text
+                            numberOfLines={2}
+                            style={[styles.matchProfileFacts, isPremium && { color: '#b9b4c5' }]}
+                        >
+                            {getProfileFacts(item).join('  •  ')}
+                        </Text>
                     </View>
                 </View>
 
-                <View style={styles.matchStateRow}>
-                    {getInboxStateChips(item).map((chip) => (
-                        <StateChip key={`${item.id}-${chip.label}`} label={chip.label} tone={chip.tone} />
-                    ))}
-                </View>
-
-                <Text style={[styles.matchPreviewStatus, isPremium && { color: '#a19fb0' }]}>{getMatchInboxPreview(item)}</Text>
-
-                {shouldShowInboxBrokerCard(item) ? (
-                    <View style={[styles.brokerInfoCard, isPremium && { backgroundColor: '#1f1c2e', borderColor: 'rgba(212,179,115,0.2)' }]}>
-                        <Text style={[styles.brokerInfoText, isPremium && { color: '#a19fb0' }]}>{getInboxBrokerPreview(item)}</Text>
-
-                        {item.interestRequest &&
-                        item.interestRequest.senderId !== currentUserId &&
-                        (item.brokerSummary?.currentUserConsent ?? 'unknown') !== 'granted' ? (
-                            <Pressable
-                                style={[
-                                    styles.brokerConsentInlineButton,
-                                    brokerConsentPendingRequestId === item.interestRequest.id
-                                        ? styles.sendButtonDisabled
-                                        : null,
-                                ]}
-                                onPress={() => void onBrokerConsent(item, true)}
-                                disabled={brokerConsentPendingRequestId === item.interestRequest.id}
-                            >
-                                <Text style={styles.brokerConsentInlineButtonText}>
-                                    {brokerConsentPendingRequestId === item.interestRequest.id
-                                        ? 'Saving...'
-                                        : 'Allow intro call'}
-                                </Text>
-                            </Pressable>
-                        ) : null}
-
-                        <FollowupJobStatusBlock match={item} />
-                    </View>
-                ) : null}
-
-                <Text numberOfLines={2} style={[styles.matchPreview, isPremium && { color: '#8e8aa0' }]}>
-                    {item.otherUserBio ?? item.otherUserPreferences ?? 'No profile summary yet.'}
+                <Text
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    style={[styles.matchProfileBio, isPremium && { color: '#9e99ad' }]}
+                >
+                    {item.otherUserBio?.trim() || 'No bio added yet.'}
                 </Text>
+
             </Pressable>
 
             {item.matchRequestState === 'received' ? (
@@ -2619,9 +2612,9 @@ function ProfileListItemCard({
                     </Pressable>
                 </View>
             ) : shouldShowAcceptedCardQuickActions(item) ? (
-                <View style={styles.matchCardActionsRow}>
+                <View style={[styles.matchCardActionsRow, styles.matchCardQuickActionsRow]}>
                     <Pressable
-                        style={styles.matchCardPrimaryAction}
+                        style={[styles.matchCardPrimaryAction, styles.matchCardQuickPrimaryAction]}
                         onPress={() => onOpenChat(item)}
                     >
                         <Text style={styles.matchCardPrimaryActionText}>Open chat</Text>
@@ -2629,7 +2622,7 @@ function ProfileListItemCard({
 
                     {item.isUnlocked && item.otherUserWhatsappNumber ? (
                         <Pressable
-                            style={styles.matchCardSecondaryAction}
+                            style={[styles.matchCardSecondaryAction, styles.matchCardQuickSecondaryAction]}
                             onPress={() => void onContactAction(item, 'whatsapp')}
                         >
                             <WhatsAppLogo size={14} color="#25d366" />
@@ -2639,7 +2632,7 @@ function ProfileListItemCard({
 
                     {item.isUnlocked && item.otherUserPhoneNumber ? (
                         <Pressable
-                            style={styles.matchCardSecondaryAction}
+                            style={[styles.matchCardSecondaryAction, styles.matchCardQuickSecondaryAction]}
                             onPress={() => void onContactAction(item, 'call')}
                         >
                             <PhoneIcon size={14} color="#35525b" />
@@ -2649,7 +2642,7 @@ function ProfileListItemCard({
 
                     {!item.isUnlocked ? (
                         <Pressable
-                            style={styles.matchCardSecondaryAction}
+                            style={[styles.matchCardSecondaryAction, styles.matchCardQuickSecondaryAction]}
                             onPress={() => onOpenChat(item)}
                         >
                             <Text style={styles.matchCardSecondaryActionText}>Unlock contacts</Text>
@@ -2692,7 +2685,7 @@ function ChatListItemCard({ item, onPress, isPremium = false }: { item: ChatMatc
                         ) : null}
                     </View>
                     <Text style={[styles.chatCardTime, isPremium && { color: '#8e8aa0' }]}>
-                        {formatChatListTime(item.createdAt)}
+                        {formatChatListTime(item.lastActivityAt)}
                     </Text>
                 </View>
 
@@ -3657,6 +3650,9 @@ const styles = StyleSheet.create({
         paddingBottom: 14,
         paddingHorizontal: 20,
         paddingTop: 4,
+        // Keeps the header (and its "⋮" dropdown) above sibling content such as
+        // the post-acceptance follow-up banner, which would otherwise overlap it.
+        zIndex: 100,
     },
     headerTitleRow: {
         alignItems: 'center',
@@ -3667,7 +3663,9 @@ const styles = StyleSheet.create({
     headerCopy: {
         flex: 1,
         gap: 4,
-        marginHorizontal: 12,
+        // No horizontal margin: the avatar already supplies an 8px gutter, and
+        // on a 390pt screen the extra 24px was enough to truncate the name.
+        minWidth: 0,
     },
     headerUnlockActions: {
         alignItems: 'center',
@@ -3734,6 +3732,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 12,
         paddingVertical: 7,
+    },
+    shareContactHeaderButtonCompact: {
+        paddingHorizontal: 9,
     },
     shareContactHeaderButtonPending: {
         backgroundColor: '#f5f0e8',
@@ -3808,6 +3809,24 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         letterSpacing: 0.1,
+    },
+    headerNameRow: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        minWidth: 0,
+    },
+    headerName: {
+        // Let the name absorb the squeeze instead of the verified/premium badges.
+        flexShrink: 1,
+    },
+    headerNameCompact: {
+        fontSize: 17,
+    },
+    headerNameBadge: {
+        color: '#1a7a5e',
+        flexShrink: 0,
+        fontSize: 14,
+        marginLeft: 4,
     },
     title: {
         color: '#102a43',
@@ -4060,11 +4079,17 @@ const styles = StyleSheet.create({
     matchCardHeader: {
         alignItems: 'center',
         flexDirection: 'row',
+        gap: 8,
         justifyContent: 'space-between',
+    },
+    matchNamePressable: {
+        flex: 1,
+        minWidth: 0,
     },
     matchCardHeaderBadges: {
         alignItems: 'center',
         flexDirection: 'row',
+        flexShrink: 1,
         gap: 8,
     },
     matchName: {
@@ -4078,6 +4103,7 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 12,
         fontWeight: '700',
+        maxWidth: 132,
         overflow: 'hidden',
         paddingHorizontal: 10,
         paddingVertical: 6,
@@ -4097,32 +4123,16 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
     },
-    matchTagRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    matchTagPill: {
-        backgroundColor: '#14313a',
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-    },
-    matchTagText: {
-        color: '#ffffff',
-        fontSize: 12,
+    matchProfileFacts: {
+        color: '#61757a',
+        fontSize: 13,
         fontWeight: '700',
+        lineHeight: 20,
     },
-    matchTagPillMuted: {
-        backgroundColor: '#f0e2d2',
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-    },
-    matchTagTextMuted: {
-        color: '#744a33',
-        fontSize: 12,
-        fontWeight: '700',
+    matchProfileBio: {
+        color: '#536a70',
+        fontSize: 14,
+        lineHeight: 20,
     },
     matchStateRow: {
         flexDirection: 'row',
@@ -4172,6 +4182,9 @@ const styles = StyleSheet.create({
         gap: 10,
         marginTop: 4,
     },
+    matchCardQuickActionsRow: {
+        flexWrap: 'wrap',
+    },
     matchCardPrimaryAction: {
         alignItems: 'center',
         backgroundColor: '#14313a',
@@ -4180,6 +4193,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         minHeight: 46,
         paddingHorizontal: 14,
+    },
+    matchCardQuickPrimaryAction: {
+        flexBasis: '100%',
     },
     matchCardPrimaryActionText: {
         color: '#ffffff',
@@ -4196,6 +4212,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         minHeight: 46,
         paddingHorizontal: 14,
+    },
+    matchCardQuickSecondaryAction: {
+        flexBasis: '48%',
     },
     matchCardSecondaryActionText: {
         color: '#35525b',
@@ -5161,6 +5180,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+        minWidth: 0,
         marginRight: 8,
     },
     headerAvatar: {

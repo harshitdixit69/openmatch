@@ -133,7 +133,15 @@ async function maybeGenerateAiReasons(
         return null;
     }
 
+    // With no bio and no stated preferences there is nothing specific to ground
+    // a message in. Asking anyway is what produced generic profile advice.
+    if (hasThinProfile(candidateProfile)) {
+        return null;
+    }
+
     try {
+        const receiverName = firstName(candidateProfile.full_name);
+
         const aiResult = await callAzureJsonChat({
             apiKey: env.azureApiKey,
             apiVersion: env.azureApiVersion,
@@ -143,12 +151,33 @@ async function maybeGenerateAiReasons(
             messages: [
                 {
                     role: 'system',
-                    content:
-                        'You are an intent coach for a matrimonial app. Return only JSON with keys reasons, requestQualityScore, and requiresVoiceIntro. reasons must be an array of exactly 3 objects with keys id, text, score, and tags. Keep each text concrete, respectful, and profile-specific. requestQualityScore must be a number from 0 to 100. requiresVoiceIntro should only be true when the sender risk is high enough that a short voice intro would materially improve trust.',
+                    content: [
+                        'You draft short opening messages for a matrimonial app.',
+                        '',
+                        'CRITICAL: each "text" you produce is sent VERBATIM to the receiver as the sender\'s first message. It is not advice, not feedback, and not commentary. Never describe or evaluate either profile.',
+                        '',
+                        'Write each message:',
+                        '- in the first person, as the sender speaking directly to the receiver',
+                        '- referring to something specific from the RECEIVER profile (their work, city, interests, stated preferences)',
+                        '- 1 to 2 sentences, under 240 characters, warm and respectful, no flattery about appearance',
+                        '- ending in a way that invites a reply',
+                        '',
+                        'Never write "your bio", "your profile", "add more photos", or any suggestion about improving a profile. Never mention scores, risk, or this app\'s features.',
+                        '',
+                        'Return only JSON with keys reasons, requestQualityScore, requiresVoiceIntro. reasons must be an array of exactly 3 objects with keys id, text, score, tags. score is your confidence (0-100) that this specific message will get a reply. requestQualityScore is a number 0-100. requiresVoiceIntro should only be true when sender risk is high enough that a short voice intro would materially improve trust.',
+                    ].join('\n'),
                 },
                 {
                     role: 'user',
-                    content: `Sender profile:\n${profileToPrompt(viewerProfile)}\n\nReceiver profile:\n${profileToPrompt(candidateProfile)}\n\nSender ghost risk score: ${ghostRiskScore}`,
+                    content: [
+                        `Write 3 different opening messages that I could send to ${receiverName}.`,
+                        '',
+                        `About me (the sender, do not describe me back to myself):\n${profileToPrompt(viewerProfile)}`,
+                        '',
+                        `About ${receiverName} (the receiver — ground the messages in this):\n${profileToPrompt(candidateProfile)}`,
+                        '',
+                        `Sender ghost risk score: ${ghostRiskScore}`,
+                    ].join('\n'),
                 },
             ],
         });
@@ -209,6 +238,14 @@ async function safeFetchActiveRequestCount(serviceClient: ReturnType<typeof crea
     throw error;
 }
 
+/**
+ * Builds sendable opening messages.
+ *
+ * These are what the receiver actually reads, so they are written in the first
+ * person and addressed to them. They previously described the match instead
+ * ("Both profiles include clear long-term preferences...") which read as robotic
+ * narration when delivered.
+ */
 function buildFallbackReasons(
     viewerProfile: ProfileRow,
     candidateProfile: ProfileRow,
@@ -216,31 +253,32 @@ function buildFallbackReasons(
     activeRequestCount: number,
     activeRequestLimit: number,
 ) {
-    const reasons = [];
+    const reasons: { id: string; text: string; score: number; tags: string[] }[] = [];
+    const name = firstName(candidateProfile.full_name);
     const sameLocation = normalizeText(viewerProfile.location) && normalizeText(viewerProfile.location) === normalizeText(candidateProfile.location);
 
     if (sameLocation) {
         reasons.push({
             id: 'city-alignment',
-            text: `Both families are based in ${candidateProfile.location}, which makes an early conversation easier to carry forward seriously.`,
+            text: `Hi ${name}, I noticed we're both in ${candidateProfile.location}. That makes it easy to actually meet if this feels right to both of us. Would you be open to talking?`,
             score: 84,
             tags: ['city'],
         });
     }
 
-    if (viewerProfile.preferences && candidateProfile.preferences) {
+    if (candidateProfile.preferences) {
         reasons.push({
             id: 'preference-fit',
-            text: 'Both profiles include clear long-term preferences, so there is enough specificity here for a respectful first request.',
+            text: `Hi ${name}, what you've written about what you're looking for lines up closely with what I want long term. I'd like to know more about you.`,
             score: 80,
             tags: ['preferences', 'values'],
         });
     }
 
-    if (viewerProfile.bio && candidateProfile.bio) {
+    if (candidateProfile.bio) {
         reasons.push({
             id: 'profile-depth',
-            text: 'Both profiles have enough detail to justify a thoughtful first message instead of a generic interest request.',
+            text: `Hi ${name}, I read your profile properly rather than just swiping. What you wrote about yourself came across as genuine, and I'd like to start a conversation.`,
             score: 77,
             tags: ['profile-depth'],
         });
@@ -249,7 +287,7 @@ function buildFallbackReasons(
     if (reasons.length < 3) {
         reasons.push({
             id: 'serious-intent',
-            text: 'This looks like a better match to approach with one specific reason than with a bulk request.',
+            text: `Hi ${name}, I'm here looking for something serious rather than casual conversation. If you feel the same, I'd like to get to know you.`,
             score: 72,
             tags: ['intent'],
         });
@@ -258,7 +296,7 @@ function buildFallbackReasons(
     if (reasons.length < 3) {
         reasons.push({
             id: 'balanced-first-step',
-            text: 'A short, profile-specific note here would make the first interaction feel more credible and respectful.',
+            text: `Hi ${name}, I'd rather send you one honest message than a generic request. I'd like to hear more about you if you're open to it.`,
             score: 70,
             tags: ['intent'],
         });
@@ -278,6 +316,19 @@ function buildFallbackReasons(
     };
 }
 
+/** First name only — full names read stiffly in an opening message. */
+function firstName(fullName: string | null | undefined) {
+    return fullName?.trim().split(/\s+/)[0] || 'there';
+}
+
+/**
+ * True when the receiver profile has too little to reference specifically.
+ * Without this the model has nothing to ground on and invents filler.
+ */
+function hasThinProfile(profile: ProfileRow) {
+    return !normalizeText(profile.bio) && !normalizeText(profile.preferences);
+}
+
 function profileToPrompt(profile: ProfileRow) {
     return [
         `Name: ${profile.full_name}`,
@@ -291,15 +342,54 @@ function profileToPrompt(profile: ProfileRow) {
     ].join('\n');
 }
 
+/**
+ * Phrases that mean the model has started coaching the sender about their own
+ * profile instead of writing a message to the receiver. This text would be sent
+ * verbatim, so anything matching is discarded rather than shipped.
+ */
+const COACHING_PHRASES = [
+    'your bio',
+    'your profile',
+    'your photos',
+    'add more',
+    'adding more',
+    'adding details',
+    'consider adding',
+    'you should add',
+    'more photos',
+    'profile completeness',
+    'helps potential matches',
+    'increase engagement',
+    'both profiles',
+];
+
+export function isSendableMessage(text: string): boolean {
+    const trimmed = text.trim();
+    if (trimmed.length < 15) return false;
+    // Long enough to be a paragraph of advice rather than an opening line.
+    if (trimmed.length > 320) return false;
+
+    const lowered = trimmed.toLowerCase();
+    return !COACHING_PHRASES.some((phrase) => lowered.includes(phrase));
+}
+
 function normalizeReason(value: unknown, index: number) {
     if (!value || typeof value !== 'object' || !('text' in value) || typeof value.text !== 'string' || !value.text.trim()) {
         return null;
     }
 
     const record = value as Record<string, unknown>;
+    const text = (record.text as string).trim();
+
+    // Guardrail: never surface profile-coaching as a sendable message.
+    if (!isSendableMessage(text)) {
+        console.warn('generate-request-reasons discarded a non-sendable reason.');
+        return null;
+    }
+
     return {
         id: typeof record.id === 'string' && record.id.trim() ? record.id : `reason-${index + 1}`,
-        text: record.text.trim(),
+        text,
         score: normalizeNumber(record.score, 72),
         tags: Array.isArray(record.tags) ? record.tags.filter((tag): tag is string => typeof tag === 'string' && Boolean(tag.trim())) : [],
     };

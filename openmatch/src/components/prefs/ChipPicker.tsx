@@ -1,6 +1,8 @@
 // src/components/prefs/ChipPicker.tsx
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
+
+import { HorizontalScrollAffordance } from '../HorizontalScrollAffordance';
 
 interface Props<T extends string> {
     options: readonly T[];
@@ -11,7 +13,7 @@ interface Props<T extends string> {
 
 export function ChipPicker<T extends string>({ options, labels, selected, onSelect }: Props<T>) {
     return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+        <HorizontalScrollAffordance contentContainerStyle={styles.row} arrowAccessibilityLabelPrefix="options">
             {options.map((opt) => {
                 const isSelected = selected === opt;
                 return (
@@ -26,7 +28,7 @@ export function ChipPicker<T extends string>({ options, labels, selected, onSele
                     </Pressable>
                 );
             })}
-        </ScrollView>
+        </HorizontalScrollAffordance>
     );
 }
 
@@ -39,7 +41,7 @@ interface MultiProps<T extends string> {
 
 export function MultiChipPicker<T extends string>({ options, labels, selected, onToggle }: MultiProps<T>) {
     return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+        <HorizontalScrollAffordance contentContainerStyle={styles.row} arrowAccessibilityLabelPrefix="options">
             {options.map((opt) => {
                 const isSelected = selected.includes(opt);
                 return (
@@ -54,7 +56,7 @@ export function MultiChipPicker<T extends string>({ options, labels, selected, o
                     </Pressable>
                 );
             })}
-        </ScrollView>
+        </HorizontalScrollAffordance>
     );
 }
 

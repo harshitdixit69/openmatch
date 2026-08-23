@@ -229,7 +229,14 @@ export function showFriendlyAlert(
     error: unknown,
     fallback = 'Something went wrong. Please try again.'
 ): void {
-    const message = getFriendlyErrorMessage(error, fallback);
+    // A plain non-empty string is an already human-readable message (e.g. a success
+    // or informational notice), NOT a raw error to be sanitized. Running it through
+    // getFriendlyErrorMessage would pattern-match it, find no known error signature,
+    // and wrongly replace it with the generic fallback. Show it verbatim instead.
+    const message =
+        typeof error === 'string' && error.trim()
+            ? error
+            : getFriendlyErrorMessage(error, fallback);
     if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && typeof window.alert === 'function') {
             window.alert(`${title}\n\n${message}`);

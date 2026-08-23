@@ -22,7 +22,23 @@ import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { updateUserPresence } from '../lib/chatApi';
 import { pickProfilePhotoFromLibrary } from '../lib/profilePhotoApi';
 import { fetchCurrentProfile, submitVerification } from '../lib/profileApi';
+import {
+    DEFAULT_DISCOVERY_SETTINGS,
+    DiscoverySettings,
+    fetchDiscoverySettings,
+    updateDiscoverySettings,
+} from '../lib/discoverySafetyApi';
+import {
+    DEFAULT_NOTIF_PREFS,
+    loadNotificationPrefs,
+    NOTIF_LABELS,
+    NotificationPrefs,
+    saveNotificationPrefs,
+} from '../lib/notificationPrefs';
+import { clearSearchHistory } from '../lib/searchHistory';
 import { IdentityVerificationScreen } from './IdentityVerificationScreen';
+import { BlockedProfilesScreen } from './BlockedProfilesScreen';
+import { SafetyCenterScreen } from './SafetyCenterScreen';
 
 interface Props {
     onBack: () => void;
@@ -34,29 +50,8 @@ interface Props {
 // Types
 // ---------------------------------------------------------------------------
 
-type NotificationPrefs = {
-    new_matches: boolean;
-    new_messages: boolean;
-    request_accepted: boolean;
-    ghosting_reminders: boolean;
-    broker_calls: boolean;
-};
-
-const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
-    new_matches: true,
-    new_messages: true,
-    request_accepted: true,
-    ghosting_reminders: true,
-    broker_calls: false,
-};
-
-const NOTIF_LABELS: Record<keyof NotificationPrefs, string> = {
-    new_matches: 'New match suggestions',
-    new_messages: 'New messages',
-    request_accepted: 'Request accepted',
-    ghosting_reminders: 'Follow-up reminders',
-    broker_calls: 'AI broker call alerts',
-};
+// Notification preference shape, labels and defaults now live in
+// ../lib/notificationPrefs so SettingsScreen and MainTabsScreen cannot drift.
 
 // ---------------------------------------------------------------------------
 // Collapsible Section
@@ -204,6 +199,12 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
     const [verificationStatus, setVerificationStatus] = useState<'unverified' | 'pending' | 'verified' | 'rejected'>('unverified');
     const [showVerifyScreen, setShowVerifyScreen] = useState(false);
     const [busyMode, setBusyMode] = useState(false);
+    const [discovery, setDiscovery] = useState<DiscoverySettings>(DEFAULT_DISCOVERY_SETTINGS);
+    const [discoveryLoaded, setDiscoveryLoaded] = useState(false);
+    const [discoveryPending, setDiscoveryPending] = useState<keyof DiscoverySettings | null>(null);
+    const [showBlockedScreen, setShowBlockedScreen] = useState(false);
+    const [showSafetyScreen, setShowSafetyScreen] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
         let mounted = true;
@@ -213,14 +214,9 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
             if (!mounted) return;
             if (data.user?.email) setUserEmail(data.user.email);
             if (data.user?.id) {
-                try {
-                    const saved = await AsyncStorage.getItem(`openmatch:notifPrefs:${data.user.id}`);
-                    if (saved && mounted) {
-                        setNotifPrefs(JSON.parse(saved));
-                    }
-                } catch (e) {
-                    console.warn('Failed to load notification preferences:', e);
-                }
+                setUserId(data.user.id);
+                const prefs = await loadNotificationPrefs(data.user.id);
+                if (mounted) setNotifPrefs(prefs);
             }
         }
         void init();
@@ -240,10 +236,48 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
         }
         void fetchStatus();
 
+        async function fetchDiscovery() {
+            try {
+                const settings = await fetchDiscoverySettings();
+                if (mounted) setDiscovery(settings);
+            } catch (err) {
+                console.warn('Failed to load discovery settings:', err);
+            } finally {
+                if (mounted) setDiscoveryLoaded(true);
+            }
+        }
+        void fetchDiscovery();
+
         return () => {
             mounted = false;
         };
     }, []);
+
+    /**
+     * Optimistically flips a discovery toggle and rolls back if the write fails,
+     * so the switch never shows a state the database does not agree with.
+     */
+    const toggleDiscovery = useCallback(
+        async (key: keyof DiscoverySettings, next: boolean) => {
+            const previous = discovery[key];
+            setDiscovery((current) => ({ ...current, [key]: next }));
+            setDiscoveryPending(key);
+
+            try {
+                await updateDiscoverySettings({ [key]: next } as Partial<DiscoverySettings>);
+            } catch (err) {
+                setDiscovery((current) => ({ ...current, [key]: previous }));
+                showFriendlyAlert(
+                    'Could not save setting',
+                    err,
+                    'Your change was not saved. Please check your connection and try again.',
+                );
+            } finally {
+                setDiscoveryPending(null);
+            }
+        },
+        [discovery],
+    );
 
     const toggleBusyMode = async () => {
         const next = !busyMode;
@@ -270,19 +304,35 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
     const toggleNotif = useCallback(async (key: keyof NotificationPrefs) => {
         const next = { ...notifPrefs, [key]: !notifPrefs[key] };
         setNotifPrefs(next);
-        try {
-            const { data } = await supabase.auth.getUser();
-            if (data.user?.id) {
-                await AsyncStorage.setItem(`openmatch:notifPrefs:${data.user.id}`, JSON.stringify(next));
-            }
-        } catch (e) {
-            console.warn('Failed to save notification preferences:', e);
+        const { data } = await supabase.auth.getUser();
+        if (data.user?.id) {
+            await saveNotificationPrefs(data.user.id, next);
         }
     }, [notifPrefs]);
 
     function handleVerifyIdentity() {
         setShowVerifyScreen(true);
     }
+
+    function showSettingsNotice(title: string, message: string) {
+        Alert.alert(title, message);
+    }
+
+    const handleClearSearchHistory = useCallback(() => {
+        if (!userId) {
+            showSettingsNotice('Clear search history', 'Please wait for your account to finish loading and try again.');
+            return;
+        }
+
+        void (async () => {
+            try {
+                await clearSearchHistory(userId);
+                showSettingsNotice('Search history cleared', 'Your recent searches have been removed from this device.');
+            } catch (error) {
+                showFriendlyAlert('Could not clear history', error, 'Your recent searches could not be removed. Please try again.');
+            }
+        })();
+    }, [userId]);
 
     const handleSignOut = useCallback(() => {
         if (Platform.OS === 'web') {
@@ -360,6 +410,14 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
         );
     }, []);
 
+    if (showBlockedScreen) {
+        return <BlockedProfilesScreen onBack={() => setShowBlockedScreen(false)} />;
+    }
+
+    if (showSafetyScreen) {
+        return <SafetyCenterScreen onBack={() => setShowSafetyScreen(false)} />;
+    }
+
     if (showVerifyScreen) {
         return (
             <IdentityVerificationScreen
@@ -413,10 +471,77 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                         />
                     </SettingsSection>
 
-                    {/* ── Notifications ── */}
-                    <SettingsSection title="Notifications">
+                    {/* ── Discovery & safety ── */}
+                    <SettingsSection title="Discovery & safety">
+                        <SettingsRow
+                            label="Profile visibility"
+                            subtitle={
+                                !discoveryLoaded
+                                    ? 'Loading…'
+                                    : discovery.isDiscoverable
+                                        ? 'Your profile can appear in matching feeds'
+                                        : 'Your profile is hidden from new matches. Existing chats are unaffected.'
+                            }
+                            right={
+                                <Switch
+                                    value={discovery.isDiscoverable}
+                                    onValueChange={(next) => void toggleDiscovery('isDiscoverable', next)}
+                                    disabled={!discoveryLoaded || discoveryPending === 'isDiscoverable'}
+                                    trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                                    thumbColor="#fff"
+                                />
+                            }
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Incognito mode"
+                            subtitle="Browse profiles without appearing in their visitors list"
+                            right={
+                                <Switch
+                                    value={discovery.incognitoMode}
+                                    onValueChange={(next) => void toggleDiscovery('incognitoMode', next)}
+                                    disabled={!discoveryLoaded || discoveryPending === 'incognitoMode'}
+                                    trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                                    thumbColor="#fff"
+                                />
+                            }
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Blocked profiles"
+                            subtitle="Review people you have blocked"
+                            onPress={() => setShowBlockedScreen(true)}
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Report a user"
+                            subtitle="Report harassment, scams, or suspicious behavior"
+                            onPress={() =>
+                                showSettingsNotice(
+                                    'Report a user',
+                                    'Open the chat or profile of the person you want to report and use the ⋯ menu. That way your report is linked to the right account and reviewed faster.',
+                                )
+                            }
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Safety center"
+                            subtitle="Learn how to stay safe on OpenMatch"
+                            onPress={() => setShowSafetyScreen(true)}
+                        />
+                    </SettingsSection>
+
+                    {/* ── In-app alerts ── */}
+                    {/* Named "In-app alerts", not "Notifications": there is no push
+                        transport yet, so these only gate the foreground popup. */}
+                    <SettingsSection title="In-app alerts">
+                        <SettingsRow
+                            label="Where these apply"
+                            subtitle="These control alerts shown while OpenMatch is open on this device."
+                        />
+                        <Divider />
                         {(Object.keys(notifPrefs) as (keyof NotificationPrefs)[]).map((key, i, arr) => (
-                            <React.Fragment key={key}>
+                            <React.Fragment key={String(key)}>
                                 <SettingsRow
                                     label={NOTIF_LABELS[key]}
                                     right={
@@ -435,6 +560,25 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
 
                     {/* ── Privacy ── */}
                     <SettingsSection title="Privacy">
+                        {/* Informational, not a switch: contact escrow is unconditional,
+                            so a toggle here could never be turned off. */}
+                        <SettingsRow
+                            label="Contact sharing"
+                            subtitle="Your phone and WhatsApp numbers stay hidden until both people complete a mutual unlock. This always applies and cannot be turned off."
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Download my data"
+                            subtitle="Request a copy of your OpenMatch data"
+                            onPress={() => Linking.openURL('mailto:support@openmatch.app?subject=Data%20Export%20Request')}
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Clear search history"
+                            subtitle="Remove your recent searches from this device"
+                            onPress={handleClearSearchHistory}
+                        />
+                        <Divider />
                         <SettingsRow
                             label="Privacy Policy"
                             onPress={() => Linking.openURL('https://openmatch.app/privacy')}
@@ -445,8 +589,67 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                             onPress={() => Linking.openURL('https://openmatch.app/terms')}
                         />
                         <Divider />
+                    </SettingsSection>
+
+                    {/* ── Security ── */}
+                    <SettingsSection title="Security">
+                        <SettingsRow
+                            label="Change email"
+                            subtitle={userEmail || 'Update your sign-in email'}
+                            onPress={() => showSettingsNotice('Change email', 'To change your email securely, contact support from your verified account.')}
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Active sessions"
+                            subtitle="Review where your account is signed in"
+                            onPress={() => showSettingsNotice('Active sessions', 'You are currently signed in on this device.')}
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Two-factor authentication"
+                            subtitle="Add another layer of protection to your account"
+                            onPress={() => showSettingsNotice('Two-factor authentication', 'Two-factor authentication will be available soon.')}
+                        />
+                    </SettingsSection>
+
+                    {/* ── Subscription ── */}
+                    <SettingsSection title="Subscription & payments">
+                        <SettingsRow
+                            label="Manage subscription"
+                            subtitle="View your plan and billing details"
+                            onPress={() => showSettingsNotice('Manage subscription', 'Subscription management will open here when a plan is active.')}
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Restore purchases"
+                            subtitle="Restore a previous premium purchase"
+                            onPress={() => showSettingsNotice('Restore purchases', 'No previous purchases were found on this account.')}
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Payment history"
+                            subtitle="View invoices and completed payments"
+                            onPress={() => showSettingsNotice('Payment history', 'Your payment history will appear here.')}
+                        />
+                    </SettingsSection>
+
+                    {/* ── Help & feedback ── */}
+                    <SettingsSection title="Help & feedback">
+                        <SettingsRow
+                            label="Help center"
+                            subtitle="Find answers to common questions"
+                            onPress={() => Linking.openURL('https://openmatch.app/help')}
+                        />
+                        <Divider />
+                        <SettingsRow
+                            label="Report a problem"
+                            subtitle="Tell us about a technical issue"
+                            onPress={() => Linking.openURL('mailto:support@openmatch.app?subject=OpenMatch%20Issue')}
+                        />
+                        <Divider />
                         <SettingsRow
                             label="Contact Support"
+                            subtitle="Get help from the OpenMatch team"
                             onPress={() => Linking.openURL('mailto:support@openmatch.app')}
                         />
                     </SettingsSection>
@@ -457,12 +660,12 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                             label="Verification Status"
                             subtitle={
                                 verificationStatus === 'verified'
-                                    ? 'Verified ✅'
+                                    ? 'Verified ✅ — your badge is visible on your profile and in chat.'
                                     : verificationStatus === 'pending'
-                                    ? 'Pending Review ⏳'
-                                    : verificationStatus === 'rejected'
-                                    ? 'Rejected ❌ (Tap to try again)'
-                                    : 'Not Verified (Tap to verify)'
+                                        ? 'Pending review ⏳ — a person is checking your documents. This usually takes under 24 hours, and your badge appears automatically. No need to resubmit.'
+                                        : verificationStatus === 'rejected'
+                                            ? 'Not confirmed ❌ — this is usually a blurry document or poor lighting rather than a problem with your ID. Tap to try again.'
+                                            : 'Not verified — verified profiles are shown higher in search and get accepted more often. Tap to start.'
                             }
                             onPress={
                                 verificationStatus === 'verified' || verificationStatus === 'pending'

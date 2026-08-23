@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '../components/BackButton';
+import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
 import { RequestTrustDrawer } from '../components/RequestTrustDrawer';
 import { ProfileReliabilitySummary } from '../lib/intentEscrow';
 import { getRequestTrustSummary, generateRequestReasons, submitInterestRequest } from '../lib/intentEscrowApi';
@@ -22,6 +23,8 @@ import { getDisplayFirstName, matchesPartnerGenderPreference, ProfileRecord, Pro
 import { recordProfileView } from '../lib/profileViewsApi';
 import { MAX_CONTENT_WIDTH, useResponsiveLayout } from '../lib/responsiveLayout';
 import { blockUser, reportUser } from '../lib/chatApi';
+import { MatchUnlockState } from '../lib/chat';
+import { resolveContactUnlockStatus } from '../lib/contactUnlockStatus';
 import { supabase } from '../lib/supabase';
 import { PartnerPreferences, cmToFeetInches, PREF_MARITAL_STATUS_LABELS } from '../lib/partnerPreferences';
 import { fetchPartnerPreferences } from '../lib/partnerPreferencesApi';
@@ -41,6 +44,7 @@ type MatchProfileScreenProps = {
     onConnect: () => void;
     onUnlockWithPremium?: () => void;
     onOpenChat?: (otherUserId: string) => void;
+    unlockState?: MatchUnlockState | null;
 };
 
 export function MatchProfileScreen({
@@ -56,6 +60,7 @@ export function MatchProfileScreen({
     onConnect,
     onUnlockWithPremium,
     onOpenChat,
+    unlockState,
 }: MatchProfileScreenProps) {
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
     const isSelf = viewerProfile && candidate && viewerProfile.id === candidate.id;
@@ -641,7 +646,10 @@ export function MatchProfileScreen({
 
                     <SectionCard title="Photo album">
                         {photoUrls.length > 0 ? (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoStrip}>
+                            <HorizontalScrollAffordance
+                                contentContainerStyle={styles.photoStrip}
+                                arrowAccessibilityLabelPrefix="photos"
+                            >
                                 {photoUrls.map((photoUrl, index) => (
                                     <Pressable
                                         key={`${photoUrl}-${index}`}
@@ -651,7 +659,7 @@ export function MatchProfileScreen({
                                         <Image source={{ uri: photoUrl }} style={styles.photoThumb} />
                                     </Pressable>
                                 ))}
-                            </ScrollView>
+                            </HorizontalScrollAffordance>
                         ) : (
                             <Text style={styles.sectionBody}>This profile does not have an album yet, so only the rest of the profile details are available.</Text>
                         )}
@@ -772,7 +780,13 @@ export function MatchProfileScreen({
                     ) : contactDetails ? (
                         <UnlockedContactCard firstName={firstName} contactDetails={contactDetails} />
                     ) : (
-                        <MaskedContactCard firstName={firstName} onUnlock={onConnect} onUnlockWithPremium={handleUnlockWithPremium} />
+                        <MaskedContactCard
+                            firstName={firstName}
+                            onUnlock={onConnect}
+                            onUnlockWithPremium={handleUnlockWithPremium}
+                            unlockState={unlockState}
+                            onOpenChat={onOpenChat ? () => onOpenChat(candidate.id) : undefined}
+                        />
                     )}
 
                     <View style={styles.trustStripCard}>
@@ -957,11 +971,18 @@ function MaskedContactCard({
     firstName,
     onUnlock,
     onUnlockWithPremium,
+    unlockState,
+    onOpenChat,
 }: {
     firstName: string;
     onUnlock: () => void;
     onUnlockWithPremium: () => void;
+    unlockState?: MatchUnlockState | null;
+    onOpenChat?: () => void;
 }) {
+    // Mirror the ChatScreen header state machine so both surfaces agree.
+    const status = resolveContactUnlockStatus(firstName, unlockState);
+
     return (
         <View style={styles.contactCard}>
             <View style={styles.contactCardHeader}>
@@ -975,36 +996,60 @@ function MaskedContactCard({
                 </View>
             </View>
 
+            {status.pillLabel ? (
+                <View style={styles.contactStatusPill}>
+                    <Text style={styles.contactStatusPillText}>{status.pillLabel}</Text>
+                </View>
+            ) : null}
+
             <View style={styles.contactRows}>
                 <MaskedContactRow label="Phone" masked="+91 ••••• •••••" />
                 <MaskedContactRow label="WhatsApp" masked="••••• •••••" />
             </View>
 
-            <Text style={styles.contactBody}>
-                {`${firstName}'s number stays hidden until you both accept contact exchange and each complete the same one-time unlock payment.`}
-            </Text>
+            <Text style={styles.contactBody}>{status.body}</Text>
 
-            <Pressable style={styles.contactUnlockButton} onPress={onUnlock}>
-                <Text style={styles.contactUnlockButtonText}>Unlock contact</Text>
+            <Pressable
+                style={[styles.contactUnlockButton, status.actionDisabled ? styles.contactUnlockButtonDisabled : null]}
+                onPress={status.actionDisabled ? undefined : (status.actionOpensChat && onOpenChat ? onOpenChat : onUnlock)}
+                disabled={status.actionDisabled}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: status.actionDisabled }}
+            >
+                <Text
+                    style={[
+                        styles.contactUnlockButtonText,
+                        status.actionDisabled ? styles.contactUnlockButtonTextDisabled : null,
+                    ]}
+                >
+                    {status.actionLabel}
+                </Text>
             </Pressable>
 
-            <View style={styles.contactOrRow}>
-                <View style={styles.contactOrLine} />
-                <Text style={styles.contactOrText}>or</Text>
-                <View style={styles.contactOrLine} />
-            </View>
+            {status.showPremium ? (
+                <>
+                    <View style={styles.contactOrRow}>
+                        <View style={styles.contactOrLine} />
+                        <Text style={styles.contactOrText}>or</Text>
+                        <View style={styles.contactOrLine} />
+                    </View>
 
-            <Pressable style={styles.contactPremiumButton} onPress={onUnlockWithPremium}>
-                <Text style={styles.contactPremiumGlyph}>✨</Text>
-                <Text style={styles.contactPremiumButtonText}>Unlock instantly with Premium</Text>
-            </Pressable>
+                    <Pressable style={styles.contactPremiumButton} onPress={onUnlockWithPremium}>
+                        <Text style={styles.contactPremiumGlyph}>✨</Text>
+                        <Text style={styles.contactPremiumButtonText}>Unlock instantly with Premium</Text>
+                    </Pressable>
 
-            <Text style={styles.contactPremiumHint}>
-                Premium members skip the mutual-pay step. Free mutual unlock always stays available.
-            </Text>
+                    <Text style={styles.contactPremiumHint}>
+                        Premium members skip the mutual-pay step. Free mutual unlock always stays available.
+                    </Text>
+                </>
+            ) : null}
         </View>
     );
 }
+
+
+
 
 function MaskedContactRow({ label, masked }: { label: string; masked: string }) {
     return (
@@ -1579,16 +1624,36 @@ const styles = StyleSheet.create({
         fontSize: 14,
         lineHeight: 21,
     },
+    contactStatusPill: {
+        alignSelf: 'flex-start',
+        backgroundColor: '#fdf1dc',
+        borderColor: '#e6c98f',
+        borderRadius: 999,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    contactStatusPillText: {
+        color: '#8a5a1f',
+        fontSize: 12,
+        fontWeight: '800',
+    },
     contactUnlockButton: {
         alignItems: 'center',
         backgroundColor: '#14313a',
         borderRadius: 16,
         paddingVertical: 14,
     },
+    contactUnlockButtonDisabled: {
+        backgroundColor: '#dfe6e8',
+    },
     contactUnlockButtonText: {
         color: '#ffffff',
         fontSize: 14,
         fontWeight: '800',
+    },
+    contactUnlockButtonTextDisabled: {
+        color: '#7d8b8f',
     },
     contactOrRow: {
         alignItems: 'center',

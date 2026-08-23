@@ -1,5 +1,6 @@
 import {
   fetchChatMessages,
+  fetchChatMatches,
   sendEscrowMessage,
   setTypingIndicator,
   clearTypingIndicator,
@@ -66,6 +67,70 @@ describe('chatApi unit tests', () => {
 
       expect(supabase.from).toHaveBeenCalledWith('messages');
       expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('fetchChatMatches', () => {
+    it('uses the latest conversation activity and orders the newest chat first', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { id: 'current-user' } },
+        error: null,
+      });
+
+      const tableData: Record<string, any[]> = {
+        matches: [
+          {
+            id: 'older-match',
+            user_1_id: 'current-user',
+            user_2_id: 'other-1',
+            status: 'connected',
+            is_unlocked: false,
+            created_at: '2026-08-21T00:00:00.000Z',
+          },
+          {
+            id: 'newer-match',
+            user_1_id: 'current-user',
+            user_2_id: 'other-2',
+            status: 'connected',
+            is_unlocked: false,
+            created_at: '2026-08-21T00:10:00.000Z',
+          },
+        ],
+        user_blocks: [],
+        profiles: [
+          { id: 'other-1', full_name: 'User One', photo_urls: [], location: 'Pune' },
+          { id: 'other-2', full_name: 'User Two', photo_urls: [], location: 'Delhi' },
+        ],
+        profile_contact_details: [],
+        match_unlocks: [],
+        messages: [
+          {
+            id: 'message-1',
+            match_id: 'older-match',
+            sender_id: 'other-1',
+            read_at: null,
+            created_at: '2026-08-21T00:29:00.000Z',
+          },
+          {
+            id: 'message-2',
+            match_id: 'newer-match',
+            sender_id: 'other-2',
+            read_at: '2026-08-21T00:15:00.000Z',
+            created_at: '2026-08-21T00:15:00.000Z',
+          },
+        ],
+        interest_requests: [],
+      };
+
+      (supabase.from as jest.Mock).mockImplementation((table: string) =>
+        makeChainableMock(tableData[table] ?? []),
+      );
+
+      const result = await fetchChatMatches();
+
+      expect(result.map((match) => match.id)).toEqual(['older-match', 'newer-match']);
+      expect(result[0].lastActivityAt).toBe('2026-08-21T00:29:00.000Z');
+      expect(result[1].lastActivityAt).toBe('2026-08-21T00:15:00.000Z');
     });
   });
 

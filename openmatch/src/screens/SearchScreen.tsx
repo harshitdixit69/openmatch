@@ -31,6 +31,8 @@ import { fetchFilteredMatches } from '../lib/partnerPreferencesApi';
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { fetchShortlistedIds } from '../lib/shortlistApi';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { loadSearchHistory, recordSearchTerm } from '../lib/searchHistory';
+import { supabase } from '../lib/supabase';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -400,8 +402,33 @@ export function SearchScreen({ onBack, onSelectCandidate }: Props) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+    const [searchHistory, setSearchHistory] = useState<string[]>([]);
+    const [userId, setUserId] = useState<string | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const latestFetchId = useRef(0);
+
+    // Recent searches are per-user and device-local; Settings > Clear search
+    // history removes them.
+    useEffect(() => {
+        let mounted = true;
+        void (async () => {
+            const { data } = await supabase.auth.getUser();
+            if (!mounted || !data.user?.id) return;
+            setUserId(data.user.id);
+            setSearchHistory(await loadSearchHistory(data.user.id));
+        })();
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const commitSearchTerm = useCallback(
+        (term: string) => {
+            if (!userId || !term.trim()) return;
+            void recordSearchTerm(userId, term).then(setSearchHistory);
+        },
+        [userId],
+    );
 
     // Fetch when filters change (debounced)
     const triggerFetch = useCallback((f: ActiveFilters) => {
@@ -464,11 +491,35 @@ export function SearchScreen({ onBack, onSelectCandidate }: Props) {
                         placeholderTextColor="#aaa"
                         value={query}
                         onChangeText={setQuery}
+                        onSubmitEditing={() => commitSearchTerm(query)}
+                        onBlur={() => commitSearchTerm(query)}
+                        returnKeyType="search"
                         autoCapitalize="none"
                         autoCorrect={false}
                         clearButtonMode="while-editing"
                     />
                 </View>
+
+                {/* Recent searches surface only when the box is empty, so they
+                    never compete with live results. */}
+                {!query && searchHistory.length > 0 ? (
+                    <View style={styles.recentWrap}>
+                        <Text style={styles.recentLabel}>Recent searches</Text>
+                        <View style={styles.recentRow}>
+                            {searchHistory.map((term) => (
+                                <Pressable
+                                    key={term}
+                                    style={({ pressed }) => [styles.recentChip, pressed ? styles.recentChipPressed : null]}
+                                    onPress={() => setQuery(term)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Search again for ${term}`}
+                                >
+                                    <Text style={styles.recentChipText} numberOfLines={1}>{term}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </View>
+                ) : null}
             </View>
 
             {/* Filter chips */}
@@ -587,6 +638,26 @@ const styles = StyleSheet.create({
         height: 42,
     },
     searchIcon: { fontSize: 18, color: '#94a3b8', marginRight: 6 },
+    recentWrap: { gap: 8, paddingTop: 12 },
+    recentLabel: {
+        color: '#94a3b8',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+    },
+    recentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    recentChip: {
+        backgroundColor: '#f1f5f9',
+        borderColor: '#e2e8f0',
+        borderRadius: 999,
+        borderWidth: 1,
+        maxWidth: 200,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+    },
+    recentChipPressed: { opacity: 0.7 },
+    recentChipText: { color: '#475569', fontSize: 13, fontWeight: '600' },
     searchInput: { flex: 1, fontSize: 15, color: '#0f172a' },
     filterContainer: {
         backgroundColor: '#fff',

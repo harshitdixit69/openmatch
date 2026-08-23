@@ -1,8 +1,9 @@
 import { supabase } from './supabase';
+import { compressImageToArrayBuffer } from './profilePhotoApi';
 import { ProfileContactDetails, ProfileContactInput, ProfileInput, ProfileRecord } from './profile';
 
 const baseProfileSelect = 'id, full_name, gender, dob, location, bio, preferences, height_cm, profile_owner, onboarding_completed_at';
-const profileSelect = `${baseProfileSelect}, partner_gender_preference, photo_urls, religion, marital_status, education, diet, mother_tongue, income_band, occupation, company, complexion, family_type, family_status, num_siblings, drinks_alcohol, smokes, busy_mode, busy_mode_changed_at, subscription_tier, subscription_expires_at, manual_unlock_credits, ai_call_credits, unlock_credits_remaining, super_interest_remaining, spotlights_remaining, spotlight_active_until`;
+const profileSelect = `${baseProfileSelect}, partner_gender_preference, photo_urls, religion, marital_status, education, diet, mother_tongue, income_band, occupation, company, complexion, family_type, family_status, num_siblings, drinks_alcohol, smokes, busy_mode, busy_mode_changed_at, subscription_tier, subscription_expires_at, manual_unlock_credits, ai_call_credits, unlock_credits_remaining, super_interest_remaining, spotlights_remaining, spotlight_active_until, verification_status`;
 const profileContactSelect = 'profile_id, phone_number, whatsapp_number';
 
 function isMissingOptionalProfileColumn(error: { message?: string } | null | undefined) {
@@ -325,6 +326,25 @@ function mimeTypeForUri(uri: string): string {
     return 'image/jpeg';
 }
 
+/**
+ * supabase-js collapses any non-2xx Edge Function response into the useless message
+ * "Edge Function returned a non-2xx status code", discarding the JSON body that says
+ * what actually went wrong. The body is still readable off `error.context` (a Response),
+ * so pull the real message out of it for display.
+ */
+async function readFunctionErrorMessage(fnError: any): Promise<string | null> {
+    const response = fnError?.context;
+    if (response && typeof response.json === 'function') {
+        try {
+            const body = await response.json();
+            if (body?.error) return String(body.error);
+        } catch {
+            // Body was not JSON, or was already consumed — fall through.
+        }
+    }
+    return fnError?.message ?? null;
+}
+
 export async function submitVerification(idPhotoUri: string, selfiePhotoUri: string): Promise<{
     // 'approved'/'rejected' are final; 'pending' means queued for manual review;
     // 'error' means a transient failure (retry) and must NOT be treated as a rejection.
@@ -348,31 +368,50 @@ export async function submitVerification(idPhotoUri: string, selfiePhotoUri: str
     // the Edge Function stores the raw KYC docs in a PRIVATE bucket using the service
     // role, and is the ONLY path allowed to write the verification badge. This closes
     // two holes: (1) client-forged 'verified' status, (2) govt IDs in a public bucket.
+    //
+    // Both images are downscaled/re-encoded first. A raw camera capture or a browser
+    // file pick is often several MB, and base64 inflates it by a further ~33% — which
+    // blew past both the Edge Function body limit and the storage bucket size limit
+    // ("The object exceeded the maximum allowed size"). PDFs are passed through
+    // untouched since the canvas path only understands raster images.
     const idMimeType = mimeTypeForUri(idPhotoUri);
     const selfieMimeType = mimeTypeForUri(selfiePhotoUri);
 
-    const idBase64 = arrayBufferToBase64(await (await fetch(idPhotoUri)).arrayBuffer());
-    const selfieBase64 = arrayBufferToBase64(await (await fetch(selfiePhotoUri)).arrayBuffer());
+    const rawId = await (await fetch(idPhotoUri)).arrayBuffer();
+    const rawSelfie = await (await fetch(selfiePhotoUri)).arrayBuffer();
+
+    const idBuffer = idMimeType === 'application/pdf'
+        ? rawId
+        : await compressImageToArrayBuffer(idPhotoUri, rawId);
+    const selfieBuffer = await compressImageToArrayBuffer(selfiePhotoUri, rawSelfie);
+
+    const idBase64 = arrayBufferToBase64(idBuffer);
+    const selfieBase64 = arrayBufferToBase64(selfieBuffer);
 
     // Server-side AI verification. The Edge Function performs the decision, persists the
     // documents, logs the attempt, and writes verification_status with the service role.
     const { data: fnData, error: fnError } = await supabase.functions.invoke('verify-identity-ai', {
         body: {
             idBase64,
-            idMimeType,
+            idMimeType: idMimeType === 'application/pdf' ? idMimeType : 'image/jpeg',
             selfieBase64,
-            selfieMimeType,
+            selfieMimeType: 'image/jpeg',
             fullName: profile?.full_name ?? null,
             dob: profile?.dob ?? null,
         },
     });
 
     if (fnError || !fnData) {
-        console.warn('[AI Verification] Edge Function call failed:', fnError);
+        const rawReason = await readFunctionErrorMessage(fnError);
+        // Log the unmodified server message. The alert the user sees is passed through
+        // getFriendlyErrorMessage(), which collapses anything mentioning "gemini" into a
+        // generic "temporarily busy" line — useful for users, useless for debugging.
+        console.warn('[AI Verification] Edge Function call failed:', rawReason, fnError);
         return {
             status: 'error',
             similarityScore: 0,
-            reason: fnError?.message || 'AI verification service is temporarily unavailable. Please try again.',
+            reason: rawReason
+                || 'AI verification service is temporarily unavailable. Please try again.',
         };
     }
 
@@ -461,63 +500,29 @@ export async function activateSpotlight(): Promise<{ success: boolean; spotlight
     return data as { success: boolean; spotlight_active_until: string; spotlights_remaining: number };
 }
 
-// ─── C5 FIX: Block & Report User API ────────────────────────────────────────
+// ─── Block & Report User API ────────────────────────────────────────────────
+//
+// The block/report implementations that used to live here targeted a
+// `blocked_users` table that has no migration and never existed, and inserted a
+// `description` column on user_reports that is actually named `details`. Every
+// call through them failed. They also had zero consumers — ChatScreen and
+// MatchProfileScreen both import the working versions from `./chatApi`.
+//
+// They have been removed so there is a single block path:
+//   blockUser / unblockUser / reportUser  ->  src/lib/chatApi.ts (public.user_blocks, public.user_reports)
+//   fetchBlockedProfiles                  ->  src/lib/discoverySafetyApi.ts
 
 export type ReportReason = 'fake_profile' | 'harassment' | 'spam' | 'inappropriate_content' | 'underage' | 'other';
-
-export async function blockUser(blockedId: string): Promise<void> {
-    const user = await getCurrentSessionUser();
-    if (!user) throw new Error('You must be signed in to block a user.');
-    if (user.id === blockedId) throw new Error('You cannot block yourself.');
-
-    const { error } = await supabase
-        .from('blocked_users')
-        .upsert({ blocker_id: user.id, blocked_id: blockedId }, { onConflict: 'blocker_id,blocked_id' });
-
-    if (error) throw error;
-}
-
-export async function unblockUser(blockedId: string): Promise<void> {
-    const user = await getCurrentSessionUser();
-    if (!user) throw new Error('You must be signed in to unblock a user.');
-
-    const { error } = await supabase
-        .from('blocked_users')
-        .delete()
-        .eq('blocker_id', user.id)
-        .eq('blocked_id', blockedId);
-
-    if (error) throw error;
-}
 
 export async function isUserBlocked(otherUserId: string): Promise<boolean> {
     const user = await getCurrentSessionUser();
     if (!user) return false;
 
     const { data } = await supabase
-        .from('blocked_users')
+        .from('user_blocks')
         .select('id')
         .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${otherUserId}),and(blocker_id.eq.${otherUserId},blocked_id.eq.${user.id})`)
         .maybeSingle();
 
     return Boolean(data);
-}
-
-
-
-export async function reportUser(reportedId: string, reason: ReportReason, description?: string): Promise<void> {
-    const user = await getCurrentSessionUser();
-    if (!user) throw new Error('You must be signed in to report a user.');
-    if (user.id === reportedId) throw new Error('You cannot report yourself.');
-
-    const { error } = await supabase
-        .from('user_reports')
-        .insert({
-            reporter_id: user.id,
-            reported_id: reportedId,
-            reason,
-            description: description?.trim() || null,
-        });
-
-    if (error) throw error;
 }

@@ -18,6 +18,7 @@ import { generateRequestReasons, submitInterestRequest } from '../lib/intentEscr
 import { GenerateRequestReasonsResult } from '../lib/intentEscrow';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { showFriendlyAlert } from '../lib/errorUtils';
+import { filterSendableReasons } from '../lib/sendableMessage';
 import { BackButton } from './BackButton';
 
 type ConnectComposerSheetProps = {
@@ -63,8 +64,11 @@ export function ConnectComposerSheet({
                     return;
                 }
 
-                setReasonsResult(nextReasonsResult);
-                const firstReason = nextReasonsResult.reasons[0];
+                // Never pre-fill the outgoing message with profile coaching,
+                // even if the deployed function returns some.
+                const safeReasons = filterSendableReasons(nextReasonsResult.reasons);
+                setReasonsResult({ ...nextReasonsResult, reasons: safeReasons });
+                const firstReason = safeReasons[0];
                 if (firstReason) {
                     setSelectedReasonId(firstReason.id);
                     setDraftMessage(firstReason.text);
@@ -178,7 +182,9 @@ export function ConnectComposerSheet({
                                 {candidate ? `Connect with ${getDisplayFirstName(candidate.full_name) || candidate.full_name}` : 'Connect'}
                             </Text>
                             <Text style={styles.subtitle}>
-                                Start with a profile-specific reason instead of a generic request. This message will appear in chat if sent.
+                                {candidate
+                                    ? `${getDisplayFirstName(candidate.full_name) || candidate.full_name} will see this as your first message, so make it personal.`
+                                    : 'This will be seen as your first message, so make it personal.'}
                             </Text>
                         </View>
                     </View>
@@ -190,9 +196,11 @@ export function ConnectComposerSheet({
                         </View>
                     ) : reasonsResult ? (
                         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                            {/* Only the open-request count is shown. Request quality and
+                                ghost risk are internal trust signals — telling someone
+                                their request scores 30/100 right before they send it is
+                                discouraging and exposes anti-abuse scoring. */}
                             <View style={styles.scoreRow}>
-                                <StatPill label={`Quality ${reasonsResult.requestQualityScore}/100`} tone="primary" />
-                                <StatPill label={`Ghost risk ${reasonsResult.ghostRiskScore}/100`} tone="neutral" />
                                 <StatPill
                                     label={`${reasonsResult.activeRequestCount}/${reasonsResult.activeRequestLimit} open`}
                                     tone={limitReached ? 'warning' : 'accent'}
@@ -230,7 +238,10 @@ export function ConnectComposerSheet({
                             ) : null}
 
                             <View style={styles.sectionCard}>
-                                <Text style={styles.sectionTitle}>Suggested reasons</Text>
+                                <Text style={styles.sectionTitle}>Pick a message to send</Text>
+                                <Text style={styles.sectionHint}>
+                                    Tap one to use it, then edit it below in your own words.
+                                </Text>
                                 {reasonsResult.reasons.map((reason) => {
                                     const selected = reason.id === selectedReasonId;
 
@@ -239,21 +250,14 @@ export function ConnectComposerSheet({
                                             key={reason.id}
                                             style={[styles.reasonCard, selected ? styles.reasonCardSelected : null]}
                                             onPress={() => handleSelectReason(reason.id)}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ selected }}
                                         >
                                             <View style={styles.reasonHeaderRow}>
-                                                <Text style={styles.reasonScore}>{reason.score}</Text>
+                                                {/* The numeric score was an internal confidence value that
+                                                    read as a grade on the user's message. */}
                                                 <Text style={styles.reasonCopy}>{reason.text}</Text>
                                             </View>
-
-                                            {reason.tags.length > 0 ? (
-                                                <View style={styles.tagRow}>
-                                                    {reason.tags.map((tag) => (
-                                                        <View key={`${reason.id}-${tag}`} style={styles.tagPill}>
-                                                            <Text style={styles.tagText}>{tag}</Text>
-                                                        </View>
-                                                    ))}
-                                                </View>
-                                            ) : null}
                                         </Pressable>
                                     );
                                 })}
@@ -489,6 +493,12 @@ const styles = StyleSheet.create({
         color: '#123340',
         fontSize: 17,
         fontWeight: '800',
+    },
+    sectionHint: {
+        color: '#6b828a',
+        fontSize: 13,
+        lineHeight: 19,
+        marginTop: -4,
     },
     reasonCard: {
         borderRadius: 18,

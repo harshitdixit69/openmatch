@@ -35,47 +35,54 @@ otp_expiry = 3600
 
 # ---------------------------------------------------------------------------
 # Email templates: deliver a 6-digit {{ .Token }} code instead of a magic link.
-# These files live in supabase/templates/ and are applied on `supabase db push`
-# / `supabase config push` (or copy their contents into the dashboard).
+# The HTML lives in supabase/templates/ and is the source of truth for the copy.
+#
+# This project manages templates in the DASHBOARD
+# (Authentication → Emails → Templates), so these blocks stay commented out.
+# Keeping them commented prevents the CLI from overwriting dashboard edits and
+# avoids path-resolution errors during `functions deploy`.
+#
+# To manage templates from the CLI instead, uncomment these and run the command
+# from this `supabase/` directory so the relative paths resolve.
 # ---------------------------------------------------------------------------
-[auth.email.template.confirmation]
-subject = "Your OpenMatch verification code"
-content_path = "./templates/confirmation.html"
+# [auth.email.template.confirmation]
+# subject = "Your OpenMatch verification code"
+# content_path = "./templates/confirmation.html"
 
-[auth.email.template.magic_link]
-subject = "Your OpenMatch sign-in code"
-content_path = "./templates/magic_link.html"
+# [auth.email.template.magic_link]
+# subject = "Your OpenMatch sign-in code"
+# content_path = "./templates/magic_link.html"
 
-[auth.email.template.recovery]
-subject = "Reset your OpenMatch password"
-content_path = "./templates/recovery.html"
+# [auth.email.template.recovery]
+# subject = "Reset your OpenMatch password"
+# content_path = "./templates/recovery.html"
 
-[auth.email.template.email_change]
-subject = "Confirm your new OpenMatch email"
-content_path = "./templates/email_change.html"
+# [auth.email.template.email_change]
+# subject = "Confirm your new OpenMatch email"
+# content_path = "./templates/email_change.html"
 
 # ---------------------------------------------------------------------------
 # Custom SMTP — REQUIRED to reliably send real OTP emails to real users.
 # The built-in Supabase email service is heavily rate-limited (a few per hour)
-# and is only meant for testing. Use a provider like Resend / SendGrid / SES.
+# and is only meant for testing. Use a provider like Resend / SendGrid / SES,
+# or a plain mailbox (Gmail / Outlook / Zoho) via standard SMTP.
 #
-# Values are read from environment variables so you never commit secrets.
-# Set them in your shell or a .env consumed by the Supabase CLI, e.g.:
-#   export SMTP_HOST="smtp.resend.com"
-#   export SMTP_PORT="465"
-#   export SMTP_USER="resend"
-#   export SMTP_PASS="re_xxxxxxxxxxxxxxxxxxxx"
-#   export SMTP_ADMIN_EMAIL="no-reply@yourdomain.com"
-#   export SMTP_SENDER_NAME="OpenMatch"
+# This project configures SMTP in the DASHBOARD
+# (Authentication → Emails → SMTP Settings), so the block below stays commented
+# out. Keeping it commented avoids the CLI overwriting the dashboard values and
+# avoids parse errors when the SMTP_* env vars aren't exported.
+#
+# To manage SMTP from the CLI instead, uncomment and export the env vars first.
+# NOTE: `port` must be a literal number — the CLI cannot parse env() there.
 # ---------------------------------------------------------------------------
-[auth.email.smtp]
-enabled = true
-host = "env(SMTP_HOST)"
-port = "env(SMTP_PORT)"
-user = "env(SMTP_USER)"
-pass = "env(SMTP_PASS)"
-admin_email = "env(SMTP_ADMIN_EMAIL)"
-sender_name = "env(SMTP_SENDER_NAME)"
+# [auth.email.smtp]
+# enabled = true
+# host = "env(SMTP_HOST)"
+# port = 465
+# user = "env(SMTP_USER)"
+# pass = "env(SMTP_PASS)"
+# admin_email = "env(SMTP_ADMIN_EMAIL)"
+# sender_name = "env(SMTP_SENDER_NAME)"
 
 # Rate limits (per hour) to protect against abuse.
 [auth.rate_limit]

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
-import type { ChatMatch } from '../lib/chat';
+import { getProfileFacts, type ChatMatch } from '../lib/chat';
 import { fetchChatMatches } from '../lib/chatApi';
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
@@ -104,10 +104,12 @@ function MatchCard({
                     <Text style={styles.cardName} numberOfLines={1}>{match.otherUserName}</Text>
                     <Text style={styles.cardTime}>{timeAgo(match.createdAt)}</Text>
                 </View>
-                <Text style={styles.cardLocation} numberOfLines={1}>{match.otherUserLocation}</Text>
-                {match.otherUserBio ? (
-                    <Text style={styles.cardBio} numberOfLines={2}>{match.otherUserBio}</Text>
-                ) : null}
+                <Text style={styles.cardFacts} numberOfLines={2}>
+                    {getProfileFacts(match).join('  •  ')}
+                </Text>
+                <Text style={styles.cardBio} numberOfLines={2} ellipsizeMode="tail">
+                    {match.otherUserBio?.trim() || 'No bio added yet.'}
+                </Text>
             </View>
 
             <View style={styles.cardRight}>
@@ -334,14 +336,15 @@ const styles = StyleSheet.create({
     },
     unlockedBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
-    cardBody: { flex: 1, gap: 2 },
-    cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    cardBody: { flex: 1, gap: 2, minWidth: 0 },
+    cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between' },
     cardName: { fontSize: 15, fontWeight: '700', color: '#123340', flex: 1 },
     cardTime: { fontSize: 11, color: '#999', marginLeft: 8 },
     cardLocation: { fontSize: 12, color: '#666' },
     cardBio: { fontSize: 12, color: '#888', marginTop: 2 },
+    cardFacts: { color: '#666', fontSize: 12, fontWeight: '600', lineHeight: 18, marginTop: 2 },
 
-    cardRight: { alignItems: 'flex-end', gap: 6 },
+    cardRight: { alignItems: 'flex-end', flexShrink: 1, gap: 6 },
     statusPill: {
         borderRadius: 10,
         borderWidth: 1,
