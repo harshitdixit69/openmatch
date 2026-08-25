@@ -13,7 +13,7 @@ export function ThemeToggle() {
             accessibilityRole="button"
             accessibilityLabel={`Switch to ${isDark ? 'light' : 'dark'} mode`}
         >
-            <View style={[styles.iconCircle, { backgroundColor: isDark ? '#2a2640' : '#f1f5f7' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: isDark ? '#1a2142' : '#f1f5f7' }]}>
                 <Text style={styles.iconText}>{isDark ? '🌙' : '☀️'}</Text>
             </View>
             <Text style={[styles.label, { color: colors.textSecondary }]}>

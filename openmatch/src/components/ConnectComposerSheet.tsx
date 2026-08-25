@@ -191,7 +191,7 @@ export function ConnectComposerSheet({
 
                     {loadingReasons ? (
                         <View style={styles.loadingState}>
-                            <ActivityIndicator size="large" color="#123340" />
+                            <ActivityIndicator size="large" color="#121732" />
                             <Text style={styles.loadingText}>Generating request reasons...</Text>
                         </View>
                     ) : reasonsResult ? (
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     title: {
-        color: '#123340',
+        color: '#121732',
         fontSize: 24,
         fontWeight: '800',
     },
@@ -417,10 +417,10 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     statPillPrimary: {
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
     },
     statPillNeutral: {
-        backgroundColor: '#dbe6e8',
+        backgroundColor: '#e2e7f5',
     },
     statPillAccent: {
         backgroundColor: '#f4dcc1',
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     noticeTitle: {
-        color: '#123340',
+        color: '#121732',
         fontSize: 15,
         fontWeight: '800',
     },
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     },
     voiceIntroButton: {
         alignSelf: 'flex-start',
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 9,
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
         gap: 14,
     },
     sectionTitle: {
-        color: '#123340',
+        color: '#121732',
         fontSize: 17,
         fontWeight: '800',
     },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     reasonCardSelected: {
-        borderColor: '#123340',
+        borderColor: '#121732',
         backgroundColor: '#eef4f5',
     },
     reasonHeaderRow: {
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#d6e0e2',
         backgroundColor: '#fbfdfd',
-        color: '#123340',
+        color: '#121732',
         fontSize: 15,
         lineHeight: 22,
         paddingHorizontal: 14,
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 18,
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         paddingVertical: 15,
     },
     submitButtonDisabled: {

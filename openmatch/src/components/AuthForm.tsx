@@ -500,7 +500,7 @@ export function AuthForm() {
                             keyboardType="phone-pad"
                             maxLength={15}
                             placeholder="98765 43210"
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={styles.phoneInput}
                             value={rawPhone}
                             onChangeText={setRawPhone}
@@ -534,7 +534,7 @@ export function AuthForm() {
                         ]}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#0d0c0f" size="small" />
+                            <ActivityIndicator color="#070912" size="small" />
                         ) : (
                             <Text style={styles.primaryBtnText}>Get Verification Code ➔</Text>
                         )}
@@ -551,7 +551,7 @@ export function AuthForm() {
                         keyboardType="number-pad"
                         maxLength={6}
                         placeholder="1 2 3 4 5 6"
-                        placeholderTextColor="#7b8d96"
+                        placeholderTextColor="#5a6488"
                         style={styles.otpInput}
                         value={otpCode}
                         onChangeText={setOtpCode}
@@ -568,7 +568,7 @@ export function AuthForm() {
                         ]}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#0d0c0f" size="small" />
+                            <ActivityIndicator color="#070912" size="small" />
                         ) : (
                             <Text style={styles.primaryBtnText}>Verify Code & Sign In ➔</Text>
                         )}
@@ -661,7 +661,7 @@ export function AuthForm() {
                         autoCorrect={false}
                         keyboardType="email-address"
                         placeholder="you@example.com"
-                        placeholderTextColor="#7b8d96"
+                        placeholderTextColor="#5a6488"
                         style={styles.standardInput}
                         value={email}
                         onChangeText={setEmail}
@@ -672,7 +672,7 @@ export function AuthForm() {
                         autoCapitalize="none"
                         autoCorrect={false}
                         placeholder={emailMode === 'signup' ? 'Create a secure password (8+ chars)' : 'Enter your password'}
-                        placeholderTextColor="#7b8d96"
+                        placeholderTextColor="#5a6488"
                         secureTextEntry
                         style={styles.standardInput}
                         value={password}
@@ -686,7 +686,7 @@ export function AuthForm() {
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 placeholder="Re-enter your password"
-                                placeholderTextColor="#7b8d96"
+                                placeholderTextColor="#5a6488"
                                 secureTextEntry
                                 style={styles.standardInput}
                                 value={confirmPassword}
@@ -738,7 +738,7 @@ export function AuthForm() {
                         keyboardType="number-pad"
                         maxLength={8}
                         placeholder="1 2 3 4 5 6"
-                        placeholderTextColor="#7b8d96"
+                        placeholderTextColor="#5a6488"
                         style={styles.otpInput}
                         value={emailOtpCode}
                         onChangeText={setEmailOtpCode}
@@ -843,7 +843,7 @@ export function AuthForm() {
 const styles = StyleSheet.create({
     card: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 20,
         borderWidth: 1,
         gap: 16,
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     badgeText: {
-        color: '#e56a3a',
+        color: '#ff6a3d',
         fontSize: 11,
         fontWeight: '700',
         letterSpacing: 1.2,
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
     },
     countryCodePill: {
         backgroundColor: '#f1f5f7',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1,
         paddingHorizontal: 14,
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
     },
     phoneInput: {
         backgroundColor: '#f7fafb',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1,
         color: '#10232a',
@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
     },
     otpInput: {
         backgroundColor: '#f7fafb',
-        borderColor: '#e56a3a',
+        borderColor: '#ff6a3d',
         borderRadius: 12,
         borderWidth: 1.5,
         color: '#0e2e3a',
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
     },
     standardInput: {
         backgroundColor: '#f7fafb',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1,
         color: '#10232a',
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
     },
     primaryBtn: {
         alignItems: 'center',
-        backgroundColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
         borderRadius: 12,
         justifyContent: 'center',
         paddingVertical: 14,
@@ -990,7 +990,7 @@ const styles = StyleSheet.create({
     secondaryBtn: {
         alignItems: 'center',
         backgroundColor: '#f1f5f7',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1,
         justifyContent: 'center',
@@ -1012,7 +1012,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     resendBtnText: {
-        color: '#e56a3a',
+        color: '#ff6a3d',
         fontSize: 13,
         fontWeight: '600',
     },
@@ -1091,8 +1091,8 @@ const styles = StyleSheet.create({
         width: 22,
     },
     tosCheckboxChecked: {
-        backgroundColor: '#e56a3a',
-        borderColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
+        borderColor: '#ff6a3d',
     },
     tosCheckmark: {
         color: '#ffffff',
@@ -1105,7 +1105,7 @@ const styles = StyleSheet.create({
         lineHeight: 17,
     },
     tosLink: {
-        color: '#e56a3a',
+        color: '#ff6a3d',
         fontWeight: '700',
         textDecorationLine: 'underline',
     },

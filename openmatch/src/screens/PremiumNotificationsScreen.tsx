@@ -128,7 +128,7 @@ export default function PremiumNotificationsScreen({ onBack }: { onBack: () => v
             {/* List */}
             {loading ? (
                 <View style={styles.loadingWrap}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#ffc24b" size="large" />
                 </View>
             ) : notifications.length === 0 ? (
                 <View style={styles.emptyWrap}>
@@ -143,7 +143,7 @@ export default function PremiumNotificationsScreen({ onBack }: { onBack: () => v
                     data={notifications}
                     keyExtractor={(n) => n.id}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadData(); }} tintColor="#d4b373" />
+                        <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadData(); }} tintColor="#ffc24b" />
                     }
                     contentContainerStyle={styles.listContent}
                     renderItem={({ item }) => (
@@ -172,13 +172,13 @@ export default function PremiumNotificationsScreen({ onBack }: { onBack: () => v
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
+const GOLD = '#ffc24b';
+const DARK_BG = '#070912';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_SUB = '#8a93b2';
+const TEXT_MUTED = '#5a6488';
 
 const styles = StyleSheet.create({
     container: {

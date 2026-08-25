@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
         paddingVertical: 9,
         backgroundColor: '#fafafa',
     },
-    unitBtnActive: { backgroundColor: '#123340' },
+    unitBtnActive: { backgroundColor: '#121732' },
     unitBtnText: { fontSize: 12, color: '#666', fontWeight: '600' },
     unitBtnTextActive: { color: '#fff' },
     hint: { fontSize: 11, color: '#aaa', marginTop: 2 },

@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     title: {
-        color: '#123340',
+        color: '#121732',
         fontSize: 24,
         fontWeight: '800',
     },
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     cardValue: {
-        color: '#123340',
+        color: '#121732',
         fontSize: 20,
         fontWeight: '800',
     },
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     },
     recordButton: {
         alignItems: 'center',
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 14,
         justifyContent: 'center',
         minHeight: 46,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     },
     submitButton: {
         alignItems: 'center',
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 18,
         flex: 1.4,
         justifyContent: 'center',

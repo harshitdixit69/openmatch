@@ -342,7 +342,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                 >
                     {msgLoading ? (
                         <View style={styles.msgLoading}>
-                            <ActivityIndicator color="#d4b373" size="small" />
+                            <ActivityIndicator color="#ffc24b" size="small" />
                         </View>
                     ) : (
                         <ScrollView
@@ -409,7 +409,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                                                 <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
                                                     <ExpandableMessageText
                                                         content={msg.content}
-                                                        linkColor={isMe ? '#0d0c0f' : '#d4b373'}
+                                                        linkColor={isMe ? '#070912' : '#ffc24b'}
                                                         textStyle={[styles.bubbleText, isMe && styles.bubbleTextMe]}
                                                     />
                                                     <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>
@@ -429,7 +429,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                         <TextInput
                             style={styles.input}
                             placeholder="Type a message..."
-                            placeholderTextColor="#5a5570"
+                            placeholderTextColor="#5a6488"
                             value={inputText}
                             onChangeText={setInputText}
                             multiline
@@ -442,7 +442,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                             disabled={!inputText.trim() || sending}
                         >
                             {sending ? (
-                                <ActivityIndicator size="small" color="#0d0c0f" />
+                                <ActivityIndicator size="small" color="#070912" />
                             ) : (
                                 <Text style={styles.sendBtnText}>↑</Text>
                             )}
@@ -478,7 +478,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
                 <TextInput
                     style={styles.searchInput}
                     placeholder="Search by name or city..."
-                    placeholderTextColor="#5a5570"
+                    placeholderTextColor="#5a6488"
                     value={search}
                     onChangeText={setSearch}
                 />
@@ -495,7 +495,7 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
             {/* Match list */}
             {loading ? (
                 <View style={styles.loadingWrap}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#ffc24b" size="large" />
                     <Text style={styles.loadingText}>Loading your connections...</Text>
                 </View>
             ) : filteredMatches.length === 0 ? (
@@ -583,14 +583,14 @@ export default function PremiumChatScreen({ viewerProfile, onBack, onViewProfile
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_MUTED = '#6c6880';
-const TEXT_SUB = '#8e8aa0';
-const ACCENT = '#11313c';
+const GOLD = '#ffc24b';
+const DARK_BG = '#070912';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_MUTED = '#5a6488';
+const TEXT_SUB = '#8a93b2';
+const ACCENT = '#121732';
 
 const styles = StyleSheet.create({
     container: {
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
         height: 36,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#1a1828',
+        backgroundColor: '#121732',
         borderRadius: 18,
         borderWidth: 1,
         borderColor: BORDER,
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginHorizontal: 16,
         marginVertical: 12,
-        backgroundColor: '#1a1828',
+        backgroundColor: '#121732',
         borderRadius: 14,
         borderWidth: 1,
         borderColor: BORDER,
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
         width: 58,
         height: 58,
         borderRadius: 29,
-        backgroundColor: '#2a2640',
+        backgroundColor: '#1a2142',
         borderWidth: 2,
         borderColor: GOLD,
         alignItems: 'center',
@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
         width: 42,
         height: 42,
         borderRadius: 21,
-        backgroundColor: '#2a2640',
+        backgroundColor: '#1a2142',
         borderWidth: 2,
         borderColor: GOLD,
         alignItems: 'center',
@@ -1043,7 +1043,7 @@ const styles = StyleSheet.create({
         width: 28,
         height: 28,
         borderRadius: 14,
-        backgroundColor: '#2a2640',
+        backgroundColor: '#1a2142',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
@@ -1141,7 +1141,7 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     sendBtnDisabled: {
-        backgroundColor: '#2a2640',
+        backgroundColor: '#1a2142',
         shadowOpacity: 0,
         elevation: 0,
     },

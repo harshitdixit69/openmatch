@@ -143,7 +143,7 @@ function SearchResultCard({
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={[styles.cardName, { flexShrink: 1 }]} numberOfLines={1}>{candidate.full_name}</Text>
                     {isPremium ? (
-                        <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261', alignSelf: 'center' }}>👑</Text>
+                        <Text style={{ fontSize: 14, marginLeft: 4, color: '#ffc24b', alignSelf: 'center' }}>👑</Text>
                     ) : null}
                 </View>
                 <Text style={styles.cardMeta} numberOfLines={1}>
@@ -532,7 +532,7 @@ export function SearchScreen({ onBack, onSelectCandidate }: Props) {
             {/* Results count */}
             <View style={styles.resultsMeta}>
                 {loading ? (
-                    <ActivityIndicator size="small" color="#123340" />
+                    <ActivityIndicator size="small" color="#121732" />
                 ) : (
                     <Text style={styles.resultsCount}>
                         {visibleResults.length} {visibleResults.length === 1 ? 'profile' : 'profiles'}
@@ -611,7 +611,7 @@ export function SearchScreen({ onBack, onSelectCandidate }: Props) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#f4f4f6' },
+    root: { flex: 1, backgroundColor: '#eef1fb' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -710,10 +710,10 @@ const styles = StyleSheet.create({
         color: '#334155',
     },
     dropdownOptionTextActive: {
-        color: '#14313a',
+        color: '#121732',
         fontWeight: '700',
     },
-    filterChipActive: { borderColor: '#14313a', backgroundColor: '#14313a' },
+    filterChipActive: { borderColor: '#121732', backgroundColor: '#121732' },
     filterChipText: { fontSize: 13, color: '#475569', fontWeight: '500' },
     filterChipTextActive: { color: '#fff' },
     clearChip: {
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     cardPremium: {
-        borderColor: '#c8a261',
+        borderColor: '#ffc24b',
         borderWidth: 2,
         backgroundColor: '#fffdf6',
     },
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
     stateBody: { fontSize: 14, color: '#777', textAlign: 'center', maxWidth: 280 },
     stateButton: {
         marginTop: 6,
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 10,

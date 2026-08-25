@@ -29,8 +29,8 @@ export function HorizontalScrollAffordance({
     contentContainerStyle,
     style,
     fadeColor = '#ffffff',
-    chevronColor = '#14313a',
-    arrowBorderColor = '#d6e1df',
+    chevronColor = '#121732',
+    arrowBorderColor = '#e2e7f5',
     arrowAccessibilityLabelPrefix = 'options',
 }: Props) {
     const scrollRef = useRef<ScrollView>(null);

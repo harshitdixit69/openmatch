@@ -41,7 +41,7 @@ export function BookmarkButton({ profileId, saved, onToggled, size = 'medium' }:
             hitSlop={8}
         >
             {loading ? (
-                <ActivityIndicator size="small" color={optimistic ? '#fff' : '#123340'} />
+                <ActivityIndicator size="small" color={optimistic ? '#fff' : '#121732'} />
             ) : (
                 <Text style={[styles.icon, isSmall && styles.iconSmall]}>
                     {optimistic ? '♥' : '♡'}

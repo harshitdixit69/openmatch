@@ -627,7 +627,7 @@ export function MatchProfileScreen({
                                 <Text style={{ fontSize: 16, marginLeft: 6, color: '#1a7a5e' }}>✅</Text>
                             ) : null}
                             {candidate.subscription_tier && candidate.subscription_tier !== 'free' ? (
-                                <Text style={{ fontSize: 16, marginLeft: 6, color: '#c8a261' }}>👑</Text>
+                                <Text style={{ fontSize: 16, marginLeft: 6, color: '#ffc24b' }}>👑</Text>
                             ) : null}
                         </View>
                         <Text style={styles.subtitle}>Review photos, profile details, family context, and your AI compatibility view.</Text>
@@ -636,9 +636,9 @@ export function MatchProfileScreen({
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {activePhotoUrl ? (
-                        <Image source={{ uri: activePhotoUrl }} style={[styles.heroPhoto, { maxHeight: heroMaxHeight }, candidate.subscription_tier && candidate.subscription_tier !== 'free' ? { borderColor: '#c8a261', borderWidth: 3.5 } : null]} />
+                        <Image source={{ uri: activePhotoUrl }} style={[styles.heroPhoto, { maxHeight: heroMaxHeight }, candidate.subscription_tier && candidate.subscription_tier !== 'free' ? { borderColor: '#ffc24b', borderWidth: 3.5 } : null]} />
                     ) : (
-                        <View style={[styles.heroPlaceholder, { maxHeight: heroMaxHeight }, candidate.subscription_tier && candidate.subscription_tier !== 'free' ? { borderColor: '#c8a261', borderWidth: 3.5, backgroundColor: '#fffdf6' } : null]}>
+                        <View style={[styles.heroPlaceholder, { maxHeight: heroMaxHeight }, candidate.subscription_tier && candidate.subscription_tier !== 'free' ? { borderColor: '#ffc24b', borderWidth: 3.5, backgroundColor: '#fffdf6' } : null]}>
                             <Text style={styles.heroInitial}>{firstName.slice(0, 1).toUpperCase() || '?'}</Text>
                             <Text style={styles.heroHint}>No photo album yet</Text>
                         </View>
@@ -742,7 +742,7 @@ export function MatchProfileScreen({
                     <SectionCard title="Compatibility snapshot">
                         {summaryLoading ? (
                             <View style={styles.loadingRow}>
-                                <ActivityIndicator size="small" color="#123340" />
+                                <ActivityIndicator size="small" color="#121732" />
                                 <Text style={styles.sectionBody}>Generating summary...</Text>
                             </View>
                         ) : (
@@ -781,7 +781,7 @@ export function MatchProfileScreen({
 
                     {contactDetailsLoading ? (
                         <View style={[styles.contactCard, { justifyContent: 'center', alignItems: 'center', minHeight: 120 }]}>
-                            <ActivityIndicator size="small" color="#14313a" />
+                            <ActivityIndicator size="small" color="#121732" />
                         </View>
                     ) : contactDetails ? (
                         <UnlockedContactCard firstName={firstName} contactDetails={contactDetails} />
@@ -809,7 +809,7 @@ export function MatchProfileScreen({
 
                         {trustLoading ? (
                             <View style={styles.trustStripLoadingRow}>
-                                <ActivityIndicator size="small" color="#123340" />
+                                <ActivityIndicator size="small" color="#121732" />
                                 <Text style={styles.sectionBody}>Loading response history...</Text>
                             </View>
                         ) : trustSummary ? (
@@ -844,7 +844,7 @@ export function MatchProfileScreen({
                             <Text style={styles.passButtonText}>Close</Text>
                         </Pressable>
                     ) : relationshipStatus === 'loading' ? (
-                        <ActivityIndicator size="small" color="#123340" style={{ flex: 1 }} />
+                        <ActivityIndicator size="small" color="#121732" style={{ flex: 1 }} />
                     ) : relationshipStatus === 'none' ? (
                         <>
                             <Pressable style={styles.passButton} onPress={onPass} disabled={actionLoading}>
@@ -852,7 +852,7 @@ export function MatchProfileScreen({
                             </Pressable>
                             {viewerProfile?.subscription_tier && viewerProfile.subscription_tier !== 'free' && (
                                 <Pressable 
-                                    style={[styles.connectButton, { backgroundColor: '#c8a261', flex: 1.8 }, actionLoading && { opacity: 0.7 }]} 
+                                    style={[styles.connectButton, { backgroundColor: '#ffc24b', flex: 1.8 }, actionLoading && { opacity: 0.7 }]} 
                                     onPress={handleSuperInterest}
                                     disabled={actionLoading}
                                 >
@@ -1275,7 +1275,7 @@ function formatManagedByLabel(value: ProfileReliabilitySummary['managedBy']) {
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#f6f8ff',
         flex: 1,
     },
     container: {
@@ -1305,12 +1305,12 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     title: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 28,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 14,
         lineHeight: 21,
     },
@@ -1334,12 +1334,12 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     heroInitial: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 70,
         fontWeight: '800',
     },
     heroHint: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1354,13 +1354,13 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     pillPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     pillNeutral: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
     },
     pillAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
     },
     pillText: {
         fontSize: 12,
@@ -1370,13 +1370,13 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     pillTextNeutral: {
-        color: '#47616a',
+        color: '#5a6488',
     },
     pillTextAccent: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     sectionCard: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f8ff',
         borderColor: '#eadfd5',
         borderRadius: 24,
         borderWidth: 1,
@@ -1388,7 +1388,7 @@ const styles = StyleSheet.create({
         minWidth: '47%',
     },
     sectionTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 18,
         fontWeight: '800',
     },
@@ -1408,7 +1408,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     photoThumbFrameActive: {
-        borderColor: '#d9643d',
+        borderColor: '#ff6a3d',
     },
     photoThumb: {
         height: 104,
@@ -1434,7 +1434,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     factValue: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         fontWeight: '700',
         lineHeight: 20,
@@ -1461,7 +1461,7 @@ const styles = StyleSheet.create({
         width: 8,
     },
     insightDotFit: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
     },
     insightDotFriction: {
         backgroundColor: '#c6a58a',
@@ -1481,7 +1481,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     preferenceLabel: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1490,7 +1490,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     preferencePref: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 12,
         marginLeft: 32,
         marginTop: 2,
@@ -1511,10 +1511,10 @@ const styles = StyleSheet.create({
         width: 22,
     },
     checklistIndicatorMatched: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     checklistIndicatorOpen: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
     },
     checklistIndicatorText: {
         fontSize: 12,
@@ -1524,7 +1524,7 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     checklistIndicatorTextOpen: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     checklistLabel: {
         color: '#35515c',
@@ -1533,7 +1533,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     trustStripCard: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 24,
         gap: 12,
         padding: 16,
@@ -1545,7 +1545,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     contactCard: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f8ff',
         borderColor: '#eadfd5',
         borderRadius: 24,
         borderWidth: 1,
@@ -1559,7 +1559,7 @@ const styles = StyleSheet.create({
     },
     contactLockBadge: {
         alignItems: 'center',
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
         borderRadius: 14,
         height: 44,
         justifyContent: 'center',
@@ -1580,7 +1580,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     contactTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 18,
         fontWeight: '800',
     },
@@ -1608,7 +1608,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     contactRowValue: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 16,
         fontWeight: '800',
         letterSpacing: 1.5,
@@ -1620,13 +1620,13 @@ const styles = StyleSheet.create({
         paddingVertical: 5,
     },
     contactRowLockChipText: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 11,
         fontWeight: '800',
         textTransform: 'uppercase',
     },
     contactBody: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 14,
         lineHeight: 21,
     },
@@ -1646,7 +1646,7 @@ const styles = StyleSheet.create({
     },
     contactUnlockButton: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 16,
         paddingVertical: 14,
     },
@@ -1727,7 +1727,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     unlockedRowValue: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 16,
         fontWeight: '800',
         letterSpacing: 0.6,
@@ -1794,20 +1794,20 @@ const styles = StyleSheet.create({
     },
     passButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 18,
         flex: 1,
         paddingHorizontal: 18,
         paddingVertical: 15,
     },
     passButtonText: {
-        color: '#47616a',
+        color: '#5a6488',
         fontSize: 14,
         fontWeight: '800',
     },
     connectButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 18,
         flex: 1.25,
         paddingHorizontal: 18,
@@ -1830,7 +1830,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
     },
     secondaryActionText: {
-        color: '#7d8c90',
+        color: '#5a6488',
         fontSize: 13,
         fontWeight: '600',
         textDecorationLine: 'underline',
@@ -1854,7 +1854,7 @@ const styles = StyleSheet.create({
     notFoundTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#11313c',
+        color: '#121732',
         marginBottom: 8,
     },
     notFoundSubtitle: {
@@ -1865,7 +1865,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     notFoundButton: {
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 8,

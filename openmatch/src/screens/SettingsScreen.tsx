@@ -510,7 +510,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                                 <Switch
                                     value={busyMode}
                                     onValueChange={toggleBusyMode}
-                                    trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                                    trackColor={{ false: '#d0d0d0', true: '#121732' }}
                                     thumbColor="#fff"
                                 />
                             }
@@ -533,7 +533,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                                     value={discovery.isDiscoverable}
                                     onValueChange={(next) => void toggleDiscovery('isDiscoverable', next)}
                                     disabled={!discoveryLoaded || discoveryPending === 'isDiscoverable'}
-                                    trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                                    trackColor={{ false: '#d0d0d0', true: '#121732' }}
                                     thumbColor="#fff"
                                 />
                             }
@@ -547,7 +547,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                                     value={discovery.incognitoMode}
                                     onValueChange={(next) => void toggleDiscovery('incognitoMode', next)}
                                     disabled={!discoveryLoaded || discoveryPending === 'incognitoMode'}
-                                    trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                                    trackColor={{ false: '#d0d0d0', true: '#121732' }}
                                     thumbColor="#fff"
                                 />
                             }
@@ -594,7 +594,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                                         <Switch
                                             value={notifPrefs[key]}
                                             onValueChange={() => toggleNotif(key)}
-                                            trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                                            trackColor={{ false: '#d0d0d0', true: '#121732' }}
                                             thumbColor="#fff"
                                         />
                                     }
@@ -670,7 +670,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                             label="Restore purchases"
                             subtitle="Restore a previous premium purchase"
                             onPress={handleRestorePurchases}
-                            right={restoring ? <ActivityIndicator size="small" color="#d1354c" /> : undefined}
+                            right={restoring ? <ActivityIndicator size="small" color="#ff5470" /> : undefined}
                         />
                         <Divider />
                         <SettingsRow
@@ -749,7 +749,7 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#f4f4f6' },
+    root: { flex: 1, backgroundColor: '#eef1fb' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
     rowPressed: { backgroundColor: '#f5f5f5' },
     rowLeft: { flex: 1, marginRight: 12 },
     rowLabel: { fontSize: 15, color: '#111' },
-    rowLabelDestructive: { color: '#c0392b' },
+    rowLabelDestructive: { color: '#ff5470' },
     rowSubtitle: { fontSize: 12, color: '#999', marginTop: 2 },
     rowChevron: { fontSize: 20, color: '#bbb', lineHeight: 24 },
     divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#f0f0f0', marginLeft: 16 },
@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fafafa',
     },
     inlineButton: {
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 10,
         paddingVertical: 12,
         alignItems: 'center',

@@ -44,8 +44,8 @@ function getStatusBadge(status: OutreachCallStatus) {
             return {
                 label: 'AI Calling...',
                 bgColor: 'rgba(212,179,115,0.15)',
-                borderColor: '#d4b373',
-                textColor: '#d4b373',
+                borderColor: '#ffc24b',
+                textColor: '#ffc24b',
                 showSpinner: true,
             };
         case 'completed_accepted':
@@ -60,8 +60,8 @@ function getStatusBadge(status: OutreachCallStatus) {
             return {
                 label: 'Pitch Declined',
                 bgColor: 'rgba(142,138,160,0.15)',
-                borderColor: '#8e8aa0',
-                textColor: '#8e8aa0',
+                borderColor: '#8a93b2',
+                textColor: '#8a93b2',
                 showSpinner: false,
             };
         case 'voicemail':
@@ -86,7 +86,7 @@ function getStatusBadge(status: OutreachCallStatus) {
                 label: 'Call Scheduled',
                 bgColor: 'rgba(212,179,115,0.1)',
                 borderColor: 'rgba(212,179,115,0.4)',
-                textColor: '#d4b373',
+                textColor: '#ffc24b',
                 showSpinner: false,
             };
     }
@@ -97,7 +97,7 @@ function getSentimentBadge(sentiment?: string) {
     const lower = sentiment.toLowerCase();
     if (lower.includes('pos') || lower.includes('enthus')) return { label: `✨ ${sentiment}`, color: '#11d182' };
     if (lower.includes('neg') || lower.includes('declin')) return { label: `❌ ${sentiment}`, color: '#ef4444' };
-    return { label: `⏳ ${sentiment}`, color: '#d4b373' };
+    return { label: `⏳ ${sentiment}`, color: '#ffc24b' };
 }
 
 export default function OutreachTrackerCard({
@@ -183,11 +183,11 @@ export default function OutreachTrackerCard({
 // Styles: Dark Gold Luxury Aesthetic
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GOLD = '#d4b373';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
+const GOLD = '#ffc24b';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_SUB = '#8a93b2';
 
 const styles = StyleSheet.create({
     card: {

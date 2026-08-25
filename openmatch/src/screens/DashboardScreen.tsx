@@ -36,8 +36,8 @@ function StatCard({
     const accentColor =
         accent === 'good' ? '#1a7a5e' :
             accent === 'warn' ? '#b07d2e' :
-                accent === 'bad' ? '#c0392b' :
-                    '#123340';
+                accent === 'bad' ? '#ff5470' :
+                    '#121732';
 
     return (
         <View style={styles.statCard}>
@@ -57,7 +57,7 @@ function ScoreBar({
     score,
     maxScore = 100,
     accentHigh = '#1a7a5e',
-    accentLow = '#c0392b',
+    accentLow = '#ff5470',
     highIsGood = true,
 }: {
     label: string;
@@ -154,7 +154,7 @@ export function DashboardScreen({ onBack }: Props) {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#123340" size="large" />
+                    <ActivityIndicator color="#121732" size="large" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -168,7 +168,7 @@ export function DashboardScreen({ onBack }: Props) {
                     style={styles.scroll}
                     contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#123340" />
+                        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#121732" />
                     }
                     showsVerticalScrollIndicator={false}
                 >
@@ -224,7 +224,7 @@ export function DashboardScreen({ onBack }: Props) {
                         <ScoreBar
                             label={`Ghost risk  ·  ${ghostRiskLabel(s.ghostRiskScore)}`}
                             score={s.ghostRiskScore}
-                            accentHigh="#c0392b"
+                            accentHigh="#ff5470"
                             accentLow="#1a7a5e"
                             highIsGood={false}
                         />
@@ -258,11 +258,11 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#e8e5df',
     },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    errorText: { fontSize: 14, color: '#c0392b', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#123340', borderRadius: 8 },
+    errorText: { fontSize: 14, color: '#ff5470', textAlign: 'center', paddingHorizontal: 24 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#121732', borderRadius: 8 },
     retryBtnText: { color: '#fff', fontWeight: '600' },
 
     scroll: { flex: 1 },
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
         borderColor: '#e8e5df',
         gap: 2,
     },
-    statValue: { fontSize: 28, fontWeight: '800', color: '#123340' },
+    statValue: { fontSize: 28, fontWeight: '800', color: '#121732' },
     statLabel: { fontSize: 13, color: '#555', fontWeight: '600' },
     statSublabel: { fontSize: 11, color: '#999' },
 
@@ -336,6 +336,6 @@ const styles = StyleSheet.create({
         borderColor: '#d0e4ed',
         gap: 6,
     },
-    tipTitle: { fontSize: 13, fontWeight: '700', color: '#123340' },
+    tipTitle: { fontSize: 13, fontWeight: '700', color: '#121732' },
     tipBody: { fontSize: 13, color: '#555', lineHeight: 19 },
 });

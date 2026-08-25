@@ -52,7 +52,7 @@ export default function PremiumSavedProfilesScreen({
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#ffc24b" size="large" />
                 </View>
             ) : items.length === 0 ? (
                 <View style={styles.center}>
@@ -87,13 +87,13 @@ export default function PremiumSavedProfilesScreen({
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
+const GOLD = '#ffc24b';
+const DARK_BG = '#070912';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_SUB = '#8a93b2';
+const TEXT_MUTED = '#5a6488';
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: DARK_BG },
