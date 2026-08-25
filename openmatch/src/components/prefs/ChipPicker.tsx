@@ -71,20 +71,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 8,
         borderRadius: 20,
-        borderWidth: 1.5,
-        borderColor: '#d0d0d0',
-        backgroundColor: '#f9f9f9',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.04)',
     },
     chipSelected: {
-        borderColor: '#123340',
-        backgroundColor: '#123340',
+        borderColor: '#d4a853',
+        backgroundColor: '#d4a853',
     },
     chipText: {
         fontSize: 13,
-        color: '#444',
+        color: '#8e8a9e',
         fontWeight: '500',
     },
     chipTextSelected: {
-        color: '#fff',
+        color: '#0a0a0c',
+        fontWeight: '800',
     },
 });

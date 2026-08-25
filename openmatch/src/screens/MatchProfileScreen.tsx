@@ -25,6 +25,7 @@ import { MAX_CONTENT_WIDTH, useResponsiveLayout } from '../lib/responsiveLayout'
 import { blockUser, reportUser } from '../lib/chatApi';
 import { MatchUnlockState } from '../lib/chat';
 import { resolveContactUnlockStatus } from '../lib/contactUnlockStatus';
+export { resolveContactUnlockStatus };
 import { supabase } from '../lib/supabase';
 import { PartnerPreferences, cmToFeetInches, PREF_MARITAL_STATUS_LABELS } from '../lib/partnerPreferences';
 import { fetchPartnerPreferences } from '../lib/partnerPreferencesApi';
@@ -1275,7 +1276,7 @@ function formatManagedByLabel(value: ProfileReliabilitySummary['managedBy']) {
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#0a0a0c',
         flex: 1,
     },
     container: {
@@ -1298,19 +1299,19 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     eyebrow: {
-        color: '#c2643f',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
     title: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 28,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 21,
     },
@@ -1326,7 +1327,7 @@ const styles = StyleSheet.create({
     heroPlaceholder: {
         alignItems: 'center',
         aspectRatio: 4 / 5,
-        backgroundColor: '#ead9c9',
+        backgroundColor: 'rgba(212,168,83,0.15)',
         borderRadius: 28,
         gap: 8,
         justifyContent: 'center',
@@ -1334,12 +1335,12 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     heroInitial: {
-        color: '#7a4a2c',
+        color: '#d4a853',
         fontSize: 70,
         fontWeight: '800',
     },
     heroHint: {
-        color: '#7a4a2c',
+        color: '#d4a853',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1354,30 +1355,30 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     pillPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#d4a853',
     },
     pillNeutral: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     pillAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.15)',
     },
     pillText: {
         fontSize: 12,
         fontWeight: '800',
     },
     pillTextPrimary: {
-        color: '#ffffff',
+        color: '#0a0a0c',
     },
     pillTextNeutral: {
-        color: '#47616a',
+        color: '#8e8a9e',
     },
     pillTextAccent: {
-        color: '#7a4a2c',
+        color: '#d4a853',
     },
     sectionCard: {
-        backgroundColor: '#fffaf5',
-        borderColor: '#eadfd5',
+        backgroundColor: '#141318',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 24,
         borderWidth: 1,
         gap: 12,
@@ -1388,12 +1389,12 @@ const styles = StyleSheet.create({
         minWidth: '47%',
     },
     sectionTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 18,
         fontWeight: '800',
     },
     sectionBody: {
-        color: '#31494e',
+        color: '#8e8a9e',
         fontSize: 15,
         lineHeight: 23,
     },
@@ -1408,7 +1409,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     photoThumbFrameActive: {
-        borderColor: '#d9643d',
+        borderColor: '#d4a853',
     },
     photoThumb: {
         height: 104,
@@ -1420,7 +1421,9 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     factCard: {
-        backgroundColor: '#f7efe7',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
         borderRadius: 18,
         gap: 4,
         minWidth: '47%',
@@ -1428,13 +1431,13 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     factLabel: {
-        color: '#8d6f5a',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '700',
         textTransform: 'uppercase',
     },
     factValue: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 14,
         fontWeight: '700',
         lineHeight: 20,
@@ -1461,13 +1464,13 @@ const styles = StyleSheet.create({
         width: 8,
     },
     insightDotFit: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
     },
     insightDotFriction: {
-        backgroundColor: '#c6a58a',
+        backgroundColor: '#8e8a9e',
     },
     insightText: {
-        color: '#35515c',
+        color: '#f0ece4',
         flex: 1,
         fontSize: 14,
         lineHeight: 21,
@@ -1481,16 +1484,16 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     preferenceLabel: {
-        color: '#14313a',
+        color: '#d4a853',
         fontSize: 14,
         fontWeight: '700',
     },
     preferenceValue: {
-        color: '#35515c',
+        color: '#f0ece4',
         fontSize: 14,
     },
     preferencePref: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 12,
         marginLeft: 32,
         marginTop: 2,
@@ -1511,29 +1514,31 @@ const styles = StyleSheet.create({
         width: 22,
     },
     checklistIndicatorMatched: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#d4a853',
     },
     checklistIndicatorOpen: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     checklistIndicatorText: {
         fontSize: 12,
         fontWeight: '800',
     },
     checklistIndicatorTextMatched: {
-        color: '#ffffff',
+        color: '#0a0a0c',
     },
     checklistIndicatorTextOpen: {
-        color: '#7a4a2c',
+        color: '#8e8a9e',
     },
     checklistLabel: {
-        color: '#35515c',
+        color: '#f0ece4',
         flex: 1,
         fontSize: 14,
         lineHeight: 20,
     },
     trustStripCard: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#141318',
+        borderColor: 'rgba(212,168,83,0.3)',
+        borderWidth: 1,
         borderRadius: 24,
         gap: 12,
         padding: 16,
@@ -1545,8 +1550,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     contactCard: {
-        backgroundColor: '#fffaf5',
-        borderColor: '#eadfd5',
+        backgroundColor: '#141318',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 24,
         borderWidth: 1,
         gap: 14,
@@ -1559,7 +1564,7 @@ const styles = StyleSheet.create({
     },
     contactLockBadge: {
         alignItems: 'center',
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.15)',
         borderRadius: 14,
         height: 44,
         justifyContent: 'center',
@@ -1573,14 +1578,14 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     contactEyebrow: {
-        color: '#c2643f',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
     contactTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 18,
         fontWeight: '800',
     },
@@ -1589,7 +1594,9 @@ const styles = StyleSheet.create({
     },
     contactRow: {
         alignItems: 'center',
-        backgroundColor: '#f7efe7',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
         borderRadius: 16,
         flexDirection: 'row',
         gap: 12,
@@ -1602,64 +1609,64 @@ const styles = StyleSheet.create({
         gap: 3,
     },
     contactRowLabel: {
-        color: '#8d6f5a',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '700',
         textTransform: 'uppercase',
     },
     contactRowValue: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 16,
         fontWeight: '800',
         letterSpacing: 1.5,
     },
     contactRowLockChip: {
-        backgroundColor: '#e7ddd2',
+        backgroundColor: 'rgba(212,168,83,0.15)',
         borderRadius: 999,
         paddingHorizontal: 10,
         paddingVertical: 5,
     },
     contactRowLockChipText: {
-        color: '#7a4a2c',
+        color: '#d4a853',
         fontSize: 11,
         fontWeight: '800',
         textTransform: 'uppercase',
     },
     contactBody: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 21,
     },
     contactStatusPill: {
         alignSelf: 'flex-start',
-        backgroundColor: '#fdf1dc',
-        borderColor: '#e6c98f',
+        backgroundColor: 'rgba(212,168,83,0.15)',
+        borderColor: 'rgba(212,168,83,0.3)',
         borderRadius: 999,
         borderWidth: 1,
         paddingHorizontal: 12,
         paddingVertical: 6,
     },
     contactStatusPillText: {
-        color: '#8a5a1f',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '800',
     },
     contactUnlockButton: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: '#d4a853',
         borderRadius: 16,
         paddingVertical: 14,
     },
     contactUnlockButtonDisabled: {
-        backgroundColor: '#dfe6e8',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     contactUnlockButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 14,
         fontWeight: '800',
     },
     contactUnlockButtonTextDisabled: {
-        color: '#7d8b8f',
+        color: '#5a5770',
     },
     contactOrRow: {
         alignItems: 'center',
@@ -1667,20 +1674,20 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     contactOrLine: {
-        backgroundColor: '#e7ddd2',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         flex: 1,
         height: 1,
     },
     contactOrText: {
-        color: '#8d6f5a',
+        color: '#8e8a9e',
         fontSize: 12,
         fontWeight: '800',
         textTransform: 'uppercase',
     },
     contactPremiumButton: {
         alignItems: 'center',
-        backgroundColor: '#f4e3c1',
-        borderColor: '#e6c98f',
+        backgroundColor: 'rgba(212,168,83,0.15)',
+        borderColor: 'rgba(212,168,83,0.3)',
         borderRadius: 16,
         borderWidth: 1,
         flexDirection: 'row',
@@ -1692,20 +1699,20 @@ const styles = StyleSheet.create({
         fontSize: 15,
     },
     contactPremiumButtonText: {
-        color: '#8a5a1f',
+        color: '#d4a853',
         fontSize: 14,
         fontWeight: '800',
     },
     contactPremiumHint: {
-        color: '#8d6f5a',
+        color: '#8e8a9e',
         fontSize: 12,
         lineHeight: 18,
         textAlign: 'center',
     },
     // ── Unlocked Contact Card ──
     unlockedContactCard: {
-        backgroundColor: '#f0faf5',
-        borderColor: '#b8e0cc',
+        backgroundColor: '#141318',
+        borderColor: 'rgba(34,197,94,0.3)',
         borderRadius: 24,
         borderWidth: 1,
         gap: 14,
@@ -1713,39 +1720,39 @@ const styles = StyleSheet.create({
     },
     unlockedBadge: {
         alignItems: 'center',
-        backgroundColor: '#d4f0e1',
+        backgroundColor: 'rgba(34,197,94,0.15)',
         borderRadius: 14,
         height: 44,
         justifyContent: 'center',
         width: 44,
     },
     unlockedEyebrow: {
-        color: '#2e8b57',
+        color: '#22c55e',
         fontSize: 12,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
     unlockedRowValue: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 16,
         fontWeight: '800',
         letterSpacing: 0.6,
     },
     unlockedRowChip: {
-        backgroundColor: '#d4f0e1',
+        backgroundColor: 'rgba(34,197,94,0.15)',
         borderRadius: 999,
         paddingHorizontal: 10,
         paddingVertical: 5,
     },
     unlockedRowChipText: {
-        color: '#2e8b57',
+        color: '#22c55e',
         fontSize: 11,
         fontWeight: '800',
         textTransform: 'uppercase',
     },
     unlockedFooter: {
-        color: '#5a9a78',
+        color: '#8e8a9e',
         fontSize: 12,
         lineHeight: 18,
         textAlign: 'center',
@@ -1755,25 +1762,25 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     trustStripEyebrow: {
-        color: '#f1c57b',
+        color: '#d4a853',
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
     trustStripTitle: {
-        color: '#ffffff',
+        color: '#f0ece4',
         fontSize: 18,
         fontWeight: '800',
     },
     trustStripButton: {
-        backgroundColor: '#2e4951',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     trustStripButtonText: {
-        color: '#e1ecee',
+        color: '#0a0a0c',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -1794,27 +1801,27 @@ const styles = StyleSheet.create({
     },
     passButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 18,
         flex: 1,
         paddingHorizontal: 18,
         paddingVertical: 15,
     },
     passButtonText: {
-        color: '#47616a',
+        color: '#8e8a9e',
         fontSize: 14,
         fontWeight: '800',
     },
     connectButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 18,
         flex: 1.25,
         paddingHorizontal: 18,
         paddingVertical: 15,
     },
     connectButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 14,
         fontWeight: '800',
     },
@@ -1830,7 +1837,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
     },
     secondaryActionText: {
-        color: '#7d8c90',
+        color: '#8e8a9e',
         fontSize: 13,
         fontWeight: '600',
         textDecorationLine: 'underline',
@@ -1838,14 +1845,14 @@ const styles = StyleSheet.create({
     divider: {
         width: 1,
         height: 16,
-        backgroundColor: '#cbd5e0',
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     notFoundContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        backgroundColor: '#eff6f8',
+        backgroundColor: '#0a0a0c',
     },
     notFoundEmoji: {
         fontSize: 64,
@@ -1853,26 +1860,26 @@ const styles = StyleSheet.create({
     },
     notFoundTitle: {
         fontSize: 22,
-        fontWeight: '700',
-        color: '#11313c',
+        fontWeight: '800',
+        color: '#f0ece4',
         marginBottom: 8,
     },
     notFoundSubtitle: {
         fontSize: 15,
-        color: '#666',
+        color: '#8e8a9e',
         textAlign: 'center',
         marginBottom: 24,
         lineHeight: 20,
     },
     notFoundButton: {
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         paddingVertical: 12,
         paddingHorizontal: 24,
-        borderRadius: 8,
+        borderRadius: 12,
     },
     notFoundButtonText: {
-        color: '#fff',
+        color: '#0a0a0c',
         fontSize: 15,
-        fontWeight: '600',
+        fontWeight: '800',
     },
 });

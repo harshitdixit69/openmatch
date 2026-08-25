@@ -1,3 +1,16 @@
+jest.mock('../lib/supabase', () => ({
+    supabase: {
+        auth: {
+            getUser: jest.fn(),
+            getSession: jest.fn(),
+            onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+        },
+        from: jest.fn(),
+        rpc: jest.fn(),
+        functions: { invoke: jest.fn() },
+    },
+}));
+
 import { resolveContactUnlockStatus } from './MatchProfileScreen';
 import type { MatchUnlockState } from '../lib/chat';
 

@@ -45,7 +45,7 @@ export function HeightRangeRow({ min, max, onChange }: Props) {
                         style={styles.input}
                         value={display(min)}
                         placeholder={placeholder}
-                        placeholderTextColor="#bbb"
+                        placeholderTextColor="#5a5770"
                         onChangeText={(t) => onChange(parse(t), max)}
                     />
                 </View>
@@ -56,7 +56,7 @@ export function HeightRangeRow({ min, max, onChange }: Props) {
                         style={styles.input}
                         value={display(max)}
                         placeholder={maxPlaceholder}
-                        placeholderTextColor="#bbb"
+                        placeholderTextColor="#5a5770"
                         onChangeText={(t) => onChange(min, parse(t))}
                     />
                 </View>
@@ -91,34 +91,34 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     inputGroup: { flex: 1 },
-    label: { fontSize: 11, color: '#999', marginBottom: 4 },
+    label: { fontSize: 11, color: '#d4a853', fontWeight: '700', marginBottom: 4 },
     input: {
-        borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 10,
         paddingHorizontal: 12,
         paddingVertical: 10,
         fontSize: 15,
-        color: '#111',
-        backgroundColor: '#fafafa',
+        color: '#f0ece4',
+        backgroundColor: '#1e1d26',
         textAlign: 'center',
     },
-    dash: { fontSize: 18, color: '#999', paddingBottom: 10 },
+    dash: { fontSize: 18, color: '#8e8a9e', paddingBottom: 10 },
     unitToggle: {
         flexDirection: 'row',
         borderRadius: 8,
-        borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         overflow: 'hidden',
         marginBottom: 2,
     },
     unitBtn: {
         paddingHorizontal: 10,
         paddingVertical: 9,
-        backgroundColor: '#fafafa',
+        backgroundColor: '#1e1d26',
     },
-    unitBtnActive: { backgroundColor: '#123340' },
-    unitBtnText: { fontSize: 12, color: '#666', fontWeight: '600' },
-    unitBtnTextActive: { color: '#fff' },
-    hint: { fontSize: 11, color: '#aaa', marginTop: 2 },
+    unitBtnActive: { backgroundColor: '#d4a853' },
+    unitBtnText: { fontSize: 12, color: '#8e8a9e', fontWeight: '600' },
+    unitBtnTextActive: { color: '#0a0a0c', fontWeight: '800' },
+    hint: { fontSize: 11, color: '#8e8a9e', marginTop: 2 },
 });

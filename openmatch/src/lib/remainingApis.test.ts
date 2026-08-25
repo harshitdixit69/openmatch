@@ -258,7 +258,7 @@ describe('OpenMatch Core Library API Tests', () => {
       (supabase.from as jest.Mock).mockReturnValue(mockQuery);
 
       const mockPrefs = { pref_age_min: 24, pref_age_max: 28 };
-      await upsertPartnerPreferences(mockPrefs);
+      await upsertPartnerPreferences(mockPrefs as any);
 
       expect(supabase.from).toHaveBeenCalledWith('profiles');
     });
@@ -284,7 +284,7 @@ describe('OpenMatch Core Library API Tests', () => {
         data: { user: null },
         error: null,
       });
-      await expect(upsertPartnerPreferences({})).rejects.toThrow('Not authenticated');
+      await expect(upsertPartnerPreferences({} as any)).rejects.toThrow('Not authenticated');
 
       (supabase.auth.getUser as jest.Mock).mockResolvedValue({
         data: { user: { id: 'u1' } },
@@ -292,7 +292,7 @@ describe('OpenMatch Core Library API Tests', () => {
       });
       const mockQuery = makeChainableMock(null, new Error('Update failed'));
       (supabase.from as jest.Mock).mockReturnValue(mockQuery);
-      await expect(upsertPartnerPreferences({})).rejects.toThrow('Update failed');
+      await expect(upsertPartnerPreferences({} as any)).rejects.toThrow('Update failed');
     });
 
     it('fetchFilteredMatches should pass overrides to match_profiles RPC', async () => {
@@ -302,11 +302,11 @@ describe('OpenMatch Core Library API Tests', () => {
       });
       (supabase.rpc as jest.Mock).mockResolvedValue({ data: [{ id: 'p1' }], error: null });
 
-      const result = await fetchFilteredMatches({ pref_religion: ['Hindu'], result_limit: 20 });
+      const result = await fetchFilteredMatches({ pref_religion: 'Hindu' as any, result_limit: 20 });
       expect(supabase.rpc).toHaveBeenCalledWith('match_profiles', expect.objectContaining({
         result_limit: 20,
         p_viewer_id: 'u1',
-        p_religion: ['Hindu'],
+        p_religion: 'Hindu',
       }));
       expect(result).toEqual([{ id: 'p1' }]);
     });
@@ -579,15 +579,19 @@ describe('OpenMatch Core Library API Tests', () => {
       });
 
       const result = await submitInterestRequest({
-        receiverId: 'receiver-123',
+        candidateProfileId: 'receiver-123',
+        selectedReasonId: 'reason-1',
         personalizedReason: 'Hello, let\'s connect.',
+        mediaType: 'none',
+        mediaUrl: null,
+        voiceTranscript: null,
       });
 
       expect(supabase.functions.invoke).toHaveBeenCalledWith('submit-interest-request', {
-        body: {
-          receiverId: 'receiver-123',
+        body: expect.objectContaining({
+          candidateProfileId: 'receiver-123',
           personalizedReason: 'Hello, let\'s connect.',
-        },
+        }),
       });
       expect(result.status).toBe('send');
     });

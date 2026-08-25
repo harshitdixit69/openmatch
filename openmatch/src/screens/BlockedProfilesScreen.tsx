@@ -95,7 +95,7 @@ export function BlockedProfilesScreen({ onBack }: { onBack: () => void }) {
                 <View style={styles.inner}>
                     {loading ? (
                         <View style={styles.centered}>
-                            <ActivityIndicator color="#123340" />
+                            <ActivityIndicator color="#d4a853" />
                             <Text style={styles.mutedText}>Loading blocked profiles…</Text>
                         </View>
                     ) : errorMessage ? (
@@ -165,46 +165,49 @@ export function BlockedProfilesScreen({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-    root: { backgroundColor: '#f4f5f7', flex: 1 },
+    root: { backgroundColor: '#0a0a0c', flex: 1 },
     header: {
         alignItems: 'center',
-        borderBottomColor: '#e3e5ea',
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        backgroundColor: '#111015',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
+        borderBottomWidth: 1,
         flexDirection: 'row',
         justifyContent: 'space-between',
         paddingHorizontal: 12,
         paddingVertical: 10,
     },
-    headerTitle: { color: '#111', fontSize: 17, fontWeight: '700' },
+    headerTitle: { color: '#d4a853', fontSize: 17, fontWeight: '800' },
     scroll: { paddingTop: 16 },
     inner: { alignSelf: 'center', maxWidth: MAX_CONTENT_WIDTH, paddingHorizontal: 16, width: '100%' },
     centered: { alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingVertical: 48 },
-    emptyTitle: { color: '#111', fontSize: 17, fontWeight: '700' },
-    mutedText: { color: '#6b7280', fontSize: 14, lineHeight: 21, textAlign: 'center' },
+    emptyTitle: { color: '#f0ece4', fontSize: 17, fontWeight: '800' },
+    mutedText: { color: '#8e8a9e', fontSize: 14, lineHeight: 21, textAlign: 'center' },
     retryButton: {
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         borderRadius: 12,
         marginTop: 6,
         paddingHorizontal: 18,
         paddingVertical: 10,
     },
-    retryButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-    card: { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden' },
-    divider: { backgroundColor: '#e9ebef', height: StyleSheet.hairlineWidth, marginLeft: 68 },
+    retryButtonText: { color: '#0a0a0c', fontSize: 14, fontWeight: '800' },
+    card: { backgroundColor: '#141318', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+    divider: { backgroundColor: 'rgba(255,255,255,0.06)', height: 1, marginLeft: 68 },
     row: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
     avatar: { borderRadius: 20, height: 40, width: 40 },
-    avatarPlaceholder: { alignItems: 'center', backgroundColor: '#dbe5e7', justifyContent: 'center' },
-    avatarInitial: { color: '#123340', fontSize: 16, fontWeight: '800' },
+    avatarPlaceholder: { alignItems: 'center', backgroundColor: '#1e1d26', justifyContent: 'center' },
+    avatarInitial: { color: '#d4a853', fontSize: 16, fontWeight: '800' },
     rowCopy: { flex: 1, gap: 2, minWidth: 0 },
-    rowName: { color: '#111', fontSize: 15, fontWeight: '600' },
-    rowMeta: { color: '#8a8f98', fontSize: 12 },
+    rowName: { color: '#f0ece4', fontSize: 15, fontWeight: '700' },
+    rowMeta: { color: '#8e8a9e', fontSize: 12 },
     unblockButton: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.15)',
         borderRadius: 999,
         flexShrink: 0,
         paddingHorizontal: 14,
         paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(212,168,83,0.3)',
     },
     unblockButtonPressed: { opacity: 0.75 },
-    unblockButtonText: { color: '#7a4a2c', fontSize: 13, fontWeight: '800' },
+    unblockButtonText: { color: '#d4a853', fontSize: 13, fontWeight: '800' },
 });

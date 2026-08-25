@@ -41,9 +41,9 @@ export function BookmarkButton({ profileId, saved, onToggled, size = 'medium' }:
             hitSlop={8}
         >
             {loading ? (
-                <ActivityIndicator size="small" color={optimistic ? '#fff' : '#123340'} />
+                <ActivityIndicator size="small" color={optimistic ? '#0a0a0c' : '#d4a853'} />
             ) : (
-                <Text style={[styles.icon, isSmall && styles.iconSmall]}>
+                <Text style={[styles.icon, isSmall && styles.iconSmall, optimistic && styles.iconSaved]}>
                     {optimistic ? '♥' : '♡'}
                 </Text>
             )}
@@ -56,14 +56,15 @@ const styles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: 19,
-        borderWidth: 1.5,
-        borderColor: '#d0d0d0',
-        backgroundColor: '#fafafa',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     btnSmall: { width: 30, height: 30, borderRadius: 15 },
-    btnSaved: { backgroundColor: '#e8314a', borderColor: '#e8314a' },
-    icon: { fontSize: 18, color: '#555', lineHeight: 22 },
+    btnSaved: { backgroundColor: '#d4a853', borderColor: '#d4a853' },
+    icon: { fontSize: 18, color: '#8e8a9e', lineHeight: 22 },
     iconSmall: { fontSize: 14, lineHeight: 18 },
+    iconSaved: { color: '#0a0a0c' },
 });

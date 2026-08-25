@@ -31,7 +31,7 @@ export function AuthScreen() {
                 >
                     <View style={styles.contentColumn}>
                         <View style={styles.header}>
-                            <Text style={[styles.title, { color: colors.textPrimary }]}>OpenMatch</Text>
+                            <Text style={[styles.title, { color: colors.accent }]}>OpenMatch</Text>
                             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                                 Fair matchmaking. AI-first. Verified phone authentication.
                             </Text>

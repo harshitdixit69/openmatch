@@ -3,7 +3,19 @@ import { supabase } from './supabase';
 export type ConciergeSession = {
     id: string;
     user_id: string;
-    status: 'INTAKE_IN_PROGRESS' | 'INTAKE_COMPLETE' | 'SOURCING' | 'ACTIVE' | 'PAUSED' | 'CLOSED' | 'AWAITING_SHORTLIST';
+    status:
+        | 'INTAKE_IN_PROGRESS'
+        | 'INTAKE_COMPLETE'
+        | 'SOURCING'
+        | 'ACTIVE'
+        | 'PAUSED'
+        | 'CLOSED'
+        | 'AWAITING_SHORTLIST'
+        | 'SHORTLIST_READY'
+        | 'OUTREACH_IN_PROGRESS'
+        | 'AWAITING_HANDSHAKE'
+        | 'MUTUAL_UNLOCKED'
+        | 'CREDIT_REFUNDED';
     intake_notes: string | null;
     intake_completed_at: string | null;
     created_at: string;
@@ -152,7 +164,7 @@ export async function fetchAssistedShortlist(sessionId: string): Promise<Assiste
 }
 
 /** Update feedback status of a shortlist item */
-export async function updateShortlistFeedback(itemId: string, status: 'liked' | 'disliked'): Promise<void> {
+export async function updateShortlistFeedback(itemId: string, status: 'pending' | 'liked' | 'disliked'): Promise<void> {
     const { error } = await supabase
         .from('assisted_shortlist_items')
         .update({ feedback_status: status })

@@ -1591,14 +1591,14 @@ function buildShellCounts(matches: ChatMatch[], currentUserId: string | null): S
 const styles = StyleSheet.create({
     shell: {
         alignItems: 'center',
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#0a0a0c',
         flex: 1,
     },
     utilityBar: {
         alignItems: 'center',
         alignSelf: 'center',
-        backgroundColor: '#fffaf5',
-        borderBottomColor: '#d7e1e2',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
         borderBottomWidth: 1,
         flexDirection: 'row',
         gap: 10,
@@ -1608,13 +1608,13 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     utilityMenuButton: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     utilityMenuButtonText: {
-        color: '#35525b',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -1623,12 +1623,12 @@ const styles = StyleSheet.create({
         gap: 1,
     },
     utilityTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 15,
         fontWeight: '800',
     },
     utilitySubtitle: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 11,
         fontWeight: '600',
     },
@@ -1639,7 +1639,7 @@ const styles = StyleSheet.create({
     },
     utilityActionButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 999,
         flexDirection: 'row',
         gap: 6,
@@ -1647,19 +1647,19 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     utilityActionButtonText: {
-        color: '#35525b',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '800',
     },
     utilityBadge: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         minWidth: 20,
         paddingHorizontal: 6,
         paddingVertical: 2,
     },
     utilityBadgeText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 10,
         fontWeight: '800',
         textAlign: 'center',
@@ -1667,10 +1667,6 @@ const styles = StyleSheet.create({
     contentArea: {
         alignSelf: 'center',
         flex: 1,
-        // `minHeight: 0` + `overflow: hidden` stop a tall child screen from
-        // growing past its flex share and pushing the tab bar up into the
-        // middle of the viewport (the original web-preview bug). Child screens
-        // scroll within this bounded area instead.
         minHeight: 0,
         maxWidth: MAX_CONTENT_WIDTH,
         overflow: 'hidden',
@@ -1678,8 +1674,8 @@ const styles = StyleSheet.create({
     },
     tabBar: {
         alignSelf: 'center',
-        backgroundColor: '#fffaf5',
-        borderTopColor: '#d7e1e2',
+        backgroundColor: '#111015',
+        borderTopColor: 'rgba(255,255,255,0.08)',
         borderTopWidth: 1,
         flexDirection: 'row',
         gap: 8,
@@ -1694,19 +1690,19 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
+        shadowColor: '#d4a853',
         shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.3,
         shadowRadius: 6,
         elevation: 6,
     },
-    fabText: { fontSize: 24, color: '#fff', lineHeight: 28 },
+    fabText: { fontSize: 24, color: '#0a0a0c', lineHeight: 28, fontWeight: '800' },
     tabButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 18,
         flex: 1,
         gap: 2,
@@ -1717,15 +1713,17 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     tabButtonActive: {
-        backgroundColor: '#14313a',
+        backgroundColor: 'rgba(212,168,83,0.15)',
+        borderWidth: 1,
+        borderColor: 'rgba(212,168,83,0.3)',
     },
     tabButtonDisabled: {
-        backgroundColor: '#f5f0ea',
-        opacity: 0.88,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        opacity: 0.5,
     },
     tabBadge: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         justifyContent: 'center',
         minWidth: 20,
@@ -1736,34 +1734,34 @@ const styles = StyleSheet.create({
         top: 6,
     },
     tabBadgeText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 10,
         fontWeight: '800',
     },
     tabLabel: {
-        color: '#35525b',
+        color: '#8e8a9e',
         fontSize: 12,
         fontWeight: '800',
     },
     tabLabelActive: {
-        color: '#ffffff',
+        color: '#d4a853',
     },
     tabLabelDisabled: {
-        color: '#8b8f95',
+        color: '#5a5770',
     },
     tabSubtitle: {
-        color: '#6c8085',
+        color: '#5a5770',
         fontSize: 10,
         fontWeight: '700',
     },
     tabSubtitleActive: {
-        color: '#c7d6d8',
+        color: '#d4a853',
     },
     tabSubtitleDisabled: {
-        color: '#a8a0a0',
+        color: '#3a3848',
     },
     panelSafeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#0a0a0c',
         flex: 1,
     },
     panelScrollContent: {
@@ -1773,16 +1771,20 @@ const styles = StyleSheet.create({
         paddingTop: 14,
     },
     heroCard: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#141318',
         borderRadius: 22,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         gap: 8,
         padding: 15,
     },
     premiumHeroCard: {
-        backgroundColor: '#29464f',
+        backgroundColor: '#141318',
+        borderColor: 'rgba(212,168,83,0.3)',
+        borderWidth: 1.5,
     },
     heroEyebrow: {
-        color: '#f1c57b',
+        color: '#d4a853',
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.8,
@@ -1799,22 +1801,22 @@ const styles = StyleSheet.create({
     },
     settingsBtnText: {
         fontSize: 24,
-        color: 'rgba(255,255,255,0.6)',
+        color: '#d4a853',
     },
     heroTitle: {
-        color: '#ffffff',
+        color: '#f0ece4',
         fontSize: 22,
         fontWeight: '800',
     },
     heroBody: {
-        color: '#d5e2e4',
+        color: '#8e8a9e',
         fontSize: 13.5,
         lineHeight: 19,
     },
     summaryLoadingCard: {
         alignItems: 'center',
-        backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 22,
         borderWidth: 1,
         flexDirection: 'row',
@@ -1822,7 +1824,7 @@ const styles = StyleSheet.create({
         padding: 12,
     },
     summaryLoadingText: {
-        color: '#35525b',
+        color: '#8e8a9e',
         fontSize: 13,
         fontWeight: '700',
     },
@@ -1840,14 +1842,18 @@ const styles = StyleSheet.create({
         padding: 11,
     },
     summaryCardPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#141318',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     summaryCardAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(212,168,83,0.25)',
     },
     summaryCardNeutral: {
-        backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderWidth: 1,
     },
     summaryValue: {
@@ -1855,37 +1861,37 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     summaryValuePrimary: {
-        color: '#ffffff',
+        color: '#f0ece4',
     },
     summaryValueAccent: {
-        color: '#7a4a2c',
+        color: '#d4a853',
     },
     summaryValueNeutral: {
-        color: '#14313a',
+        color: '#f0ece4',
     },
     summaryLabel: {
         fontSize: 11.5,
         fontWeight: '700',
     },
     summaryLabelPrimary: {
-        color: '#c7d6d8',
+        color: '#8e8a9e',
     },
     summaryLabelAccent: {
-        color: '#7a4a2c',
+        color: '#d4a853',
     },
     summaryLabelNeutral: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
     },
     sectionCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 18,
         borderWidth: 1,
         gap: 11,
         padding: 13,
     },
     sectionTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 15,
         fontWeight: '800',
     },
@@ -1902,26 +1908,32 @@ const styles = StyleSheet.create({
         paddingVertical: 9,
     },
     quickActionButtonPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#141318',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     quickActionButtonAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(212,168,83,0.2)',
     },
     quickActionButtonNeutral: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
     },
     quickActionLabel: {
         fontSize: 13,
         fontWeight: '800',
     },
     quickActionLabelPrimary: {
-        color: '#ffffff',
+        color: '#f0ece4',
     },
     quickActionLabelAccent: {
-        color: '#744a33',
+        color: '#d4a853',
     },
     quickActionLabelNeutral: {
-        color: '#244049',
+        color: '#f0ece4',
     },
     quickActionSubtitle: {
         fontSize: 11.5,
@@ -1929,7 +1941,7 @@ const styles = StyleSheet.create({
     },
     quickActionIcon: {
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.16)',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: 10,
         height: 34,
         justifyContent: 'center',
@@ -1940,26 +1952,26 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     quickActionIconPrimary: {
-        backgroundColor: 'rgba(255,255,255,0.16)',
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     quickActionIconAccent: {
-        backgroundColor: '#e5cdb3',
+        backgroundColor: 'rgba(212,168,83,0.18)',
     },
     quickActionIconNeutral: {
-        backgroundColor: '#d7e5e3',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     quickActionIconTextPrimary: {
-        color: '#ffffff',
+        color: '#f0ece4',
     },
     quickActionIconTextNeutral: {
-        color: '#244049',
+        color: '#8e8a9e',
     },
     quickActionCopy: {
         flex: 1,
         gap: 1,
     },
     quickActionArrow: {
-        color: '#789096',
+        color: '#5a5770',
         fontSize: 24,
         fontWeight: '400',
         lineHeight: 26,
@@ -1967,8 +1979,8 @@ const styles = StyleSheet.create({
     },
     signOutButton: {
         alignItems: 'center',
-        backgroundColor: '#fffaf5',
-        borderColor: '#ead7c4',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 15,
         borderWidth: 1,
         flexDirection: 'row',
@@ -1979,14 +1991,14 @@ const styles = StyleSheet.create({
     },
     signOutIcon: {
         alignItems: 'center',
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(239,68,68,0.12)',
         borderRadius: 10,
         height: 34,
         justifyContent: 'center',
         width: 34,
     },
     signOutIconText: {
-        color: '#8a5438',
+        color: '#ef4444',
         fontSize: 19,
         fontWeight: '700',
     },
@@ -1995,30 +2007,30 @@ const styles = StyleSheet.create({
         gap: 1,
     },
     signOutTitle: {
-        color: '#744a33',
+        color: '#ef4444',
         fontSize: 13,
         fontWeight: '800',
     },
     signOutSubtitle: {
-        color: '#8a6b5b',
+        color: '#8e8a9e',
         fontSize: 11.5,
         lineHeight: 16,
     },
     quickActionSubtitlePrimary: {
-        color: '#c7d6d8',
+        color: '#8e8a9e',
     },
     quickActionSubtitleAccent: {
-        color: '#7a4a2c',
+        color: '#d4a853',
     },
     quickActionSubtitleNeutral: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
     },
     featureRow: {
         flexDirection: 'row',
         gap: 10,
     },
     featureDot: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         height: 8,
         marginTop: 5,
@@ -2029,24 +2041,26 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     featureTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 13.5,
         fontWeight: '800',
     },
     featureBody: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 12.5,
         lineHeight: 18,
     },
     confirmModalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(10, 26, 31, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
     confirmModalContent: {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#141318',
+        borderColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
         borderRadius: 24,
         padding: 24,
         width: '100%',
@@ -2054,17 +2068,17 @@ const styles = StyleSheet.create({
         gap: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
+        shadowOpacity: 0.4,
         shadowRadius: 10,
         elevation: 6,
     },
     confirmModalTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 20,
         fontWeight: '800',
     },
     confirmModalBody: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 15,
         lineHeight: 22,
     },
@@ -2075,29 +2089,29 @@ const styles = StyleSheet.create({
     },
     confirmCancelBtn: {
         flex: 1,
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         paddingVertical: 12,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },
     confirmCancelText: {
-        color: '#244049',
+        color: '#8e8a9e',
         fontSize: 14,
         fontWeight: '700',
     },
     confirmActionBtn: {
         flex: 1,
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         paddingVertical: 12,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },
     confirmActionText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 14,
-        fontWeight: '700',
+        fontWeight: '800',
     },
     headerRow: {
         flexDirection: 'row',
@@ -2111,20 +2125,20 @@ const styles = StyleSheet.create({
     pageHeaderTitle: {
         fontSize: 22,
         fontWeight: '900',
-        color: '#14313a',
+        color: '#d4a853',
     },
     needHelpText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#d1354c',
+        color: '#d4a853',
         textDecorationLine: 'underline',
     },
     upgradeToggleContainer: {
         flexDirection: 'row',
-        backgroundColor: '#f7f6f5',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#e8e6e4',
+        borderColor: 'rgba(255,255,255,0.08)',
         padding: 4,
         marginTop: 8,
         marginBottom: 16,
@@ -2136,25 +2150,27 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     upgradeToggleSegmentActive: {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#141318',
+        borderWidth: 1,
+        borderColor: 'rgba(212,168,83,0.3)',
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.2,
         shadowRadius: 4,
         elevation: 2,
     },
     upgradeToggleText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#9e9c9a',
+        color: '#8e8a9e',
     },
     upgradeToggleTextActive: {
-        color: '#14313a',
+        color: '#d4a853',
     },
     exclusiveTitle: {
         fontSize: 18,
         fontWeight: '800',
-        color: '#394d54',
+        color: '#f0ece4',
         marginTop: 8,
         marginBottom: 16,
     },
@@ -2170,13 +2186,13 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#f2f0fc',
+        backgroundColor: 'rgba(212,168,83,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     exclusiveIconText: {
         fontSize: 16,
-        color: '#6558f5',
+        color: '#d4a853',
     },
     exclusiveFeatureTextContainer: {
         flex: 1,
@@ -2185,7 +2201,7 @@ const styles = StyleSheet.create({
     exclusiveFeatureTitle: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#1d2a30',
+        color: '#f0ece4',
         lineHeight: 20,
     },
     exclusiveFeatureSubBullets: {
@@ -2195,7 +2211,7 @@ const styles = StyleSheet.create({
     },
     exclusiveFeatureSubBullet: {
         fontSize: 13,
-        color: '#55666c',
+        color: '#8e8a9e',
         lineHeight: 18,
     },
     exclusiveActionsRow: {
@@ -2208,7 +2224,7 @@ const styles = StyleSheet.create({
     },
     requestCallBackBtn: {
         borderWidth: 1.5,
-        borderColor: '#d1354c',
+        borderColor: '#d4a853',
         borderRadius: 8,
         paddingVertical: 10,
         paddingHorizontal: 20,
@@ -2216,29 +2232,29 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     requestCallBackText: {
-        color: '#d1354c',
+        color: '#d4a853',
         fontSize: 14,
         fontWeight: '700',
     },
     knowMoreText: {
-        color: '#d1354c',
+        color: '#d4a853',
         fontSize: 14,
         fontWeight: '700',
         textDecorationLine: 'underline',
     },
     tableContainer: {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#141318',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#f0eefc',
+        borderColor: 'rgba(255,255,255,0.08)',
         overflow: 'hidden',
         marginBottom: 20,
     },
     tableHeaderRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#f0eefc',
-        backgroundColor: '#fcfbfe',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.02)',
     },
     tableHeaderCellLeft: {
         width: '31%',
@@ -2255,21 +2271,21 @@ const styles = StyleSheet.create({
         position: 'relative',
         gap: 6,
         borderLeftWidth: 1,
-        borderLeftColor: '#f0eefc',
+        borderLeftColor: 'rgba(255,255,255,0.08)',
     },
     selectedHeaderCell: {
-        backgroundColor: '#fef5f6',
+        backgroundColor: 'rgba(212,168,83,0.08)',
     },
     topSellerBadge: {
         position: 'absolute',
         top: 6,
-        backgroundColor: '#10cc9f',
+        backgroundColor: '#d4a853',
         paddingHorizontal: 5,
         paddingVertical: 2,
         borderRadius: 4,
     },
     topSellerBadgeText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 8,
         fontWeight: '900',
         textTransform: 'uppercase',
@@ -2277,7 +2293,7 @@ const styles = StyleSheet.create({
     columnTitle: {
         fontSize: 11,
         fontWeight: '800',
-        color: '#1d2a30',
+        color: '#f0ece4',
         textAlign: 'center',
     },
     radioButtonOuter: {
@@ -2285,23 +2301,23 @@ const styles = StyleSheet.create({
         height: 18,
         borderRadius: 9,
         borderWidth: 2,
-        borderColor: '#c8c6c4',
+        borderColor: 'rgba(255,255,255,0.2)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     radioButtonOuterActive: {
-        borderColor: '#d1354c',
+        borderColor: '#d4a853',
     },
     radioButtonInner: {
         width: 9,
         height: 9,
         borderRadius: 4.5,
-        backgroundColor: '#d1354c',
+        backgroundColor: '#d4a853',
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#f0eefc',
+        borderBottomColor: 'rgba(255,255,255,0.06)',
     },
     rowLabelCell: {
         width: '31%',
@@ -2314,11 +2330,11 @@ const styles = StyleSheet.create({
     rowLabelText: {
         fontSize: 10.5,
         fontWeight: '700',
-        color: '#6c7d84',
+        color: '#8e8a9e',
     },
     infoIcon: {
         fontSize: 10,
-        color: '#a0b0b6',
+        color: '#5a5770',
         fontWeight: 'bold',
     },
     rowValCell: {
@@ -2327,15 +2343,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderLeftWidth: 1,
-        borderLeftColor: '#f0eefc',
+        borderLeftColor: 'rgba(255,255,255,0.06)',
     },
     activeValCell: {
-        backgroundColor: '#fef5f6',
+        backgroundColor: 'rgba(212,168,83,0.06)',
     },
     rowValText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#1d2a30',
+        color: '#f0ece4',
     },
     discountBannerContainer: {
         flexDirection: 'row',
@@ -2348,12 +2364,12 @@ const styles = StyleSheet.create({
     bannerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#edf0f2',
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     discountBannerText: {
         fontSize: 10.5,
         fontWeight: '800',
-        color: '#d1354c',
+        color: '#d4a853',
         letterSpacing: 0.5,
     },
     durationSection: {
@@ -2363,7 +2379,7 @@ const styles = StyleSheet.create({
     durationSectionTitle: {
         fontSize: 11,
         fontWeight: '800',
-        color: '#6c7d84',
+        color: '#8e8a9e',
         letterSpacing: 0.8,
     },
     choosePlansGrid: {
@@ -2376,9 +2392,9 @@ const styles = StyleSheet.create({
     },
     newPackageCard: {
         flex: 1,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderWidth: 1.5,
-        borderColor: '#e8e6e4',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 12,
         padding: 12,
         position: 'relative',
@@ -2391,8 +2407,8 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     newPackageCardSelected: {
-        borderColor: '#d1354c',
-        backgroundColor: '#fffafb',
+        borderColor: '#d4a853',
+        backgroundColor: 'rgba(212,168,83,0.08)',
     },
     newPackageCardHeader: {
         flexDirection: 'row',
@@ -2407,28 +2423,28 @@ const styles = StyleSheet.create({
         fontSize: 14,
         lineHeight: 17,
         fontWeight: '800',
-        color: '#6c7d84',
+        color: '#8e8a9e',
     },
     newPackageRadio: {
         marginTop: 1,
         flexShrink: 0,
     },
     newPackageDurationSelected: {
-        color: '#d1354c',
+        color: '#d4a853',
     },
     newPackageOriginalPrice: {
         fontSize: 11,
-        color: '#a0a0a0',
+        color: '#5a5770',
         textDecorationLine: 'line-through',
         marginBottom: 2,
     },
     newPackagePrice: {
         fontSize: 16,
         fontWeight: '900',
-        color: '#1d2a30',
+        color: '#f0ece4',
     },
     crimsonBtn: {
-        backgroundColor: '#d1354c',
+        backgroundColor: '#d4a853',
         borderRadius: 8,
         height: 48,
         justifyContent: 'center',
@@ -2437,13 +2453,13 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     crimsonBtnText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 15,
         fontWeight: '800',
     },
     billingSubtext: {
         fontSize: 11,
-        color: '#8a9a9f',
+        color: '#8e8a9e',
         textAlign: 'center',
         marginBottom: 16,
     },

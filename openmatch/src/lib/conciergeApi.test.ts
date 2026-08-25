@@ -10,7 +10,7 @@ jest.mock('./supabase', () => {
   const mockFrom = jest.fn();
   const mockInvoke = jest.fn();
 
-  const mockBuilder = {
+  const mockBuilder: any = {
     select: mockSelect,
     update: jest.fn(() => mockBuilder),
     eq: mockEq,

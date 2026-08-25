@@ -34,10 +34,10 @@ function StatCard({
     accent?: 'good' | 'warn' | 'bad' | 'neutral';
 }) {
     const accentColor =
-        accent === 'good' ? '#1a7a5e' :
-            accent === 'warn' ? '#b07d2e' :
-                accent === 'bad' ? '#c0392b' :
-                    '#123340';
+        accent === 'good' ? '#10b981' :
+            accent === 'warn' ? '#d4a853' :
+                accent === 'bad' ? '#ef4444' :
+                    '#f0ece4';
 
     return (
         <View style={styles.statCard}>
@@ -56,8 +56,8 @@ function ScoreBar({
     label,
     score,
     maxScore = 100,
-    accentHigh = '#1a7a5e',
-    accentLow = '#c0392b',
+    accentHigh = '#10b981',
+    accentLow = '#ef4444',
     highIsGood = true,
 }: {
     label: string;
@@ -154,7 +154,7 @@ export function DashboardScreen({ onBack }: Props) {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#123340" size="large" />
+                    <ActivityIndicator color="#d4a853" size="large" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -168,7 +168,7 @@ export function DashboardScreen({ onBack }: Props) {
                     style={styles.scroll}
                     contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#123340" />
+                        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#d4a853" />
                     }
                     showsVerticalScrollIndicator={false}
                 >
@@ -224,8 +224,8 @@ export function DashboardScreen({ onBack }: Props) {
                         <ScoreBar
                             label={`Ghost risk  ·  ${ghostRiskLabel(s.ghostRiskScore)}`}
                             score={s.ghostRiskScore}
-                            accentHigh="#c0392b"
-                            accentLow="#1a7a5e"
+                            accentHigh="#ef4444"
+                            accentLow="#10b981"
                             highIsGood={false}
                         />
                     </View>
@@ -247,23 +247,23 @@ export function DashboardScreen({ onBack }: Props) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f5f4f0' },
+    safe: { flex: 1, backgroundColor: '#0a0a0c' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: '#111015',
         borderBottomWidth: 1,
-        borderBottomColor: '#e8e5df',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    errorText: { fontSize: 14, color: '#c0392b', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#123340', borderRadius: 8 },
-    retryBtnText: { color: '#fff', fontWeight: '600' },
+    errorText: { fontSize: 14, color: '#ef4444', textAlign: 'center', paddingHorizontal: 24 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#d4a853', borderRadius: 8 },
+    retryBtnText: { color: '#0a0a0c', fontWeight: '800' },
 
     scroll: { flex: 1 },
     scrollContent: {
@@ -277,8 +277,8 @@ const styles = StyleSheet.create({
 
     sectionHeader: {
         fontSize: 13,
-        fontWeight: '700',
-        color: '#888',
+        fontWeight: '800',
+        color: '#d4a853',
         textTransform: 'uppercase',
         letterSpacing: 0.8,
         marginTop: 16,
@@ -293,32 +293,32 @@ const styles = StyleSheet.create({
     statCard: {
         flex: 1,
         minWidth: '44%',
-        backgroundColor: '#fff',
+        backgroundColor: '#141318',
         borderRadius: 12,
         padding: 14,
         borderWidth: 1,
-        borderColor: '#e8e5df',
+        borderColor: 'rgba(255,255,255,0.08)',
         gap: 2,
     },
-    statValue: { fontSize: 28, fontWeight: '800', color: '#123340' },
-    statLabel: { fontSize: 13, color: '#555', fontWeight: '600' },
-    statSublabel: { fontSize: 11, color: '#999' },
+    statValue: { fontSize: 28, fontWeight: '800', color: '#f0ece4' },
+    statLabel: { fontSize: 13, color: '#8e8a9e', fontWeight: '600' },
+    statSublabel: { fontSize: 11, color: '#5a5770' },
 
     scoreSection: {
-        backgroundColor: '#fff',
+        backgroundColor: '#141318',
         borderRadius: 12,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#e8e5df',
+        borderColor: 'rgba(255,255,255,0.08)',
         gap: 16,
     },
     scoreBarWrap: { gap: 6 },
     scoreBarHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    scoreBarLabel: { fontSize: 13, color: '#555', fontWeight: '600', flex: 1 },
+    scoreBarLabel: { fontSize: 13, color: '#f0ece4', fontWeight: '600', flex: 1 },
     scoreBarValue: { fontSize: 16, fontWeight: '800' },
     scoreBarTrack: {
         height: 8,
-        backgroundColor: '#eee',
+        backgroundColor: '#1e1d26',
         borderRadius: 4,
         overflow: 'hidden',
     },
@@ -329,13 +329,13 @@ const styles = StyleSheet.create({
 
     tipCard: {
         marginTop: 12,
-        backgroundColor: '#eef4f7',
+        backgroundColor: '#141318',
         borderRadius: 12,
         padding: 14,
         borderWidth: 1,
-        borderColor: '#d0e4ed',
+        borderColor: 'rgba(212,168,83,0.3)',
         gap: 6,
     },
-    tipTitle: { fontSize: 13, fontWeight: '700', color: '#123340' },
-    tipBody: { fontSize: 13, color: '#555', lineHeight: 19 },
+    tipTitle: { fontSize: 13, fontWeight: '800', color: '#d4a853' },
+    tipBody: { fontSize: 13, color: '#8e8a9e', lineHeight: 19 },
 });

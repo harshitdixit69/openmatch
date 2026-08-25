@@ -479,7 +479,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
     if (loading || !form) {
         return (
             <SafeAreaView style={styles.loading} edges={['top', 'left', 'right']}>
-                <ActivityIndicator size="large" color="#123340" />
+                <ActivityIndicator size="large" color="#d4a853" />
                 <Text style={styles.loadingText}>Loading profile…</Text>
             </SafeAreaView>
         );
@@ -494,11 +494,12 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
             </View>
 
             <KeyboardAvoidingView
-                style={{ flex: 1 }}
+                style={{ flex: 1, backgroundColor: '#0a0a0c' }}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={insets.top + 56}
             >
                 <ScrollView
+                    style={{ flex: 1, backgroundColor: '#0a0a0c' }}
                     contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
@@ -575,12 +576,12 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                             <Field label="Bio">
                                 <TextInput style={[styles.input, styles.textArea]} value={form.bio}
                                     onChangeText={(t) => set('bio', t)} multiline numberOfLines={4}
-                                    placeholder="Tell people about yourself…" placeholderTextColor="#bbb" />
+                                    placeholder="Tell people about yourself…" placeholderTextColor="#5a5770" />
                             </Field>
                             <Field label="Partner Preferences">
                                 <TextInput style={[styles.input, styles.textArea]} value={form.preferences}
                                     onChangeText={(t) => set('preferences', t)} multiline numberOfLines={4}
-                                    placeholder="Describe values, location preferences, education, lifestyle, and family expectations…" placeholderTextColor="#bbb" />
+                                    placeholder="Describe values, location preferences, education, lifestyle, and family expectations…" placeholderTextColor="#5a5770" />
                             </Field>
 
                             {/* ── AI Ghostwriter Section ── */}
@@ -638,7 +639,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                                         <TextInput
                                             style={styles.ghostInput}
                                             placeholder="e.g. 'focus on travel', 'sound warm', 'make it shorter'"
-                                            placeholderTextColor="#999"
+                                            placeholderTextColor="#5a5770"
                                             value={refinement}
                                             onChangeText={setRefinement}
                                         />
@@ -650,7 +651,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                                                 disabled={generating}
                                             >
                                                 {generating ? (
-                                                    <ActivityIndicator color="#fff" size="small" />
+                                                    <ActivityIndicator color="#0a0a0c" size="small" />
                                                 ) : (
                                                     <Text style={styles.ghostBtnText}>Generate Proposal</Text>
                                                 )}
@@ -712,12 +713,12 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                             <Field label="Location *">
                                 <TextInput style={styles.input} value={form.location}
                                     onChangeText={(t) => set('location', t)}
-                                    placeholder="Mumbai, India" placeholderTextColor="#bbb" />
+                                    placeholder="Mumbai, India" placeholderTextColor="#5a5770" />
                             </Field>
                             <Field label="Mother tongue">
                                 <TextInput style={styles.input} value={form.mother_tongue}
                                     onChangeText={(t) => set('mother_tongue', t)}
-                                    placeholder="e.g. Hindi, Tamil…" placeholderTextColor="#bbb"
+                                    placeholder="e.g. Hindi, Tamil…" placeholderTextColor="#5a5770"
                                     autoCapitalize="words" />
                             </Field>
                             <Field label="Gender">
@@ -751,13 +752,13 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                             <Field label="Occupation">
                                 <TextInput style={styles.input} value={form.occupation}
                                     onChangeText={(t) => set('occupation', t)}
-                                    placeholder="e.g. Software Engineer" placeholderTextColor="#bbb"
+                                    placeholder="e.g. Software Engineer" placeholderTextColor="#5a5770"
                                     autoCapitalize="words" />
                             </Field>
                             <Field label="Company / Organisation">
                                 <TextInput style={styles.input} value={form.company}
                                     onChangeText={(t) => set('company', t)}
-                                    placeholder="e.g. Infosys" placeholderTextColor="#bbb"
+                                    placeholder="e.g. Infosys" placeholderTextColor="#5a5770"
                                     autoCapitalize="words" />
                             </Field>
                             <Field label="Education">
@@ -778,7 +779,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                                 <TextInput style={styles.input} value={form.height_cm}
                                     onChangeText={(t) => set('height_cm', t)}
                                     keyboardType="number-pad" maxLength={3}
-                                    placeholder="170" placeholderTextColor="#bbb" />
+                                    placeholder="170" placeholderTextColor="#5a5770" />
                             </Field>
                         </SectionCard>
 
@@ -800,7 +801,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                                 <TextInput style={styles.input} value={form.num_siblings}
                                     onChangeText={(t) => set('num_siblings', t)}
                                     keyboardType="number-pad" maxLength={2}
-                                    placeholder="2" placeholderTextColor="#bbb" />
+                                    placeholder="2" placeholderTextColor="#5a5770" />
                             </Field>
                         </SectionCard>
 
@@ -825,7 +826,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                         {/* ── Revision History ── */}
                         <SectionCard title="Revision History">
                             {loadingRevisions ? (
-                                <ActivityIndicator color="#123340" size="small" style={{ marginVertical: 12 }} />
+                                <ActivityIndicator color="#d4a853" size="small" style={{ marginVertical: 12 }} />
                             ) : revisions.length === 0 ? (
                                 <Text style={styles.emptyHistoryText}>No revisions saved yet. Revisions are created when you save your profile or apply AI rewrites.</Text>
                             ) : (
@@ -874,7 +875,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                     disabled={saving || photoMutationPending}
                 >
                     {saving
-                        ? <ActivityIndicator color="#fff" size="small" />
+                        ? <ActivityIndicator color="#0a0a0c" size="small" />
                         : <Text style={styles.saveButtonText}>Save Profile</Text>
                     }
                 </Pressable>
@@ -903,8 +904,8 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
             <Switch
                 value={value}
                 onValueChange={onChange}
-                trackColor={{ false: '#d0d0d0', true: '#123340' }}
-                thumbColor="#fff"
+                trackColor={{ false: '#26252f', true: '#d4a853' }}
+                thumbColor={value ? '#0a0a0c' : '#8e8a9e'}
             />
         </View>
     );
@@ -915,38 +916,38 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#f4f4f6' },
-    loading: { flex: 1, backgroundColor: '#f4f4f6', alignItems: 'center', justifyContent: 'center', gap: 12 },
-    loadingText: { fontSize: 14, color: '#666' },
+    root: { flex: 1, backgroundColor: '#0a0a0c' },
+    loading: { flex: 1, backgroundColor: '#0a0a0c', alignItems: 'center', justifyContent: 'center', gap: 12 },
+    loadingText: { fontSize: 14, color: '#8e8a9e' },
     header: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
-        backgroundColor: '#fff',
-        borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e5e5',
+        backgroundColor: '#111015',
+        borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)',
     },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: '#111' },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: '#d4a853' },
     scroll: { paddingTop: 16 },
     inner: { maxWidth: MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
     field: { marginBottom: 14 },
-    fieldLabel: { fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
+    fieldLabel: { fontSize: 12, color: '#d4a853', fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
     input: {
-        borderWidth: 1.5, borderColor: '#d0d0d0', borderRadius: 10,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 10,
         paddingHorizontal: 14, paddingVertical: 11,
-        fontSize: 15, color: '#111', backgroundColor: '#fafafa',
+        fontSize: 15, color: '#f0ece4', backgroundColor: '#1e1d26',
     },
     textArea: { height: 100, textAlignVertical: 'top', paddingTop: 12 },
-    photoManagerDescription: { color: '#66777d', fontSize: 13, lineHeight: 18, marginBottom: 12 },
+    photoManagerDescription: { color: '#8e8a9e', fontSize: 13, lineHeight: 18, marginBottom: 12 },
     photoEditorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
     photoEditorTile: {
         width: '48%',
         minWidth: 130,
         borderRadius: 12,
         overflow: 'hidden',
-        backgroundColor: '#f1f5f5',
+        backgroundColor: '#141318',
         borderWidth: 1,
-        borderColor: '#dbe4e5',
+        borderColor: 'rgba(255,255,255,0.08)',
     },
-    photoEditorImage: { width: '100%', aspectRatio: 0.82, backgroundColor: '#dfe9ea' },
+    photoEditorImage: { width: '100%', aspectRatio: 0.82, backgroundColor: '#1e1d26' },
     photoEditorBadge: {
         position: 'absolute',
         left: 8,
@@ -954,105 +955,100 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingHorizontal: 7,
         paddingVertical: 4,
-        backgroundColor: 'rgba(18, 51, 64, 0.88)',
+        backgroundColor: 'rgba(212, 168, 83, 0.9)',
     },
-    photoEditorBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+    photoEditorBadgeText: { color: '#0a0a0c', fontSize: 10, fontWeight: '800' },
     photoEditorActions: { flexDirection: 'row', gap: 6, padding: 7 },
     photoEditorAction: {
         flex: 1,
         alignItems: 'center',
         borderRadius: 7,
         paddingVertical: 7,
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
     },
-    photoEditorRemoveAction: { backgroundColor: '#f8e6e0' },
-    photoEditorActionText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-    photoEditorRemoveText: { color: '#a44932' },
+    photoEditorRemoveAction: { backgroundColor: 'rgba(239, 68, 68, 0.15)' },
+    photoEditorActionText: { color: '#0a0a0c', fontSize: 11, fontWeight: '800' },
+    photoEditorRemoveText: { color: '#f87171' },
     photoEditorEmptyState: {
         alignItems: 'center',
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#dbe4e5',
+        borderColor: 'rgba(212, 168, 83, 0.3)',
         borderStyle: 'dashed',
         padding: 18,
         marginBottom: 12,
     },
-    photoEditorEmptyTitle: { color: '#123340', fontSize: 14, fontWeight: '800', marginBottom: 4 },
-    photoEditorEmptyText: { color: '#718287', fontSize: 12, textAlign: 'center' },
+    photoEditorEmptyTitle: { color: '#d4a853', fontSize: 14, fontWeight: '800', marginBottom: 4 },
+    photoEditorEmptyText: { color: '#8e8a9e', fontSize: 12, textAlign: 'center' },
     photoEditorAddButton: {
         alignItems: 'center',
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         borderRadius: 10,
         minHeight: 44,
         justifyContent: 'center',
         paddingHorizontal: 16,
     },
     photoEditorButtonDisabled: { opacity: 0.6 },
-    photoEditorAddButtonText: { color: '#fff', fontSize: 14, fontWeight: '800' },
-    photoEditorLimitText: { color: '#718287', fontSize: 12, textAlign: 'center', paddingVertical: 8 },
+    photoEditorAddButtonText: { color: '#0a0a0c', fontSize: 14, fontWeight: '800' },
+    photoEditorLimitText: { color: '#8e8a9e', fontSize: 12, textAlign: 'center', paddingVertical: 8 },
     toggleRow: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0',
+        paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
     },
-    toggleLabel: { fontSize: 15, color: '#222' },
-    saveBar: { paddingTop: 12, paddingHorizontal: 20, backgroundColor: '#fff', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e5e5' },
-    saveButton: { backgroundColor: '#123340', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+    toggleLabel: { fontSize: 15, color: '#f0ece4' },
+    saveBar: { paddingTop: 12, paddingHorizontal: 20, backgroundColor: '#111015', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
+    saveButton: { backgroundColor: '#d4a853', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
     saveButtonDisabled: { opacity: 0.6 },
-    saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    saveButtonText: { color: '#0a0a0c', fontSize: 16, fontWeight: '800' },
 
     // Ghostwriter Styles
     row: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
     ghostwriterContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        borderWidth: 1.5,
-        borderColor: '#e1e3e5',
+        backgroundColor: '#141318',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(212, 168, 83, 0.25)',
         padding: 16,
         marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
     },
     ghostwriterHeaderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     ghostwriterHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     ghostwriterEmoji: { fontSize: 18 },
-    ghostwriterTitle: { fontSize: 15, fontWeight: '600', color: '#123340' },
-    ghostwriterToggleText: { fontSize: 14, fontWeight: '600', color: '#1a7a5e' },
+    ghostwriterTitle: { fontSize: 15, fontWeight: '800', color: '#d4a853' },
+    ghostwriterToggleText: { fontSize: 14, fontWeight: '700', color: '#d4a853' },
     ghostwriterBody: { marginTop: 14 },
-    ghostwriterDescription: { fontSize: 13, color: '#666', marginBottom: 14, lineHeight: 18 },
-    ghostwriterSublabel: { fontSize: 11, fontWeight: '700', color: '#888', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
-    ghostChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#dcdcdc', backgroundColor: '#fafafa' },
-    ghostChipActive: { borderColor: '#123340', backgroundColor: '#eef3f5' },
-    ghostChipText: { fontSize: 13, color: '#555' },
-    ghostChipTextActive: { color: '#123340', fontWeight: '600' },
-    ghostInput: { borderWidth: 1, borderColor: '#dcdcdc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#333', backgroundColor: '#fafafa', marginBottom: 14 },
+    ghostwriterDescription: { fontSize: 13, color: '#8e8a9e', marginBottom: 14, lineHeight: 18 },
+    ghostwriterSublabel: { fontSize: 11, fontWeight: '700', color: '#d4a853', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
+    ghostChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)' },
+    ghostChipActive: { borderColor: '#d4a853', backgroundColor: '#d4a853' },
+    ghostChipText: { fontSize: 13, color: '#8e8a9e' },
+    ghostChipTextActive: { color: '#0a0a0c', fontWeight: '800' },
+    ghostInput: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#f0ece4', backgroundColor: '#1e1d26', marginBottom: 14 },
     ghostActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-    ghostBtn: { flex: 1, backgroundColor: '#123340', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    ghostBtn: { flex: 1, backgroundColor: '#d4a853', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
     ghostBtnDisabled: { opacity: 0.6 },
-    ghostBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-    ghostUndoBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#dcdcdc', alignItems: 'center' },
-    ghostUndoBtnText: { color: '#555', fontSize: 14, fontWeight: '500' },
-    previewContainer: { backgroundColor: '#f6fdfa', borderWidth: 1, borderColor: '#a3e2c9', borderRadius: 8, padding: 14 },
-    previewTitle: { fontSize: 14, fontWeight: '700', color: '#1a7a5e', marginBottom: 10 },
-    summaryBadge: { backgroundColor: '#e6f7f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start', marginBottom: 10 },
-    summaryText: { fontSize: 12, color: '#1a7a5e', fontWeight: '500' },
+    ghostBtnText: { color: '#0a0a0c', fontSize: 14, fontWeight: '800' },
+    ghostUndoBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center' },
+    ghostUndoBtnText: { color: '#8e8a9e', fontSize: 14, fontWeight: '500' },
+    previewContainer: { backgroundColor: '#1e1d26', borderWidth: 1, borderColor: 'rgba(212, 168, 83, 0.3)', borderRadius: 10, padding: 14 },
+    previewTitle: { fontSize: 14, fontWeight: '800', color: '#d4a853', marginBottom: 10 },
+    summaryBadge: { backgroundColor: 'rgba(212, 168, 83, 0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start', marginBottom: 10 },
+    summaryText: { fontSize: 12, color: '#d4a853', fontWeight: '600' },
     previewField: { marginBottom: 10 },
-    previewFieldLabel: { fontSize: 11, fontWeight: '600', color: '#888', textTransform: 'uppercase', marginBottom: 2 },
-    previewFieldText: { fontSize: 13, color: '#333', lineHeight: 18 },
+    previewFieldLabel: { fontSize: 11, fontWeight: '700', color: '#8e8a9e', textTransform: 'uppercase', marginBottom: 2 },
+    previewFieldText: { fontSize: 13, color: '#f0ece4', lineHeight: 18 },
     previewActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
-    applyBtn: { flex: 1, backgroundColor: '#1a7a5e', paddingVertical: 10, borderRadius: 6, alignItems: 'center' },
-    applyBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-    discardBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 6, borderWidth: 1, borderColor: '#dcdcdc', alignItems: 'center' },
-    discardBtnText: { color: '#666', fontSize: 13, fontWeight: '500' },
-    emptyHistoryText: { fontSize: 13, color: '#666', fontStyle: 'italic', textAlign: 'center', paddingVertical: 10 },
+    applyBtn: { flex: 1, backgroundColor: '#d4a853', paddingVertical: 10, borderRadius: 6, alignItems: 'center' },
+    applyBtnText: { color: '#0a0a0c', fontSize: 13, fontWeight: '800' },
+    discardBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center' },
+    discardBtnText: { color: '#8e8a9e', fontSize: 13, fontWeight: '500' },
+    emptyHistoryText: { fontSize: 13, color: '#8e8a9e', fontStyle: 'italic', textAlign: 'center', paddingVertical: 10 },
     revisionItem: { marginVertical: 8 },
     revisionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-    revisionTitle: { fontSize: 14, fontWeight: '600', color: '#222' },
-    revisionDate: { fontSize: 11, color: '#888' },
-    restoreBtn: { backgroundColor: '#eef3f5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: '#123340' },
-    restoreBtnText: { color: '#123340', fontSize: 12, fontWeight: '600' },
-    revisionSnippet: { fontSize: 12, color: '#666', lineHeight: 16, marginTop: 2 },
-    revisionDivider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 10 },
+    revisionTitle: { fontSize: 14, fontWeight: '700', color: '#f0ece4' },
+    revisionDate: { fontSize: 11, color: '#8e8a9e' },
+    restoreBtn: { backgroundColor: 'rgba(212, 168, 83, 0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#d4a853' },
+    restoreBtnText: { color: '#d4a853', fontSize: 12, fontWeight: '700' },
+    revisionSnippet: { fontSize: 12, color: '#8e8a9e', lineHeight: 16, marginTop: 2 },
+    revisionDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 10 },
 });

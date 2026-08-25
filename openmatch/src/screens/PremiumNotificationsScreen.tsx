@@ -4,11 +4,11 @@ import {
     FlatList,
     Pressable,
     RefreshControl,
-    SafeAreaView,
     StyleSheet,
     Text,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import {
     AppNotification,
@@ -98,15 +98,13 @@ export default function PremiumNotificationsScreen({ onBack }: { onBack: () => v
                     prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)),
                 );
             } catch (e) {
-                console.error('Failed to mark notification read:', e);
+                console.error('Failed to mark notification as read:', e);
             }
         }
     };
 
-    const unreadCount = notifications.filter((n) => !n.isRead).length;
-
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             {/* Header */}
             <View style={styles.header}>
                 <Pressable style={styles.backBtn} onPress={onBack}>
@@ -114,21 +112,18 @@ export default function PremiumNotificationsScreen({ onBack }: { onBack: () => v
                 </Pressable>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.headerTitle}>Notifications</Text>
-                    <Text style={styles.headerSub}>
-                        {unreadCount > 0 ? `${unreadCount} unread update${unreadCount > 1 ? 's' : ''}` : 'All caught up'}
-                    </Text>
+                    <Text style={styles.headerSub}>Match requests, updates & activity</Text>
                 </View>
-                {unreadCount > 0 && (
+                {notifications.some((n) => !n.isRead) && (
                     <Pressable style={styles.markAllBtn} onPress={handleMarkAllRead}>
                         <Text style={styles.markAllText}>Mark all read</Text>
                     </Pressable>
                 )}
             </View>
 
-            {/* List */}
             {loading ? (
                 <View style={styles.loadingWrap}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#d4a853" size="large" />
                 </View>
             ) : notifications.length === 0 ? (
                 <View style={styles.emptyWrap}>
@@ -143,9 +138,14 @@ export default function PremiumNotificationsScreen({ onBack }: { onBack: () => v
                     data={notifications}
                     keyExtractor={(n) => n.id}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadData(); }} tintColor="#d4b373" />
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={() => { setRefreshing(true); void loadData(); }}
+                            tintColor="#d4a853"
+                        />
                     }
                     contentContainerStyle={styles.listContent}
+                    style={{ flex: 1, backgroundColor: '#0a0a0c' }}
                     renderItem={({ item }) => (
                         <Pressable
                             style={[styles.row, !item.isRead && styles.rowUnread]}
@@ -172,26 +172,19 @@ export default function PremiumNotificationsScreen({ onBack }: { onBack: () => v
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: DARK_BG,
+        backgroundColor: '#0a0a0c',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 14,
+        backgroundColor: '#111015',
         borderBottomWidth: 1,
-        borderBottomColor: BORDER,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
         gap: 12,
     },
     backBtn: {
@@ -199,43 +192,44 @@ const styles = StyleSheet.create({
         height: 36,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: CARD_BG,
+        backgroundColor: '#141318',
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: BORDER,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     backArrow: {
         fontSize: 26,
-        color: GOLD,
+        color: '#d4a853',
         lineHeight: 28,
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
-        color: TEXT_PRIMARY,
+        fontWeight: '800',
+        color: '#d4a853',
     },
     headerSub: {
         fontSize: 12,
-        color: TEXT_MUTED,
+        color: '#8e8a9e',
         marginTop: 1,
     },
     markAllBtn: {
-        backgroundColor: 'rgba(212,179,115,0.12)',
-        borderRadius: 10,
+        backgroundColor: 'rgba(212,168,83,0.15)',
+        borderRadius: 8,
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderWidth: 1,
-        borderColor: 'rgba(212,179,115,0.3)',
+        borderColor: 'rgba(212,168,83,0.3)',
     },
     markAllText: {
         fontSize: 12,
         fontWeight: '700',
-        color: GOLD,
+        color: '#d4a853',
     },
     loadingWrap: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: '#0a0a0c',
     },
     emptyWrap: {
         flex: 1,
@@ -243,6 +237,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 40,
         gap: 10,
+        backgroundColor: '#0a0a0c',
     },
     emptyIcon: {
         fontSize: 44,
@@ -250,12 +245,12 @@ const styles = StyleSheet.create({
     },
     emptyTitle: {
         fontSize: 18,
-        fontWeight: '700',
-        color: TEXT_PRIMARY,
+        fontWeight: '800',
+        color: '#f0ece4',
     },
     emptySub: {
         fontSize: 13,
-        color: TEXT_MUTED,
+        color: '#8e8a9e',
         textAlign: 'center',
         lineHeight: 18,
     },
@@ -266,26 +261,26 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: CARD_BG,
+        backgroundColor: '#141318',
         borderRadius: 14,
         padding: 14,
         borderWidth: 1,
-        borderColor: BORDER,
+        borderColor: 'rgba(255,255,255,0.08)',
         gap: 12,
     },
     rowUnread: {
-        borderColor: GOLD,
-        backgroundColor: '#201b33',
+        borderColor: 'rgba(212,168,83,0.4)',
+        backgroundColor: '#1a1824',
     },
     iconWrap: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(212,179,115,0.12)',
+        backgroundColor: 'rgba(212,168,83,0.12)',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(212,179,115,0.3)',
+        borderColor: 'rgba(212,168,83,0.3)',
     },
     iconEmoji: {
         fontSize: 18,
@@ -302,26 +297,26 @@ const styles = StyleSheet.create({
     rowTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: TEXT_PRIMARY,
+        color: '#f0ece4',
         flex: 1,
     },
     rowTitleBold: {
         fontWeight: '700',
-        color: GOLD,
+        color: '#d4a853',
     },
     rowTime: {
         fontSize: 11,
-        color: TEXT_MUTED,
+        color: '#5a5770',
     },
     rowDesc: {
         fontSize: 12,
-        color: TEXT_SUB,
+        color: '#8e8a9e',
         lineHeight: 16,
     },
     unreadDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: GOLD,
+        backgroundColor: '#d4a853',
     },
 });
