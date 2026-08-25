@@ -1086,13 +1086,13 @@ export default function PremiumHubScreen({
 // Styles: Black & Gold Concierge Aesthetic
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_MUTED = '#6c6880';
-const TEXT_SUB = '#8e8aa0';
+const GOLD = '#d4a853';
+const DARK_BG = '#0a0a0c';
+const CARD_BG = '#141318';
+const BORDER = 'rgba(255,255,255,0.08)';
+const TEXT_PRIMARY = '#f0ece4';
+const TEXT_MUTED = '#5a5770';
+const TEXT_SUB = '#8e8a9e';
 
 const styles = StyleSheet.create({
     container: {

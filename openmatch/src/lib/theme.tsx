@@ -18,28 +18,28 @@ export interface ThemeColors {
 }
 
 export const LIGHT_THEME_COLORS: ThemeColors = {
-    background: '#eff6f8',
+    background: '#f8f6f3',
     cardBackground: '#ffffff',
-    cardBorder: '#d7e3e6',
-    textPrimary: '#0e2e3a',
-    textSecondary: '#4a6670',
-    textMuted: '#829198',
-    accent: '#e56a3a',
+    cardBorder: '#e8e2da',
+    textPrimary: '#1a1a1a',
+    textSecondary: '#5c5c5c',
+    textMuted: '#9a9a9a',
+    accent: '#c8903e',
     headerBackground: '#ffffff',
-    headerBorder: '#e5e5e5',
+    headerBorder: '#ebe5dd',
     statusBar: 'dark',
 };
 
 export const DARK_THEME_COLORS: ThemeColors = {
-    background: '#0d0c0f',
-    cardBackground: '#16151a',
-    cardBorder: '#2a2640',
-    textPrimary: '#ffffff',
-    textSecondary: '#9e9bb0',
-    textMuted: '#6c6880',
-    accent: '#d4b373',
-    headerBackground: '#16151a',
-    headerBorder: '#2a2640',
+    background: '#0a0a0c',
+    cardBackground: '#141318',
+    cardBorder: '#1e1d26',
+    textPrimary: '#f0ece4',
+    textSecondary: '#8e8a9e',
+    textMuted: '#5a5770',
+    accent: '#d4a853',
+    headerBackground: '#111015',
+    headerBorder: '#1e1d26',
     statusBar: 'light',
 };
 
@@ -54,16 +54,16 @@ interface ThemeContextType {
 const THEME_STORAGE_KEY = '@openmatch_theme_mode';
 
 const ThemeContext = createContext<ThemeContextType>({
-    themeMode: 'light',
-    activeTheme: 'light',
-    colors: LIGHT_THEME_COLORS,
+    themeMode: 'dark',
+    activeTheme: 'dark',
+    colors: DARK_THEME_COLORS,
     setThemeMode: async () => {},
     toggleTheme: async () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const systemColorScheme = useColorScheme();
-    const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
+    const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
 
     useEffect(() => {
         AsyncStorage.getItem(THEME_STORAGE_KEY)

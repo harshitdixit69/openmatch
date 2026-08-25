@@ -25,7 +25,7 @@ export function AgeRangeRow({ min, max, onChange }: Props) {
                     maxLength={2}
                     value={min !== null ? String(min) : ''}
                     placeholder="18"
-                    placeholderTextColor="#bbb"
+                    placeholderTextColor="#5a5770"
                     onChangeText={(t) => onChange(parseAge(t), max)}
                 />
             </View>
@@ -38,7 +38,7 @@ export function AgeRangeRow({ min, max, onChange }: Props) {
                     maxLength={2}
                     value={max !== null ? String(max) : ''}
                     placeholder="45"
-                    placeholderTextColor="#bbb"
+                    placeholderTextColor="#5a5770"
                     onChangeText={(t) => onChange(min, parseAge(t))}
                 />
             </View>
@@ -58,28 +58,29 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 11,
-        color: '#999',
+        color: '#d4a853',
+        fontWeight: '700',
         marginBottom: 4,
     },
     input: {
-        borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 10,
         paddingHorizontal: 12,
         paddingVertical: 10,
         fontSize: 15,
-        color: '#111',
-        backgroundColor: '#fafafa',
+        color: '#f0ece4',
+        backgroundColor: '#1e1d26',
         textAlign: 'center',
     },
     dash: {
         fontSize: 18,
-        color: '#999',
+        color: '#8e8a9e',
         paddingBottom: 10,
     },
     unit: {
         fontSize: 13,
-        color: '#666',
+        color: '#8e8a9e',
         paddingBottom: 12,
     },
 });

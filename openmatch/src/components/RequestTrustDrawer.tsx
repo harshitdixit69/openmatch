@@ -49,7 +49,7 @@ export function RequestTrustDrawer({
 
                     {loading ? (
                         <View style={styles.loadingState}>
-                            <ActivityIndicator size="small" color="#123340" />
+                            <ActivityIndicator size="small" color="#d4a853" />
                             <Text style={styles.loadingText}>Loading trust summary...</Text>
                         </View>
                     ) : summary ? (
@@ -147,7 +147,7 @@ function formatMedianReplyCopy(value: number | null) {
 
 const styles = StyleSheet.create({
     backdrop: {
-        backgroundColor: 'rgba(8, 24, 30, 0.46)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         flex: 1,
         justifyContent: 'flex-end',
     },
@@ -155,9 +155,11 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     sheet: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#141318',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
+        borderTopWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
         gap: 16,
         maxHeight: '82%',
         paddingBottom: 28,
@@ -166,7 +168,7 @@ const styles = StyleSheet.create({
     },
     handle: {
         alignSelf: 'center',
-        backgroundColor: '#d7e1e2',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         borderRadius: 999,
         height: 5,
         width: 54,
@@ -182,30 +184,32 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     eyebrow: {
-        color: '#c2643f',
+        color: '#d4a853',
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
     },
     title: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 24,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 21,
     },
     closeButton: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     closeButtonText: {
-        color: '#35525b',
+        color: '#8e8a9e',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -216,7 +220,7 @@ const styles = StyleSheet.create({
         paddingVertical: 32,
     },
     loadingText: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 20,
         textAlign: 'center',
@@ -231,33 +235,36 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     statCard: {
-        borderRadius: 18,
+        borderRadius: 16,
         gap: 4,
         minWidth: '47%',
         paddingHorizontal: 14,
         paddingVertical: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     statCardPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#1e1d26',
     },
     statCardAccent: {
-        backgroundColor: '#f3e3d1',
+        backgroundColor: 'rgba(212, 168, 83, 0.12)',
+        borderColor: 'rgba(212, 168, 83, 0.3)',
     },
     statCardNeutral: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#1e1d26',
     },
     statValue: {
         fontSize: 18,
         fontWeight: '800',
     },
     statValuePrimary: {
-        color: '#ffffff',
+        color: '#d4a853',
     },
     statValueAccent: {
-        color: '#7a4a2c',
+        color: '#d4a853',
     },
     statValueNeutral: {
-        color: '#14313a',
+        color: '#f0ece4',
     },
     statLabel: {
         fontSize: 12,
@@ -265,29 +272,29 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     statLabelPrimary: {
-        color: '#d6e3e6',
+        color: '#8e8a9e',
     },
     statLabelAccent: {
-        color: '#8b6a53',
+        color: '#d4a853',
     },
     statLabelNeutral: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
     },
     sectionCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e6ddd4',
-        borderRadius: 20,
+        backgroundColor: '#1e1d26',
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderRadius: 16,
         borderWidth: 1,
         gap: 10,
         padding: 16,
     },
     sectionTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 16,
         fontWeight: '800',
     },
     sectionBody: {
-        color: '#35515c',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 21,
     },
@@ -297,13 +304,15 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     badgePill: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     badgeText: {
-        color: '#35525b',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '700',
     },

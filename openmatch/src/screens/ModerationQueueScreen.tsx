@@ -93,7 +93,7 @@ export function ModerationQueueScreen({ onClose }: Props) {
 
                 {loading ? (
                     <View style={styles.centeredState}>
-                        <ActivityIndicator size="large" color="#d9643d" />
+                        <ActivityIndicator size="large" color="#d4a853" />
                         <Text style={styles.stateText}>Loading complaints...</Text>
                     </View>
                 ) : reports.length === 0 ? (
@@ -153,7 +153,7 @@ export function ModerationQueueScreen({ onClose }: Props) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#f7fafc',
+        backgroundColor: '#0a0a0c',
     },
     container: {
         flex: 1,
@@ -163,9 +163,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#111015',
         borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
     headerCopy: {
         flex: 1,
@@ -176,17 +176,17 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         textTransform: 'uppercase',
         letterSpacing: 1.5,
-        color: '#d9643d',
+        color: '#d4a853',
     },
     title: {
         fontSize: 20,
         fontWeight: '800',
-        color: '#123340',
+        color: '#f0ece4',
         marginTop: 2,
     },
     subtitle: {
         fontSize: 12,
-        color: '#7d8c90',
+        color: '#8e8a9e',
         marginTop: 4,
     },
     centeredState: {
@@ -201,12 +201,12 @@ const styles = StyleSheet.create({
     stateTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#123340',
+        color: '#f0ece4',
         marginTop: 16,
     },
     stateText: {
         fontSize: 14,
-        color: '#7d8c90',
+        color: '#8e8a9e',
         marginTop: 8,
         textAlign: 'center',
     },
@@ -215,16 +215,11 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     reportCard: {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#141318',
         borderRadius: 16,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        elevation: 1,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     cardHeader: {
         flexDirection: 'row',
@@ -233,29 +228,31 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     reasonBadge: {
-        backgroundColor: '#fed7d7',
-        color: '#c53030',
+        backgroundColor: 'rgba(212,168,83,0.15)',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '700',
         paddingVertical: 4,
         paddingHorizontal: 8,
         borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(212,168,83,0.3)',
     },
     dateText: {
         fontSize: 12,
-        color: '#a0aec0',
+        color: '#8e8a9e',
     },
     detailsText: {
         fontSize: 14,
-        color: '#4a5568',
+        color: '#f0ece4',
         lineHeight: 20,
         marginBottom: 12,
     },
     idsText: {
         fontSize: 11,
         fontFamily: 'monospace',
-        color: '#718096',
-        backgroundColor: '#f7fafc',
+        color: '#8e8a9e',
+        backgroundColor: '#1e1d26',
         padding: 6,
         borderRadius: 6,
         marginBottom: 16,
@@ -269,26 +266,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 10,
-        backgroundColor: '#edf2f7',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     dismissButtonText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#4a5568',
+        color: '#8e8a9e',
     },
     actionButton: {
         flex: 1.25,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 10,
-        backgroundColor: '#e53e3e',
+        backgroundColor: '#d4a853',
         borderRadius: 10,
     },
     actionButtonText: {
         fontSize: 14,
-        fontWeight: '700',
-        color: '#ffffff',
+        fontWeight: '800',
+        color: '#0a0a0c',
     },
     buttonDisabled: {
         opacity: 0.5,

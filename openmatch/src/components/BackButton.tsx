@@ -27,12 +27,12 @@ const styles = StyleSheet.create({
         width: 42,
     },
     buttonPressed: {
-        backgroundColor: 'rgba(20, 49, 58, 0.06)',
+        backgroundColor: 'rgba(212, 168, 83, 0.12)',
     },
     chevron: {
-        borderBottomColor: '#1a3a44',
+        borderBottomColor: '#d4a853',
         borderBottomWidth: 2.5,
-        borderLeftColor: '#1a3a44',
+        borderLeftColor: '#d4a853',
         borderLeftWidth: 2.5,
         height: 13,
         marginLeft: 4,

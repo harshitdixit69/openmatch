@@ -4,11 +4,11 @@ import {
     FlatList,
     Image,
     Pressable,
-    SafeAreaView,
     StyleSheet,
     Text,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchProfileViewers, ProfileViewer } from '../lib/profileViewsApi';
 
 function timeAgo(iso: string): string {
@@ -45,7 +45,7 @@ export default function PremiumWhoViewedMeScreen({ onBack }: { onBack: () => voi
     }, []);
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             {/* Header */}
             <View style={styles.header}>
                 <Pressable style={styles.backBtn} onPress={onBack}>
@@ -59,7 +59,7 @@ export default function PremiumWhoViewedMeScreen({ onBack }: { onBack: () => voi
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#d4a853" size="large" />
                 </View>
             ) : entries.length === 0 ? (
                 <View style={styles.center}>
@@ -72,6 +72,7 @@ export default function PremiumWhoViewedMeScreen({ onBack }: { onBack: () => voi
                     data={entries}
                     keyExtractor={(item) => item.viewedAt + item.viewerId}
                     contentContainerStyle={styles.list}
+                    style={{ flex: 1, backgroundColor: '#0a0a0c' }}
                     renderItem={({ item }) => (
                         <View style={styles.card}>
                             {item.photoUrls?.[0] ? (
@@ -94,32 +95,60 @@ export default function PremiumWhoViewedMeScreen({ onBack }: { onBack: () => voi
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
-
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: DARK_BG },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: BORDER, gap: 12 },
-    backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: CARD_BG, borderRadius: 18, borderWidth: 1, borderColor: BORDER },
-    backArrow: { fontSize: 26, color: GOLD, lineHeight: 28 },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: TEXT_PRIMARY },
-    headerSub: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 8 },
+    container: { flex: 1, backgroundColor: '#0a0a0c' },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: '#111015',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
+        gap: 12,
+    },
+    backBtn: {
+        width: 36,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#141318',
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    backArrow: { fontSize: 26, color: '#d4a853', lineHeight: 28 },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
+    headerSub: { fontSize: 12, color: '#8e8a9e', marginTop: 1 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 8, backgroundColor: '#0a0a0c' },
     emoji: { fontSize: 44, marginBottom: 4 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: TEXT_PRIMARY },
-    emptySub: { fontSize: 13, color: TEXT_MUTED, textAlign: 'center' },
+    emptyTitle: { fontSize: 18, fontWeight: '800', color: '#f0ece4' },
+    emptySub: { fontSize: 13, color: '#8e8a9e', textAlign: 'center' },
     list: { padding: 16, gap: 10 },
-    card: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: BORDER, gap: 12 },
-    avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: GOLD },
-    avatarPlaceholder: { width: 46, height: 46, borderRadius: 23, backgroundColor: BORDER, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: GOLD },
-    initial: { fontSize: 16, fontWeight: '700', color: GOLD },
+    card: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#141318',
+        borderRadius: 16,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        gap: 12,
+    },
+    avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: '#d4a853' },
+    avatarPlaceholder: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: '#1e1d26',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#d4a853',
+    },
+    initial: { fontSize: 18, fontWeight: '700', color: '#d4a853' },
     info: { flex: 1, gap: 2 },
-    name: { fontSize: 15, fontWeight: '700', color: TEXT_PRIMARY },
-    loc: { fontSize: 12, color: TEXT_SUB },
-    time: { fontSize: 11, color: TEXT_MUTED },
+    name: { fontSize: 15, fontWeight: '700', color: '#f0ece4' },
+    loc: { fontSize: 12, color: '#8e8a9e' },
+    time: { fontSize: 12, color: '#5a5770', fontWeight: '500' },
 });

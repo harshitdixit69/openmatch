@@ -132,7 +132,7 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#123340" />
+                    <ActivityIndicator size="large" color="#d4a853" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -153,7 +153,7 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={() => load(true)}
-                            tintColor="#123340"
+                            tintColor="#d4a853"
                         />
                     }
                     showsVerticalScrollIndicator={false}
@@ -189,17 +189,17 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#f4f4f6' },
+    root: { flex: 1, backgroundColor: '#0a0a0c' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#fff',
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e5e5e5',
+        backgroundColor: '#111015',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: '#111' },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: '#d4a853' },
     list: { paddingTop: 12 },
     inner: { maxWidth: MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
     center: {
@@ -211,28 +211,25 @@ const styles = StyleSheet.create({
         paddingHorizontal: 32,
     },
     stateEmoji: { fontSize: 44 },
-    stateTitle: { fontSize: 18, fontWeight: '700', color: '#222' },
-    stateBody: { fontSize: 14, color: '#777', textAlign: 'center' },
+    stateTitle: { fontSize: 18, fontWeight: '800', color: '#f0ece4' },
+    stateBody: { fontSize: 14, color: '#8e8a9e', textAlign: 'center' },
     stateBtn: {
         marginTop: 6,
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 10,
     },
-    stateBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+    stateBtnText: { color: '#0a0a0c', fontSize: 14, fontWeight: '800' },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: '#141318',
         borderRadius: 14,
-        padding: 12,
+        padding: 14,
         marginBottom: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     cardPressed: { opacity: 0.85 },
     cardPhoto: { marginRight: 12 },
@@ -241,13 +238,13 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#123340',
+        backgroundColor: '#1e1d26',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    cardImgInitial: { color: '#fff', fontSize: 22, fontWeight: '700' },
+    cardImgInitial: { color: '#d4a853', fontSize: 22, fontWeight: '800' },
     cardBody: { flex: 1 },
-    cardName: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 2 },
-    cardMeta: { fontSize: 13, color: '#777', marginBottom: 3 },
-    cardBio: { fontSize: 13, color: '#555', lineHeight: 18 },
+    cardName: { fontSize: 16, fontWeight: '800', color: '#f0ece4', marginBottom: 2 },
+    cardMeta: { fontSize: 13, color: '#d4a853', fontWeight: '600', marginBottom: 3 },
+    cardBio: { fontSize: 13, color: '#8e8a9e', lineHeight: 18 },
 });

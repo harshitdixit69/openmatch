@@ -194,7 +194,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
             {submitting && (
                 <View style={styles.spinnerOverlay}>
                     <View style={styles.spinnerCard}>
-                        <ActivityIndicator size="large" color="#e56a3a" style={{ marginBottom: 16 }} />
+                        <ActivityIndicator size="large" color="#d4a853" style={{ marginBottom: 16 }} />
                         
                         <Text style={styles.spinnerText}>AI Scanner Active</Text>
                         
@@ -219,7 +219,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
 const styles = StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#0a0a0c',
     },
     header: {
         height: 56,
@@ -227,13 +227,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
+        backgroundColor: '#111015',
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '600',
-        color: '#1F1F1F',
+        fontWeight: '800',
+        color: '#d4a853',
     },
     container: {
         padding: 20,
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     infoText: {
         fontSize: 14,
         lineHeight: 20,
-        color: '#666666',
+        color: '#8e8a9e',
         textAlign: 'center',
         marginBottom: 24,
     },
@@ -252,17 +253,17 @@ const styles = StyleSheet.create({
     },
     card: {
         height: 180,
-        borderRadius: 12,
-        backgroundColor: '#F7F8FA',
-        borderWidth: 2,
-        borderColor: '#EAEAEA',
+        borderRadius: 14,
+        backgroundColor: '#141318',
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.1)',
         borderStyle: 'dashed',
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
     },
     cardActive: {
-        borderColor: '#FF6F61',
+        borderColor: '#d4a853',
         borderStyle: 'solid',
     },
     placeholderContainer: {
@@ -275,13 +276,13 @@ const styles = StyleSheet.create({
     },
     placeholderTitle: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#333333',
+        fontWeight: '700',
+        color: '#f0ece4',
         marginBottom: 4,
     },
     placeholderSubtitle: {
         fontSize: 12,
-        color: '#999999',
+        color: '#8e8a9e',
     },
     previewContainer: {
         width: '100%',
@@ -294,14 +295,14 @@ const styles = StyleSheet.create({
     },
     cardOverlay: {
         ...StyleSheet.absoluteFill,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         justifyContent: 'center',
         alignItems: 'center',
     },
     cardOverlayText: {
-        color: '#FFFFFF',
+        color: '#d4a853',
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '700',
     },
     actionContainer: {
         gap: 12,
@@ -309,54 +310,51 @@ const styles = StyleSheet.create({
     submitButton: {
         height: 50,
         borderRadius: 25,
-        backgroundColor: '#FF6F61',
+        backgroundColor: '#d4a853',
         justifyContent: 'center',
         alignItems: 'center',
     },
     submitButtonDisabled: {
-        backgroundColor: '#FFA39E',
+        backgroundColor: 'rgba(212,168,83,0.3)',
     },
     submitButtonText: {
-        color: '#FFFFFF',
+        color: '#0a0a0c',
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '800',
     },
     cancelButton: {
         height: 50,
         borderRadius: 25,
         borderWidth: 1,
-        borderColor: '#D9D9D9',
+        borderColor: 'rgba(255,255,255,0.08)',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.04)',
     },
     cancelButtonText: {
-        color: '#666666',
+        color: '#8e8a9e',
         fontSize: 16,
         fontWeight: '600',
     },
     spinnerOverlay: {
         ...StyleSheet.absoluteFill,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 9999,
     },
     spinnerCard: {
         padding: 24,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
+        backgroundColor: '#141318',
+        borderRadius: 16,
         alignItems: 'center',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     spinnerText: {
         fontSize: 18,
-        fontWeight: '700',
-        color: '#11313c',
+        fontWeight: '800',
+        color: '#d4a853',
         marginBottom: 16,
     },
     scanStepList: {
@@ -366,11 +364,11 @@ const styles = StyleSheet.create({
     },
     scanStep: {
         fontSize: 14,
-        color: '#8b9da5',
+        color: '#8e8a9e',
         fontWeight: '500',
     },
     scanStepActive: {
-        color: '#e56a3a',
-        fontWeight: '700',
+        color: '#d4a853',
+        fontWeight: '800',
     },
 });

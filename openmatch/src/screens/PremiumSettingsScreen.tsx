@@ -3,13 +3,13 @@ import {
     ActivityIndicator,
     Alert,
     Pressable,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Switch,
     Text,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { updateUserPresence } from '../lib/chatApi';
 import { showFriendlyAlert } from '../lib/errorUtils';
@@ -39,7 +39,7 @@ export default function PremiumSettingsScreen({
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             {/* Header */}
             <View style={styles.header}>
                 <Pressable style={styles.backBtn} onPress={onBack}>
@@ -51,7 +51,11 @@ export default function PremiumSettingsScreen({
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={{ flex: 1, backgroundColor: '#0a0a0c' }}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
                 {/* Notifications */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Push Notifications</Text>
@@ -61,7 +65,12 @@ export default function PremiumSettingsScreen({
                             <Text style={styles.rowTitle}>New Messages</Text>
                             <Text style={styles.rowSub}>Notify when a match sends a message</Text>
                         </View>
-                        <Switch value={notifMessages} onValueChange={setNotifMessages} trackColor={{ false: BORDER, true: GOLD }} thumbColor="#fff" />
+                        <Switch
+                            value={notifMessages}
+                            onValueChange={setNotifMessages}
+                            trackColor={{ false: '#26252f', true: '#d4a853' }}
+                            thumbColor={notifMessages ? '#0a0a0c' : '#8e8a9e'}
+                        />
                     </View>
 
                     <View style={styles.row}>
@@ -69,18 +78,29 @@ export default function PremiumSettingsScreen({
                             <Text style={styles.rowTitle}>New Curated Matches</Text>
                             <Text style={styles.rowSub}>Notify when your RM adds a new pitch</Text>
                         </View>
-                        <Switch value={notifMatches} onValueChange={setNotifMatches} trackColor={{ false: BORDER, true: GOLD }} thumbColor="#fff" />
+                        <Switch
+                            value={notifMatches}
+                            onValueChange={setNotifMatches}
+                            trackColor={{ false: '#26252f', true: '#d4a853' }}
+                            thumbColor={notifMatches ? '#0a0a0c' : '#8e8a9e'}
+                        />
                     </View>
                 </View>
 
                 {/* Privacy & Safety */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Privacy & Safety</Text>
-                    <Pressable style={styles.itemRow} onPress={() => Alert.alert('Privacy Policy', 'OpenMatch enforces strict end-to-end escrow contact masking until mutual unlock.')}>
+                    <Pressable
+                        style={styles.itemRow}
+                        onPress={() => Alert.alert('Privacy Policy', 'OpenMatch enforces strict end-to-end escrow contact masking until mutual unlock.')}
+                    >
                         <Text style={styles.itemTitle}>Privacy Policy & Escrow Terms</Text>
                         <Text style={styles.arrow}>›</Text>
                     </Pressable>
-                    <Pressable style={styles.itemRow} onPress={() => Alert.alert('Help & Support', 'Reach out to your dedicated Relationship Manager or email premium-support@openmatch.co.')}>
+                    <Pressable
+                        style={styles.itemRow}
+                        onPress={() => Alert.alert('Help & Support', 'Reach out to your dedicated Relationship Manager or email premium-support@openmatch.co.')}
+                    >
                         <Text style={styles.itemTitle}>Dedicated RM Support</Text>
                         <Text style={styles.arrow}>›</Text>
                     </Pressable>
@@ -91,7 +111,7 @@ export default function PremiumSettingsScreen({
                     <Text style={styles.sectionTitle}>Account Actions</Text>
                     <Pressable style={styles.signOutBtn} onPress={handleSignOut} disabled={signingOut}>
                         {signingOut ? (
-                            <ActivityIndicator color={DARK_BG} size="small" />
+                            <ActivityIndicator color="#0a0a0c" size="small" />
                         ) : (
                             <Text style={styles.signOutBtnText}>Sign Out</Text>
                         )}
@@ -102,30 +122,54 @@ export default function PremiumSettingsScreen({
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
-
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: DARK_BG },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: BORDER, gap: 12 },
-    backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: CARD_BG, borderRadius: 18, borderWidth: 1, borderColor: BORDER },
-    backArrow: { fontSize: 26, color: GOLD, lineHeight: 28 },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: TEXT_PRIMARY },
-    headerSub: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
+    container: { flex: 1, backgroundColor: '#0a0a0c' },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: '#111015',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
+        gap: 12,
+    },
+    backBtn: {
+        width: 36,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#141318',
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    backArrow: { fontSize: 26, color: '#d4a853', lineHeight: 28 },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
+    headerSub: { fontSize: 12, color: '#8e8a9e', marginTop: 1 },
     content: { padding: 16, gap: 16 },
-    section: { backgroundColor: CARD_BG, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: BORDER, gap: 12 },
-    sectionTitle: { fontSize: 15, fontWeight: '800', color: GOLD, marginBottom: 4 },
+    section: {
+        backgroundColor: '#141318',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        gap: 12,
+    },
+    sectionTitle: { fontSize: 13, fontWeight: '800', color: '#d4a853', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
     row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-    rowTitle: { fontSize: 14, fontWeight: '700', color: TEXT_PRIMARY },
-    rowSub: { fontSize: 12, color: TEXT_SUB, marginTop: 2 },
-    itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#201c33' },
-    itemTitle: { fontSize: 14, fontWeight: '600', color: TEXT_PRIMARY },
-    arrow: { fontSize: 20, color: GOLD },
-    signOutBtn: { backgroundColor: GOLD, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-    signOutBtnText: { fontSize: 15, fontWeight: '800', color: DARK_BG },
+    rowTitle: { fontSize: 14, fontWeight: '700', color: '#f0ece4' },
+    rowSub: { fontSize: 12, color: '#8e8a9e', marginTop: 2 },
+    itemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.06)',
+    },
+    itemTitle: { fontSize: 14, fontWeight: '600', color: '#f0ece4' },
+    arrow: { fontSize: 20, color: '#d4a853' },
+    signOutBtn: { backgroundColor: '#d4a853', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+    signOutBtnText: { fontSize: 15, fontWeight: '800', color: '#0a0a0c' },
 });

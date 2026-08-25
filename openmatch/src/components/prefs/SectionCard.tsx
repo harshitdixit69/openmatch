@@ -18,22 +18,19 @@ export function SectionCard({ title, children }: Props) {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: '#fff',
-        borderRadius: 14,
-        padding: 16,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        backgroundColor: '#141318',
+        borderRadius: 16,
+        padding: 18,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     title: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#666',
+        fontSize: 12,
+        fontWeight: '800',
+        color: '#d4a853',
         textTransform: 'uppercase',
-        letterSpacing: 0.6,
-        marginBottom: 12,
+        letterSpacing: 0.8,
+        marginBottom: 14,
     },
 });

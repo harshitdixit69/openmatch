@@ -11,7 +11,7 @@ import {
     View,
 } from 'react-native';
 import { MatchCandidate } from '../lib/matchmaking';
-import { fetchMatchFeed } from '../lib/matchmakingApi';
+import { fetchSemanticMatches } from '../lib/matchmakingApi';
 
 export default function PremiumSearchScreen({
     onBack,
@@ -28,7 +28,7 @@ export default function PremiumSearchScreen({
         let mounted = true;
         async function load() {
             try {
-                const res = await fetchMatchFeed(30);
+                const res = await fetchSemanticMatches(30);
                 if (mounted) setAllCandidates(res.candidates);
             } catch (e) {
                 console.error('Search error:', e);

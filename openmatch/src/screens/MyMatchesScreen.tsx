@@ -57,10 +57,10 @@ function timeAgo(iso: string): string {
 }
 
 function statusLabel(m: ChatMatch): { text: string; color: string } {
-    if (m.isUnlocked) return { text: 'Contacts shared', color: '#1a7a5e' };
-    if (m.status === 'connected') return { text: 'Connected', color: '#123340' };
-    if (m.status === 'pending') return { text: 'Pending', color: '#b07d2e' };
-    return { text: m.status, color: '#666' };
+    if (m.isUnlocked) return { text: 'Contacts shared', color: '#d4a853' };
+    if (m.status === 'connected') return { text: 'Connected', color: '#d4a853' };
+    if (m.status === 'pending') return { text: 'Pending', color: '#e5a93b' };
+    return { text: m.status, color: '#8e8a9e' };
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ function MatchCard({
             </View>
 
             <View style={styles.cardRight}>
-                <View style={[styles.statusPill, { borderColor: statusColor }]}>
+                <View style={[styles.statusPill, { borderColor: statusColor, backgroundColor: 'rgba(212,168,83,0.08)' }]}>
                     <Text style={[styles.statusPillText, { color: statusColor }]}>{statusText}</Text>
                 </View>
                 {match.unreadCount > 0 && (
@@ -207,7 +207,7 @@ export function MyMatchesScreen({ onBack, onOpenChat }: Props) {
             {/* Body */}
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#123340" size="large" />
+                    <ActivityIndicator color="#d4a853" size="large" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -224,7 +224,7 @@ export function MyMatchesScreen({ onBack, onOpenChat }: Props) {
                         { paddingBottom: insets.bottom + 16 },
                     ]}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#123340" />
+                        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#d4a853" />
                     }
                     showsVerticalScrollIndicator={false}
                 >
@@ -256,35 +256,37 @@ export function MyMatchesScreen({ onBack, onOpenChat }: Props) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f5f4f0' },
+    safe: { flex: 1, backgroundColor: '#0a0a0c' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: '#111015',
         borderBottomWidth: 1,
-        borderBottomColor: '#e8e5df',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
 
-    filterRow: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e8e5df' },
+    filterRow: { backgroundColor: '#111015', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
     filterContent: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
     filterChip: {
         paddingHorizontal: 14,
         paddingVertical: 6,
         borderRadius: 20,
-        backgroundColor: '#f0ede6',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
-    filterChipActive: { backgroundColor: '#123340' },
-    filterChipText: { fontSize: 13, color: '#555', fontWeight: '500' },
-    filterChipTextActive: { color: '#fff', fontWeight: '700' },
+    filterChipActive: { backgroundColor: '#d4a853', borderColor: '#d4a853' },
+    filterChipText: { fontSize: 13, color: '#8e8a9e', fontWeight: '500' },
+    filterChipTextActive: { color: '#0a0a0c', fontWeight: '800' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    errorText: { fontSize: 14, color: '#c0392b', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#123340', borderRadius: 8 },
-    retryBtnText: { color: '#fff', fontWeight: '600' },
+    errorText: { fontSize: 14, color: '#f87171', textAlign: 'center', paddingHorizontal: 24 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#d4a853', borderRadius: 8 },
+    retryBtnText: { color: '#0a0a0c', fontWeight: '800' },
 
     list: { flex: 1 },
     listContent: {
@@ -298,18 +300,18 @@ const styles = StyleSheet.create({
 
     empty: { alignItems: 'center', paddingTop: 64, gap: 8 },
     emptyIcon: { fontSize: 40 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
-    emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
+    emptyTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
+    emptySubtitle: { fontSize: 14, color: '#8e8a9e', textAlign: 'center', paddingHorizontal: 32 },
 
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 12,
+        backgroundColor: '#141318',
+        borderRadius: 14,
+        padding: 14,
         gap: 12,
         borderWidth: 1,
-        borderColor: '#e8e5df',
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     cardPressed: { opacity: 0.85 },
     cardPhoto: { position: 'relative' },
@@ -318,11 +320,11 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#d4cfc6',
+        backgroundColor: '#1e1d26',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    cardImgInitial: { fontSize: 22, fontWeight: '700', color: '#123340' },
+    cardImgInitial: { fontSize: 22, fontWeight: '800', color: '#d4a853' },
     unlockedBadge: {
         position: 'absolute',
         bottom: 0,
@@ -330,19 +332,19 @@ const styles = StyleSheet.create({
         width: 18,
         height: 18,
         borderRadius: 9,
-        backgroundColor: '#1a7a5e',
+        backgroundColor: '#d4a853',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    unlockedBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+    unlockedBadgeText: { color: '#0a0a0c', fontSize: 10, fontWeight: '800' },
 
     cardBody: { flex: 1, gap: 2, minWidth: 0 },
     cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between' },
-    cardName: { fontSize: 15, fontWeight: '700', color: '#123340', flex: 1 },
-    cardTime: { fontSize: 11, color: '#999', marginLeft: 8 },
-    cardLocation: { fontSize: 12, color: '#666' },
-    cardBio: { fontSize: 12, color: '#888', marginTop: 2 },
-    cardFacts: { color: '#666', fontSize: 12, fontWeight: '600', lineHeight: 18, marginTop: 2 },
+    cardName: { fontSize: 15, fontWeight: '800', color: '#f0ece4', flex: 1 },
+    cardTime: { fontSize: 11, color: '#8e8a9e', marginLeft: 8 },
+    cardLocation: { fontSize: 12, color: '#8e8a9e' },
+    cardBio: { fontSize: 12, color: '#8e8a9e', marginTop: 2 },
+    cardFacts: { color: '#d4a853', fontSize: 12, fontWeight: '600', lineHeight: 18, marginTop: 2 },
 
     cardRight: { alignItems: 'flex-end', flexShrink: 1, gap: 6 },
     statusPill: {
@@ -351,15 +353,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 3,
     },
-    statusPillText: { fontSize: 11, fontWeight: '600' },
+    statusPillText: { fontSize: 11, fontWeight: '700' },
     unreadBadge: {
         minWidth: 20,
         height: 20,
         borderRadius: 10,
-        backgroundColor: '#e53935',
+        backgroundColor: '#d4a853',
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 4,
     },
-    unreadBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+    unreadBadgeText: { color: '#0a0a0c', fontSize: 11, fontWeight: '800' },
 });

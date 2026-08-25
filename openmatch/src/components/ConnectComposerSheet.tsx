@@ -191,8 +191,8 @@ export function ConnectComposerSheet({
 
                     {loadingReasons ? (
                         <View style={styles.loadingState}>
-                            <ActivityIndicator size="large" color="#123340" />
-                            <Text style={styles.loadingText}>Generating request reasons...</Text>
+                            <ActivityIndicator size="large" color="#d4a853" />
+                            <Text style={styles.loadingText}>Generating request suggestions...</Text>
                         </View>
                     ) : reasonsResult ? (
                         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -238,25 +238,34 @@ export function ConnectComposerSheet({
                             ) : null}
 
                             <View style={styles.sectionCard}>
-                                <Text style={styles.sectionTitle}>Pick a message to send</Text>
+                                <Text style={styles.sectionTitle}>Why do you want to connect?</Text>
                                 <Text style={styles.sectionHint}>
-                                    Tap one to use it, then edit it below in your own words.
+                                    Pick the reason that best describes what caught your attention.
                                 </Text>
+
                                 {reasonsResult.reasons.map((reason) => {
                                     const selected = reason.id === selectedReasonId;
 
                                     return (
                                         <Pressable
                                             key={reason.id}
-                                            style={[styles.reasonCard, selected ? styles.reasonCardSelected : null]}
-                                            onPress={() => handleSelectReason(reason.id)}
-                                            accessibilityRole="button"
-                                            accessibilityState={{ selected }}
+                                            style={[styles.reasonCard, selected && styles.reasonCardSelected]}
+                                            onPress={() => {
+                                                setSelectedReasonId(reason.id);
+                                                setDraftMessage(reason.text);
+                                            }}
                                         >
                                             <View style={styles.reasonHeaderRow}>
-                                                {/* The numeric score was an internal confidence value that
-                                                    read as a grade on the user's message. */}
+                                                <Text style={styles.reasonScore}>✦</Text>
                                                 <Text style={styles.reasonCopy}>{reason.text}</Text>
+                                            </View>
+
+                                            <View style={styles.tagRow}>
+                                                {reason.tags.map((tag) => (
+                                                    <View key={tag} style={styles.tagPill}>
+                                                        <Text style={styles.tagText}>{tag}</Text>
+                                                    </View>
+                                                ))}
                                             </View>
                                         </Pressable>
                                     );
@@ -264,42 +273,38 @@ export function ConnectComposerSheet({
                             </View>
 
                             <View style={styles.sectionCard}>
-                                <Text style={styles.sectionTitle}>Message that will be sent</Text>
+                                <Text style={styles.sectionTitle}>Personalise your note</Text>
                                 <TextInput
                                     multiline
                                     style={styles.messageInput}
-                                    placeholder="Write a short personalized reason"
-                                    placeholderTextColor="#7a8f96"
                                     value={draftMessage}
                                     onChangeText={setDraftMessage}
+                                    placeholder="Add a polite personal note..."
+                                    placeholderTextColor="#5a5770"
                                     textAlignVertical="top"
-                                    maxLength={280}
                                 />
-
                                 <Text style={styles.helperText}>
-                                    {selectedReason ? 'You can edit the selected suggestion before sending.' : 'Pick a reason above, then edit it if needed.'}
+                                    Keep it friendly and respectful. Matches respond best to genuine shared interests.
                                 </Text>
                             </View>
+
+                            <View style={styles.footerRow}>
+                                <Pressable style={styles.cancelButton} onPress={onClose} disabled={submitPending}>
+                                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                                </Pressable>
+
+                                <Pressable
+                                    style={[styles.submitButton, submitDisabled && styles.submitButtonDisabled]}
+                                    disabled={submitDisabled}
+                                    onPress={handleSubmit}
+                                >
+                                    <Text style={styles.submitButtonText}>
+                                        {submitPending ? 'Sending…' : 'Send Request'}
+                                    </Text>
+                                </Pressable>
+                            </View>
                         </ScrollView>
-                    ) : (
-                        <View style={styles.loadingState}>
-                            <Text style={styles.loadingText}>No request suggestions are available yet.</Text>
-                        </View>
-                    )}
-
-                    <View style={styles.footerRow}>
-                        <Pressable style={styles.cancelButton} onPress={onClose} disabled={submitPending}>
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </Pressable>
-
-                        <Pressable
-                            style={[styles.submitButton, submitDisabled ? styles.submitButtonDisabled : null]}
-                            onPress={() => void handleSubmit()}
-                            disabled={submitDisabled}
-                        >
-                            <Text style={styles.submitButtonText}>{submitPending ? 'Sending...' : 'Send request'}</Text>
-                        </Pressable>
-                    </View>
+                    ) : null}
 
                     <VoiceIntroRecorder
                         visible={voiceRecorderVisible}
@@ -320,7 +325,13 @@ function clampNumber(value: number, minimum: number, maximum: number) {
     return Math.max(minimum, Math.min(maximum, Math.round(value)));
 }
 
-function StatPill({ label, tone }: { label: string; tone: 'primary' | 'neutral' | 'accent' | 'warning' }) {
+function StatPill({
+    label,
+    tone = 'neutral',
+}: {
+    label: string;
+    tone?: 'primary' | 'neutral' | 'accent' | 'warning';
+}) {
     return (
         <View
             style={[
@@ -355,7 +366,7 @@ function StatPill({ label, tone }: { label: string; tone: 'primary' | 'neutral' 
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#f4efe5',
+        backgroundColor: '#0a0a0c',
     },
     container: {
         flex: 1,
@@ -374,19 +385,19 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     eyebrow: {
-        color: '#8a6b39',
+        color: '#d4a853',
         fontSize: 12,
-        fontWeight: '700',
+        fontWeight: '800',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
     title: {
-        color: '#123340',
+        color: '#f0ece4',
         fontSize: 24,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#4d6268',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 20,
     },
@@ -398,7 +409,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     loadingText: {
-        color: '#4d6268',
+        color: '#8e8a9e',
         fontSize: 15,
         textAlign: 'center',
     },
@@ -417,48 +428,49 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     statPillPrimary: {
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
     },
     statPillNeutral: {
-        backgroundColor: '#dbe6e8',
+        backgroundColor: '#1e1d26',
     },
     statPillAccent: {
-        backgroundColor: '#f4dcc1',
+        backgroundColor: 'rgba(212,168,83,0.15)',
     },
     statPillWarning: {
-        backgroundColor: '#f7d7ca',
+        backgroundColor: 'rgba(239,68,68,0.15)',
     },
     statPillText: {
         fontSize: 13,
         fontWeight: '700',
     },
     statPillTextPrimary: {
-        color: '#ffffff',
+        color: '#0a0a0c',
+        fontWeight: '800',
     },
     statPillTextNeutral: {
-        color: '#31515b',
+        color: '#8e8a9e',
     },
     statPillTextAccent: {
-        color: '#7a5622',
+        color: '#d4a853',
     },
     statPillTextWarning: {
-        color: '#8e3b22',
+        color: '#ef4444',
     },
     noticeCard: {
         borderRadius: 20,
-        backgroundColor: '#fff7f0',
+        backgroundColor: '#141318',
         borderWidth: 1,
-        borderColor: '#edd3b2',
+        borderColor: 'rgba(212,168,83,0.3)',
         padding: 16,
         gap: 6,
     },
     noticeTitle: {
-        color: '#123340',
+        color: '#d4a853',
         fontSize: 15,
         fontWeight: '800',
     },
     noticeBody: {
-        color: '#5b696d',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 20,
     },
@@ -468,49 +480,51 @@ const styles = StyleSheet.create({
     },
     voiceIntroButton: {
         alignSelf: 'flex-start',
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 9,
     },
     voiceIntroButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 12,
         fontWeight: '800',
     },
     voiceIntroStatusText: {
-        color: '#31515b',
+        color: '#d4a853',
         fontSize: 13,
         fontWeight: '700',
     },
     sectionCard: {
-        borderRadius: 24,
-        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        backgroundColor: '#141318',
         padding: 18,
         gap: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     sectionTitle: {
-        color: '#123340',
+        color: '#f0ece4',
         fontSize: 17,
         fontWeight: '800',
     },
     sectionHint: {
-        color: '#6b828a',
+        color: '#8e8a9e',
         fontSize: 13,
         lineHeight: 19,
         marginTop: -4,
     },
     reasonCard: {
-        borderRadius: 18,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#dbe4e6',
-        backgroundColor: '#f9fbfb',
+        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: '#1e1d26',
         padding: 14,
         gap: 10,
     },
     reasonCardSelected: {
-        borderColor: '#123340',
-        backgroundColor: '#eef4f5',
+        borderColor: '#d4a853',
+        backgroundColor: 'rgba(212,168,83,0.1)',
     },
     reasonHeaderRow: {
         flexDirection: 'row',
@@ -518,14 +532,14 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     reasonScore: {
-        minWidth: 36,
-        color: '#8a6b39',
+        minWidth: 24,
+        color: '#d4a853',
         fontSize: 16,
         fontWeight: '800',
     },
     reasonCopy: {
         flex: 1,
-        color: '#23434d',
+        color: '#f0ece4',
         fontSize: 14,
         lineHeight: 20,
     },
@@ -536,30 +550,30 @@ const styles = StyleSheet.create({
     },
     tagPill: {
         borderRadius: 999,
-        backgroundColor: '#e8eeef',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         paddingHorizontal: 10,
         paddingVertical: 6,
     },
     tagText: {
-        color: '#4b646b',
+        color: '#8e8a9e',
         fontSize: 12,
         fontWeight: '600',
         textTransform: 'capitalize',
     },
     messageInput: {
         minHeight: 130,
-        borderRadius: 18,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#d6e0e2',
-        backgroundColor: '#fbfdfd',
-        color: '#123340',
+        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: '#1e1d26',
+        color: '#f0ece4',
         fontSize: 15,
         lineHeight: 22,
         paddingHorizontal: 14,
         paddingVertical: 14,
     },
     helperText: {
-        color: '#66797f',
+        color: '#5a5770',
         fontSize: 13,
         lineHeight: 18,
     },
@@ -572,11 +586,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 18,
-        backgroundColor: '#e1e8ea',
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         paddingVertical: 15,
     },
     cancelButtonText: {
-        color: '#35545d',
+        color: '#8e8a9e',
         fontSize: 15,
         fontWeight: '700',
     },
@@ -585,14 +601,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 18,
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         paddingVertical: 15,
     },
     submitButtonDisabled: {
-        backgroundColor: '#90a4ab',
+        backgroundColor: 'rgba(212,168,83,0.3)',
     },
     submitButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 15,
         fontWeight: '800',
     },

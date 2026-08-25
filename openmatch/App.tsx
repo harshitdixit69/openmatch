@@ -105,7 +105,7 @@ export default function App() {
         <ThemeProvider>
           <ErrorBoundary>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#11313c" />
+              <ActivityIndicator size="large" color="#d4a853" />
               <StatusBar style="auto" />
             </View>
           </ErrorBoundary>
@@ -129,7 +129,7 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#eff6f8',
+    backgroundColor: '#0a0a0c',
     alignItems: 'center',
     justifyContent: 'center',
   },

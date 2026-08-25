@@ -45,16 +45,16 @@ function timeAgo(iso: string): string {
 type IconDef = { emoji: string; bg: string };
 
 const TYPE_ICON: Record<NotificationType, IconDef> = {
-    new_match: { emoji: '💑', bg: '#e8f5e9' },
-    request_received: { emoji: '📩', bg: '#fff3e0' },
-    request_accepted: { emoji: '✅', bg: '#e8f5e9' },
-    request_declined: { emoji: '❌', bg: '#fce4ec' },
-    request_ghosted: { emoji: '👻', bg: '#f3e5f5' },
-    message_received: { emoji: '💬', bg: '#e3f2fd' },
-    contact_unlocked: { emoji: '🔓', bg: '#e8f5e9' },
-    profile_viewed: { emoji: '👁', bg: '#f0f4ff' },
-    reliability_badge: { emoji: '🏅', bg: '#fff8e1' },
-    system: { emoji: '🔔', bg: '#f5f4f0' },
+    new_match: { emoji: '💑', bg: 'rgba(212,168,83,0.15)' },
+    request_received: { emoji: '📩', bg: 'rgba(212,168,83,0.15)' },
+    request_accepted: { emoji: '✅', bg: 'rgba(52,199,89,0.15)' },
+    request_declined: { emoji: '❌', bg: 'rgba(239,68,68,0.15)' },
+    request_ghosted: { emoji: '👻', bg: 'rgba(168,85,247,0.15)' },
+    message_received: { emoji: '💬', bg: 'rgba(212,168,83,0.15)' },
+    contact_unlocked: { emoji: '🔓', bg: 'rgba(212,168,83,0.2)' },
+    profile_viewed: { emoji: '👁', bg: 'rgba(212,168,83,0.15)' },
+    reliability_badge: { emoji: '🏅', bg: 'rgba(212,168,83,0.2)' },
+    system: { emoji: '🔔', bg: 'rgba(255,255,255,0.06)' },
 };
 
 // ---------------------------------------------------------------------------
@@ -186,7 +186,7 @@ export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#123340" size="large" />
+                    <ActivityIndicator color="#d4a853" size="large" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -206,7 +206,7 @@ export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={() => load(true)}
-                            tintColor="#123340"
+                            tintColor="#d4a853"
                         />
                     }
                     showsVerticalScrollIndicator={false}
@@ -235,27 +235,27 @@ export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f5f4f0' },
+    safe: { flex: 1, backgroundColor: '#0a0a0c' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: '#111015',
         borderBottomWidth: 1,
-        borderBottomColor: '#e8e5df',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
     headerCenter: { flex: 1, alignItems: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
-    headerUnread: { fontSize: 12, color: '#888', marginTop: 2 },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
+    headerUnread: { fontSize: 12, color: '#8e8a9e', marginTop: 2 },
     markAllBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-    markAllText: { fontSize: 12, color: '#123340', fontWeight: '600' },
+    markAllText: { fontSize: 12, color: '#d4a853', fontWeight: '700' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    errorText: { fontSize: 14, color: '#c0392b', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#123340', borderRadius: 8 },
-    retryBtnText: { color: '#fff', fontWeight: '600' },
+    errorText: { fontSize: 14, color: '#f87171', textAlign: 'center', paddingHorizontal: 24 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#d4a853', borderRadius: 8 },
+    retryBtnText: { color: '#0a0a0c', fontWeight: '800' },
 
     list: { flex: 1 },
     listContent: {
@@ -267,8 +267,8 @@ const styles = StyleSheet.create({
 
     empty: { alignItems: 'center', paddingTop: 64, gap: 8 },
     emptyIcon: { fontSize: 40 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
-    emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
+    emptyTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
+    emptySubtitle: { fontSize: 14, color: '#8e8a9e', textAlign: 'center', paddingHorizontal: 32 },
 
     row: {
         flexDirection: 'row',
@@ -277,10 +277,10 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         gap: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#eeebe4',
-        backgroundColor: '#fff',
+        borderBottomColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: '#0a0a0c',
     },
-    rowUnread: { backgroundColor: '#f0f4ff' },
+    rowUnread: { backgroundColor: '#141318' },
     rowPressed: { opacity: 0.82 },
 
     iconWrap: {
@@ -295,16 +295,16 @@ const styles = StyleSheet.create({
 
     rowBody: { flex: 1, gap: 3 },
     rowHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-    rowTitle: { fontSize: 14, color: '#333', flex: 1 },
-    rowTitleBold: { fontWeight: '700', color: '#123340' },
-    rowTime: { fontSize: 11, color: '#999', flexShrink: 0 },
-    rowBody2: { fontSize: 13, color: '#666', lineHeight: 18 },
+    rowTitle: { fontSize: 14, color: '#8e8a9e', flex: 1 },
+    rowTitleBold: { fontWeight: '800', color: '#f0ece4' },
+    rowTime: { fontSize: 11, color: '#8e8a9e', flexShrink: 0 },
+    rowBody2: { fontSize: 13, color: '#8e8a9e', lineHeight: 18 },
 
     unreadDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#123340',
+        backgroundColor: '#d4a853',
         marginTop: 6,
         flexShrink: 0,
     },

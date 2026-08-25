@@ -1,8 +1,8 @@
 import {
   fetchCurrentProfile,
   upsertCurrentProfile,
-  fetchProfileContactDetails,
-  upsertProfileContactDetails,
+  fetchCurrentProfileContactDetails,
+  upsertCurrentProfileContactDetails,
   activateSpotlight,
 } from './profileApi';
 import { supabase } from './supabase';
@@ -96,7 +96,7 @@ describe('profileApi unit tests', () => {
         error: null,
       });
 
-      await expect(upsertCurrentProfile({ full_name: 'New Name' })).rejects.toThrow('You must be signed in to save a profile.');
+      await expect(upsertCurrentProfile({ full_name: 'New Name' } as any)).rejects.toThrow('You must be signed in to save a profile.');
     });
 
     it('should update and upsert profile data', async () => {
@@ -112,7 +112,7 @@ describe('profileApi unit tests', () => {
       const mockQuery = makeChainableMock({ id: 'user-123', full_name: 'Updated Name' });
       (supabase.from as jest.Mock).mockReturnValue(mockQuery);
 
-      const result = await upsertCurrentProfile({ full_name: 'Updated Name' });
+      const result = await upsertCurrentProfile({ full_name: 'Updated Name' } as any);
 
       expect(supabase.from).toHaveBeenCalledWith('profiles');
       expect(result.full_name).toBe('Updated Name');

@@ -3,13 +3,13 @@ import {
     ActivityIndicator,
     Alert,
     Pressable,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchPartnerPreferences, upsertPartnerPreferences } from '../lib/partnerPreferencesApi';
 import { showFriendlyAlert } from '../lib/errorUtils';
 
@@ -58,9 +58,9 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                 pref_age_max: maxAge.trim() ? parseInt(maxAge.trim(), 10) : null,
                 pref_height_min: minHeight.trim() ? parseInt(minHeight.trim(), 10) : null,
                 pref_height_max: maxHeight.trim() ? parseInt(maxHeight.trim(), 10) : null,
-                pref_religion: religion.trim() || null,
-                pref_education: education.trim() || null,
-                pref_diet: diet.trim() || null,
+                pref_religion: (religion.trim() || null) as any,
+                pref_education: (education.trim() || null) as any,
+                pref_diet: (diet.trim() || null) as any,
                 pref_marital_status: [],
                 pref_income_band: null,
                 pref_mother_tongue: null,
@@ -76,7 +76,7 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             {/* Header */}
             <View style={styles.header}>
                 <Pressable style={styles.backBtn} onPress={onBack}>
@@ -92,7 +92,7 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                     disabled={saving}
                 >
                     {saving ? (
-                        <ActivityIndicator size="small" color="#0d0c0f" />
+                        <ActivityIndicator size="small" color="#0a0a0c" />
                     ) : (
                         <Text style={styles.saveBtnText}>Save</Text>
                     )}
@@ -101,21 +101,39 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#d4a853" size="large" />
                 </View>
             ) : (
-                <ScrollView contentContainerStyle={styles.formContent} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    style={{ flex: 1, backgroundColor: '#0a0a0c' }}
+                    contentContainerStyle={styles.formContent}
+                    showsVerticalScrollIndicator={false}
+                >
                     {/* Age Range */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Age Range</Text>
                         <View style={styles.rowInputs}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Min Age</Text>
-                                <TextInput style={styles.input} value={minAge} onChangeText={setMinAge} keyboardType="numeric" placeholder="21" placeholderTextColor="#5a5570" />
+                                <TextInput
+                                    style={styles.input}
+                                    value={minAge}
+                                    onChangeText={setMinAge}
+                                    keyboardType="numeric"
+                                    placeholder="21"
+                                    placeholderTextColor="#5a5770"
+                                />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Max Age</Text>
-                                <TextInput style={styles.input} value={maxAge} onChangeText={setMaxAge} keyboardType="numeric" placeholder="35" placeholderTextColor="#5a5570" />
+                                <TextInput
+                                    style={styles.input}
+                                    value={maxAge}
+                                    onChangeText={setMaxAge}
+                                    keyboardType="numeric"
+                                    placeholder="35"
+                                    placeholderTextColor="#5a5770"
+                                />
                             </View>
                         </View>
                     </View>
@@ -126,11 +144,25 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                         <View style={styles.rowInputs}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Min Height</Text>
-                                <TextInput style={styles.input} value={minHeight} onChangeText={setMinHeight} keyboardType="numeric" placeholder="155" placeholderTextColor="#5a5570" />
+                                <TextInput
+                                    style={styles.input}
+                                    value={minHeight}
+                                    onChangeText={setMinHeight}
+                                    keyboardType="numeric"
+                                    placeholder="155"
+                                    placeholderTextColor="#5a5770"
+                                />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Max Height</Text>
-                                <TextInput style={styles.input} value={maxHeight} onChangeText={setMaxHeight} keyboardType="numeric" placeholder="190" placeholderTextColor="#5a5570" />
+                                <TextInput
+                                    style={styles.input}
+                                    value={maxHeight}
+                                    onChangeText={setMaxHeight}
+                                    keyboardType="numeric"
+                                    placeholder="190"
+                                    placeholderTextColor="#5a5770"
+                                />
                             </View>
                         </View>
                     </View>
@@ -140,13 +172,31 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                         <Text style={styles.sectionTitle}>Background & Lifestyle</Text>
 
                         <Text style={styles.label}>Preferred Religion</Text>
-                        <TextInput style={styles.input} value={religion} onChangeText={setReligion} placeholder="Hindu, Jain, Sikh..." placeholderTextColor="#5a5570" />
+                        <TextInput
+                            style={styles.input}
+                            value={religion}
+                            onChangeText={setReligion}
+                            placeholder="Hindu, Jain, Sikh..."
+                            placeholderTextColor="#5a5770"
+                        />
 
                         <Text style={styles.label}>Education Requirement</Text>
-                        <TextInput style={styles.input} value={education} onChangeText={setEducation} placeholder="Bachelor's, Master's..." placeholderTextColor="#5a5570" />
+                        <TextInput
+                            style={styles.input}
+                            value={education}
+                            onChangeText={setEducation}
+                            placeholder="Bachelor's, Master's..."
+                            placeholderTextColor="#5a5770"
+                        />
 
                         <Text style={styles.label}>Diet Preference</Text>
-                        <TextInput style={styles.input} value={diet} onChangeText={setDiet} placeholder="Vegetarian, Eggetarian..." placeholderTextColor="#5a5570" />
+                        <TextInput
+                            style={styles.input}
+                            value={diet}
+                            onChangeText={setDiet}
+                            placeholder="Vegetarian, Eggetarian..."
+                            placeholderTextColor="#5a5770"
+                        />
                     </View>
                 </ScrollView>
             )}
@@ -154,29 +204,55 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
-
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: DARK_BG },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: BORDER, gap: 12 },
-    backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: CARD_BG, borderRadius: 18, borderWidth: 1, borderColor: BORDER },
-    backArrow: { fontSize: 26, color: GOLD, lineHeight: 28 },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: TEXT_PRIMARY },
-    headerSub: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
-    saveBtn: { backgroundColor: GOLD, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
-    saveBtnText: { fontSize: 13, fontWeight: '800', color: DARK_BG },
+    container: { flex: 1, backgroundColor: '#0a0a0c' },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: '#111015',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
+        gap: 12,
+    },
+    backBtn: {
+        width: 36,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#141318',
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    backArrow: { fontSize: 26, color: '#d4a853', lineHeight: 28 },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#d4a853' },
+    headerSub: { fontSize: 12, color: '#8e8a9e', marginTop: 1 },
+    saveBtn: { backgroundColor: '#d4a853', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
+    saveBtnText: { fontSize: 13, fontWeight: '800', color: '#0a0a0c' },
     btnDisabled: { opacity: 0.6 },
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0c' },
     formContent: { padding: 16, gap: 16 },
-    section: { backgroundColor: CARD_BG, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: BORDER, gap: 10 },
-    sectionTitle: { fontSize: 15, fontWeight: '800', color: GOLD, marginBottom: 4 },
-    label: { fontSize: 12, fontWeight: '600', color: TEXT_SUB, marginTop: 4 },
-    input: { backgroundColor: '#14121e', borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: TEXT_PRIMARY },
+    section: {
+        backgroundColor: '#141318',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        gap: 10,
+    },
+    sectionTitle: { fontSize: 13, fontWeight: '800', color: '#d4a853', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+    label: { fontSize: 12, fontWeight: '700', color: '#8e8a9e', marginTop: 4 },
+    input: {
+        backgroundColor: '#1e1d26',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        paddingHorizontal: 14,
+        paddingVertical: 11,
+        fontSize: 14,
+        color: '#f0ece4',
+    },
     rowInputs: { flexDirection: 'row', gap: 12 },
 });

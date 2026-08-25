@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTheme } from '../lib/theme';
+
 import { BackButton } from '../components/BackButton';
 import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
 import { fetchFitFrictionBreakdown } from '../lib/aiApi';
@@ -94,6 +96,8 @@ export function HomeScreen({
     unreadNotificationsCount?: number;
     initialPhotoManagerOpen?: boolean;
 } = {}) {
+    const { colors, activeTheme } = useTheme();
+    const isDark = activeTheme === 'dark';
     const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -711,9 +715,9 @@ export function HomeScreen({
     const embeddingStateContent = getEmbeddingStateContent(viewerEmbeddingStatus);
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['left', 'right']}>
             <ScrollView
-                style={styles.container}
+                style={[styles.container, { backgroundColor: colors.background }]}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
@@ -721,7 +725,7 @@ export function HomeScreen({
                 <View style={[styles.headerRow, useStackedHeader ? styles.headerRowStacked : null]}>
                     <View style={styles.headerCopy}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                            <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1} ellipsizeMode="tail">
+                            <Text style={[styles.title, { flex: 1, marginRight: 8, color: colors.accent }]} numberOfLines={1} ellipsizeMode="tail">
                                 {viewerFirstName ? `Hi, ${viewerFirstName}` : 'Semantic Feed'}
                             </Text>
                             {onOpenNotifications && (
@@ -735,7 +739,7 @@ export function HomeScreen({
                                             position: 'absolute',
                                             right: 0,
                                             top: 0,
-                                            backgroundColor: '#ef4444',
+                                            backgroundColor: '#d4a853',
                                             borderRadius: 8,
                                             minWidth: 16,
                                             height: 16,
@@ -743,7 +747,7 @@ export function HomeScreen({
                                             justifyContent: 'center',
                                             paddingHorizontal: 3,
                                         }}>
-                                            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', lineHeight: 11 }}>
+                                            <Text style={{ color: '#0a0a0c', fontSize: 9, fontWeight: '700', lineHeight: 11 }}>
                                                 {unreadNotificationsCount}
                                             </Text>
                                         </View>
@@ -751,7 +755,7 @@ export function HomeScreen({
                                 </Pressable>
                             )}
                         </View>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                             {viewerFirstName
                                 ? 'Swipe through profiles ranked for you and tap a card for the compatibility snapshot.'
                                 : 'Swipe through profiles ranked by profile embeddings and tap a card for the compatibility snapshot.'}
@@ -762,11 +766,11 @@ export function HomeScreen({
                             </Text>
                         ) : null}
 
-                        <View style={styles.searchCard}>
+                        <View style={[styles.searchCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff', borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#e8e2da' }]}>
                             <TextInput
-                                style={styles.searchInput}
+                                style={[styles.searchInput, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f4f2ef', color: colors.textPrimary }]}
                                 placeholder="Search matches by name, city, or profile text"
-                                placeholderTextColor="#8b9aa0"
+                                placeholderTextColor={colors.textMuted}
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
                                 autoCapitalize="none"
@@ -775,7 +779,7 @@ export function HomeScreen({
 
                             <HorizontalScrollAffordance
                                 contentContainerStyle={styles.filterChipsRow}
-                                fadeColor="#ffffff"
+                                fadeColor={colors.background}
                                 arrowAccessibilityLabelPrefix="filters"
                             >
                                 {feedFilters.map((filter) => (
@@ -795,7 +799,7 @@ export function HomeScreen({
                 {loading ? (
                     <View style={styles.loadingState}>
                         <HomeFeedSkeleton />
-                        <Text style={styles.loadingText}>Building your ranked feed...</Text>
+                        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Building your ranked feed...</Text>
                     </View>
                 ) : viewerEmbeddingStatus !== 'ready' ? (
                     renderStateCard(
@@ -1345,7 +1349,7 @@ function HomeFeedSkeleton() {
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#0a0a0c',
         flex: 1,
         minHeight: 0,
     },
@@ -1379,24 +1383,24 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     title: {
-        color: '#14313a',
+        color: '#d4a853',
         fontSize: 30,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 15,
         lineHeight: 22,
     },
     warningText: {
-        color: '#8e4b22',
+        color: '#d4a853',
         fontSize: 13,
         lineHeight: 20,
         marginTop: 4,
     },
     searchCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
@@ -1404,9 +1408,9 @@ const styles = StyleSheet.create({
         padding: 14,
     },
     searchInput: {
-        backgroundColor: '#f4f8f7',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 16,
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -1416,24 +1420,24 @@ const styles = StyleSheet.create({
         paddingRight: 4,
     },
     filterChip: {
-        backgroundColor: '#eef3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     filterChipActive: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#d4a853',
     },
     filterChipText: {
-        color: '#4a646b',
+        color: '#8e8a9e',
         fontSize: 13,
         fontWeight: '700',
     },
     filterChipTextActive: {
-        color: '#ffffff',
+        color: '#0a0a0c',
     },
     signOutButton: {
-        backgroundColor: '#14313a',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -1449,18 +1453,18 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     photosButton: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.12)',
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
     photosButtonText: {
-        color: '#7a4a2c',
+        color: '#d4a853',
         fontSize: 14,
         fontWeight: '700',
     },
     signOutText: {
-        color: '#ffffff',
+        color: '#f0ece4',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1481,7 +1485,7 @@ const styles = StyleSheet.create({
         width: '88%',
         height: 420,
         borderRadius: 28,
-        backgroundColor: '#e1ebec',
+        backgroundColor: 'rgba(255,255,255,0.02)',
     },
     feedSkeletonCardMid: {
         position: 'absolute',
@@ -1489,34 +1493,34 @@ const styles = StyleSheet.create({
         width: '92%',
         height: 430,
         borderRadius: 28,
-        backgroundColor: '#ebf1f2',
+        backgroundColor: 'rgba(255,255,255,0.04)',
     },
     feedSkeletonCardFront: {
         width: '96%',
         height: 440,
         borderRadius: 28,
-        backgroundColor: '#f5f9f9',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderWidth: 1,
-        borderColor: '#dbe6e8',
+        borderColor: 'rgba(255,255,255,0.08)',
         padding: 16,
         gap: 12,
     },
     feedSkeletonPhoto: {
         height: 210,
         borderRadius: 20,
-        backgroundColor: '#dde8ea',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     feedSkeletonTitle: {
         width: '52%',
         height: 20,
         borderRadius: 8,
-        backgroundColor: '#dbe5e7',
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     feedSkeletonLine: {
         width: '90%',
         height: 14,
         borderRadius: 7,
-        backgroundColor: '#e3ecee',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     feedSkeletonLineShort: {
         width: '74%',
@@ -1530,27 +1534,31 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#d7e3e5',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     loadingText: {
-        color: '#4f656a',
+        color: '#5a5770',
         fontSize: 15,
     },
     stateCard: {
-        backgroundColor: '#ffffff',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 28,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         elevation: 2,
         gap: 12,
         marginTop: 40,
         padding: 28,
-        shadowColor: '#14313a',
+        shadowColor: '#d4a853',
         shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.06,
         shadowRadius: 24,
     },
     premiumPromoCard: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: 'rgba(212,168,83,0.1)',
+        borderColor: 'rgba(212,168,83,0.2)',
+        borderWidth: 1,
         borderRadius: 22,
         flexDirection: 'row',
         gap: 12,
@@ -1563,38 +1571,38 @@ const styles = StyleSheet.create({
         gap: 3,
     },
     premiumPromoEyebrow: {
-        color: '#f1c57b',
+        color: '#d4a853',
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.7,
         textTransform: 'uppercase',
     },
     premiumPromoTitle: {
-        color: '#ffffff',
+        color: '#f0ece4',
         fontSize: 15,
         fontWeight: '800',
     },
     premiumPromoBody: {
-        color: '#d5e4e7',
+        color: '#8e8a9e',
         fontSize: 12,
         lineHeight: 18,
     },
     premiumPromoButton: {
-        backgroundColor: '#2d4950',
+        backgroundColor: 'rgba(212,168,83,0.2)',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     premiumPromoButtonText: {
-        color: '#e4edef',
+        color: '#d4a853',
         fontSize: 11,
         fontWeight: '800',
     },
     premiumProfileTag: {
         alignItems: 'center',
         alignSelf: 'flex-start',
-        backgroundColor: '#f7ead8',
-        borderColor: '#e6c69a',
+        backgroundColor: 'rgba(212,168,83,0.12)',
+        borderColor: 'rgba(212,168,83,0.25)',
         borderRadius: 12,
         borderWidth: 1,
         flexDirection: 'row',
@@ -1606,36 +1614,36 @@ const styles = StyleSheet.create({
         marginTop: -2,
     },
     premiumProfileTagText: {
-        color: '#7e4f24',
+        color: '#d4a853',
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.4,
         textTransform: 'uppercase',
     },
     premiumProfileTagReason: {
-        color: '#8f5f35',
+        color: '#c8903e',
         fontSize: 11,
         fontWeight: '700',
     },
     stateTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 24,
         fontWeight: '800',
     },
     stateSubtitle: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 15,
         lineHeight: 22,
     },
     refreshButton: {
         alignSelf: 'flex-start',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         paddingHorizontal: 18,
         paddingVertical: 12,
     },
     refreshButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1650,7 +1658,7 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     card: {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#141318',
         borderRadius: 30,
         bottom: 0,
         left: 0,
@@ -1662,28 +1670,28 @@ const styles = StyleSheet.create({
         top: 0,
     },
     thirdCard: {
-        opacity: 0.55,
+        opacity: 0.35,
         transform: [{ scale: 0.92 }, { translateY: 30 }],
     },
     thirdCardCompact: {
         transform: [{ scale: 0.92 }, { translateY: 20 }],
     },
     nextCard: {
-        opacity: 0.85,
+        opacity: 0.65,
     },
     nextCardCompact: {
-        opacity: 0.85,
+        opacity: 0.65,
     },
     activeCard: {
         elevation: 8,
-        shadowColor: '#14313a',
+        shadowColor: '#d4a853',
         shadowOffset: { width: 0, height: 18 },
-        shadowOpacity: 0.12,
+        shadowOpacity: 0.15,
         shadowRadius: 30,
     },
     cardPressable: {
-        backgroundColor: '#fefbf7',
-        borderColor: '#ecd9c7',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 30,
         borderWidth: 1,
         flex: 1,
@@ -1691,9 +1699,9 @@ const styles = StyleSheet.create({
         padding: 24,
     },
     cardPressablePremium: {
-        borderColor: '#c8a261',
-        borderWidth: 2.5,
-        backgroundColor: '#fffcf5',
+        borderColor: 'rgba(212,168,83,0.35)',
+        borderWidth: 2,
+        backgroundColor: 'rgba(212,168,83,0.06)',
     },
     cardPressableCompact: {
         gap: 12,
@@ -1711,18 +1719,18 @@ const styles = StyleSheet.create({
     },
     cardPhotoPlaceholder: {
         alignItems: 'center',
-        backgroundColor: '#ead9c9',
+        backgroundColor: 'rgba(212,168,83,0.1)',
         borderRadius: 24,
         justifyContent: 'center',
         width: '100%',
     },
     cardPhotoInitial: {
-        color: '#7a4a2c',
+        color: '#d4a853',
         fontSize: 54,
         fontWeight: '800',
     },
     cardPhotoHint: {
-        color: '#7a4a2c',
+        color: '#c8903e',
         fontSize: 13,
         fontWeight: '700',
         marginTop: 6,
@@ -1733,23 +1741,23 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     scorePill: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     scoreText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 12,
         fontWeight: '800',
     },
     locationText: {
-        color: '#7a685c',
+        color: '#8e8a9e',
         fontSize: 13,
         fontWeight: '700',
     },
     cardName: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 31,
         fontWeight: '800',
         marginTop: 4,
@@ -1758,7 +1766,7 @@ const styles = StyleSheet.create({
         fontSize: 26,
     },
     cardMeta: {
-        color: '#6c5d54',
+        color: '#8e8a9e',
         fontSize: 15,
         lineHeight: 22,
     },
@@ -1769,18 +1777,18 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     factPill: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.1)',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     factText: {
-        color: '#6d4d39',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '700',
     },
     cardBio: {
-        color: '#31494e',
+        color: '#a8a4b8',
         fontSize: 16,
         lineHeight: 24,
         marginTop: 6,
@@ -1790,7 +1798,7 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
     tapHint: {
-        color: '#c2643f',
+        color: '#d4a853',
         fontSize: 13,
         fontWeight: '700',
         marginTop: 'auto',
@@ -1823,37 +1831,39 @@ const styles = StyleSheet.create({
     },
     actionButtonMuted: {
         backgroundColor: 'transparent',
-        borderColor: '#c3d2d4',
+        borderColor: 'rgba(255,255,255,0.12)',
         borderWidth: 1.5,
     },
     actionButtonAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.15)',
     },
     actionButtonPrimary: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
     },
     actionButtonText: {
         fontSize: 13,
         fontWeight: '800',
     },
     actionButtonTextMuted: {
-        color: '#4a646b',
+        color: '#8e8a9e',
     },
     actionButtonTextAccent: {
-        color: '#7a4a2c',
+        color: '#d4a853',
     },
     actionButtonTextPrimary: {
-        color: '#ffffff',
+        color: '#0a0a0c',
     },
     modalBackdrop: {
         alignItems: 'center',
-        backgroundColor: 'rgba(15, 27, 31, 0.45)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
         flex: 1,
         justifyContent: 'center',
         padding: 22,
     },
     modalCard: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#1a1920',
+        borderColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
         borderRadius: 28,
         gap: 12,
         maxWidth: 420,
@@ -1880,14 +1890,14 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     modalEyebrow: {
-        color: '#c2643f',
+        color: '#d4a853',
         fontSize: 12,
         fontWeight: '700',
         letterSpacing: 1,
         textTransform: 'uppercase',
     },
     modalTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 28,
         fontWeight: '800',
     },
@@ -1897,7 +1907,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     modalBody: {
-        color: '#31494e',
+        color: '#a8a4b8',
         fontSize: 16,
         lineHeight: 25,
     },
@@ -1912,7 +1922,7 @@ const styles = StyleSheet.create({
     },
     detailHeroPlaceholder: {
         alignItems: 'center',
-        backgroundColor: '#ead9c9',
+        backgroundColor: 'rgba(212,168,83,0.1)',
         borderRadius: 24,
         gap: 8,
         height: 320,
@@ -1920,12 +1930,12 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     detailHeroInitial: {
-        color: '#7a4a2c',
+        color: '#d4a853',
         fontSize: 66,
         fontWeight: '800',
     },
     detailHeroHint: {
-        color: '#7a4a2c',
+        color: '#c8903e',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1940,26 +1950,26 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     detailPillPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#d4a853',
     },
     detailPillNeutral: {
-        backgroundColor: '#eef3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     detailPillAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: 'rgba(212,168,83,0.12)',
     },
     detailPillText: {
         fontSize: 12,
         fontWeight: '800',
     },
     detailPillTextPrimary: {
-        color: '#ffffff',
+        color: '#0a0a0c',
     },
     detailPillTextNeutral: {
-        color: '#45606a',
+        color: '#8e8a9e',
     },
     detailPillTextAccent: {
-        color: '#7a4a2c',
+        color: '#d4a853',
     },
     detailThumbnailRow: {
         gap: 10,
@@ -1972,22 +1982,22 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     detailThumbnailFrameActive: {
-        borderColor: '#d9643d',
+        borderColor: '#d4a853',
     },
     detailThumbnailImage: {
         height: 92,
         width: 72,
     },
     detailSection: {
-        backgroundColor: '#ffffff',
-        borderColor: '#eadfd5',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
         padding: 16,
     },
     detailSectionTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 18,
         fontWeight: '800',
     },
@@ -1997,7 +2007,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     detailFactCard: {
-        backgroundColor: '#f7efe7',
+        backgroundColor: 'rgba(212,168,83,0.08)',
         borderRadius: 18,
         gap: 4,
         minWidth: '47%',
@@ -2005,13 +2015,13 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     detailFactLabel: {
-        color: '#8d6f5a',
+        color: '#c8903e',
         fontSize: 12,
         fontWeight: '700',
         textTransform: 'uppercase',
     },
     detailFactValue: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 14,
         fontWeight: '700',
         lineHeight: 20,
@@ -2029,7 +2039,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     photoManagerCount: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -2039,7 +2049,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     profilePhotoTile: {
-        backgroundColor: '#ead9c9',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 20,
         minHeight: 190,
         overflow: 'hidden',
@@ -2051,7 +2061,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     profilePhotoBadge: {
-        backgroundColor: 'rgba(20, 49, 58, 0.88)',
+        backgroundColor: 'rgba(212,168,83,0.85)',
         borderRadius: 999,
         left: 10,
         paddingHorizontal: 10,
@@ -2060,12 +2070,12 @@ const styles = StyleSheet.create({
         top: 10,
     },
     profilePhotoBadgeText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 12,
         fontWeight: '700',
     },
     profilePhotoRemoveButton: {
-        backgroundColor: 'rgba(255, 250, 245, 0.96)',
+        backgroundColor: 'rgba(20, 19, 24, 0.92)',
         borderRadius: 999,
         bottom: 10,
         paddingHorizontal: 12,
@@ -2074,76 +2084,76 @@ const styles = StyleSheet.create({
         right: 10,
     },
     profilePhotoRemoveButtonText: {
-        color: '#7a2d1e',
+        color: '#ef4444',
         fontSize: 12,
         fontWeight: '800',
     },
     profilePhotoEmptyState: {
         alignItems: 'center',
-        backgroundColor: '#f7efe7',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 20,
         gap: 8,
         paddingHorizontal: 18,
         paddingVertical: 24,
     },
     profilePhotoEmptyTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 18,
         fontWeight: '800',
     },
     profilePhotoEmptyText: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 21,
         textAlign: 'center',
     },
     photoManagerAddButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 16,
         paddingHorizontal: 18,
         paddingVertical: 14,
     },
     photoManagerAddButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 14,
         fontWeight: '800',
     },
     photoManagerLimitText: {
-        color: '#7a685c',
+        color: '#8e8a9e',
         fontSize: 13,
         fontWeight: '700',
         textAlign: 'center',
     },
     contactSectionCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#eadfd5',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 20,
         borderWidth: 1,
         gap: 10,
         padding: 16,
     },
     contactSectionTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 17,
         fontWeight: '800',
     },
     contactSectionBody: {
-        color: '#5d6d71',
+        color: '#8e8a9e',
         fontSize: 14,
         lineHeight: 21,
     },
     contactInput: {
-        backgroundColor: '#f4f8f7',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 14,
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     contactSaveButton: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: '#d4a853',
         borderRadius: 16,
         marginTop: 4,
         paddingHorizontal: 16,
@@ -2153,25 +2163,25 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     contactSaveButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 14,
         fontWeight: '800',
     },
     contactSavedHint: {
-        color: '#7a4a2c',
+        color: '#c8903e',
         fontSize: 13,
         fontWeight: '700',
         lineHeight: 19,
     },
     insightSection: {
-        backgroundColor: '#f7efe7',
+        backgroundColor: 'rgba(212,168,83,0.08)',
         borderRadius: 18,
         gap: 10,
         marginTop: 4,
         padding: 14,
     },
     insightSectionTitle: {
-        color: '#14313a',
+        color: '#f0ece4',
         fontSize: 14,
         fontWeight: '800',
     },
@@ -2181,35 +2191,35 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     insightDot: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 999,
         height: 8,
         marginTop: 8,
         width: 8,
     },
     insightDotMuted: {
-        backgroundColor: '#c6a58a',
+        backgroundColor: '#5a5770',
         borderRadius: 999,
         height: 8,
         marginTop: 8,
         width: 8,
     },
     insightText: {
-        color: '#35515c',
+        color: '#a8a4b8',
         flex: 1,
         fontSize: 14,
         lineHeight: 21,
     },
     modalButton: {
         alignSelf: 'flex-end',
-        backgroundColor: '#14313a',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: 16,
         marginTop: 4,
         paddingHorizontal: 18,
         paddingVertical: 12,
     },
     modalButtonText: {
-        color: '#ffffff',
+        color: '#f0ece4',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -2219,27 +2229,27 @@ const styles = StyleSheet.create({
     },
     detailFooterSecondaryButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 16,
         flex: 1,
         paddingHorizontal: 18,
         paddingVertical: 14,
     },
     detailFooterSecondaryButtonText: {
-        color: '#47616a',
+        color: '#8e8a9e',
         fontSize: 14,
         fontWeight: '800',
     },
     detailFooterPrimaryButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#d4a853',
         borderRadius: 16,
         flex: 1.2,
         paddingHorizontal: 18,
         paddingVertical: 14,
     },
     detailFooterPrimaryButtonText: {
-        color: '#ffffff',
+        color: '#0a0a0c',
         fontSize: 14,
         fontWeight: '800',
     },

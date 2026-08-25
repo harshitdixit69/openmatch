@@ -187,7 +187,7 @@ export default function ConciergeHubScreen({
         }
     }
 
-    const handleFeedback = async (itemId: string, status: 'liked' | 'disliked') => {
+    const handleFeedback = async (itemId: string, status: 'pending' | 'liked' | 'disliked') => {
         setShortlistItems((prev) =>
             prev.map((item) =>
                 item.id === itemId ? { ...item, feedback_status: status } : item
