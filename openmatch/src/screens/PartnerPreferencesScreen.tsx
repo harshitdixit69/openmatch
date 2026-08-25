@@ -167,6 +167,7 @@ export function PartnerPreferencesScreen({ onBack }: Props) {
 
                         {/* Religion */}
                         <SectionCard title="Religion">
+                            <Text style={styles.hint}>Defaults to your own religion. Pick “Any” to see all faiths.</Text>
                             <ChipPicker
                                 options={PREF_RELIGIONS}
                                 selected={prefs.pref_religion}
