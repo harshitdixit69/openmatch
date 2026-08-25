@@ -77,10 +77,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             });
     }, []);
 
-    const activeTheme: 'light' | 'dark' =
-        themeMode === 'system' ? (systemColorScheme === 'dark' ? 'dark' : 'light') : themeMode;
+    // The app ships with a single black "dark premium" identity. We keep the
+    // theme-mode plumbing (so screens can read `colors`), but always resolve to
+    // the dark palette so the whole UI stays consistently black.
+    const activeTheme: 'light' | 'dark' = 'dark';
 
-    const colors = activeTheme === 'dark' ? DARK_THEME_COLORS : LIGHT_THEME_COLORS;
+    const colors = DARK_THEME_COLORS;
 
     const setThemeMode = async (mode: ThemeMode) => {
         setThemeModeState(mode);

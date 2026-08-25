@@ -822,7 +822,7 @@ export function HomeScreen({
                     <>
                         <View style={[styles.stackArea, useCompactFeedLayout ? styles.stackAreaCompact : null, { height: feedStackHeight }]}>
                             {thirdCandidate ? (
-                                <View pointerEvents="none" style={[styles.card, styles.thirdCard, useCompactFeedLayout ? styles.thirdCardCompact : null]}>
+                                <View pointerEvents="none" style={[styles.card, { backgroundColor: colors.cardBackground }, styles.thirdCard, useCompactFeedLayout ? styles.thirdCardCompact : null]}>
                                     <CandidateCard candidate={thirdCandidate} compact />
                                 </View>
                             ) : null}
@@ -832,6 +832,7 @@ export function HomeScreen({
                                     pointerEvents="none"
                                     style={[
                                         styles.card,
+                                        { backgroundColor: colors.cardBackground },
                                         styles.nextCard,
                                         useCompactFeedLayout ? styles.nextCardCompact : null,
                                         {
@@ -846,6 +847,7 @@ export function HomeScreen({
                             <Animated.View
                                 style={[
                                     styles.card,
+                                    { backgroundColor: colors.cardBackground },
                                     styles.activeCard,
                                     {
                                         transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate: cardRotation }],
@@ -1082,9 +1084,16 @@ function CandidateCard({
     expandedBioLines = 6,
     onPress,
 }: CandidateCardProps) {
+    const { colors, activeTheme } = useTheme();
+    const isDark = activeTheme === 'dark';
     const primaryPhotoUrl = candidate.photo_urls[0];
     const fallbackInitial = getDisplayFirstName(candidate.full_name).slice(0, 1).toUpperCase() || '?';
     const premiumHighlight = getPremiumHighlightForCandidate(candidate);
+
+    const surfaceStyle = {
+        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : colors.cardBackground,
+        borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.cardBorder,
+    };
 
     const details = (
         <>
@@ -1130,12 +1139,12 @@ function CandidateCard({
             ) : null}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null]}>{candidate.full_name}</Text>
+                <Text style={[styles.cardName, { color: colors.textPrimary }, condensed ? styles.cardNameCompact : null]}>{candidate.full_name}</Text>
                 {candidate.subscription_tier && candidate.subscription_tier !== 'free' ? (
                     <Text style={{ fontSize: 16, marginLeft: 6, color: '#c8a261', alignSelf: 'center' }}>👑</Text>
                 ) : null}
             </View>
-            <Text style={styles.cardMeta}>
+            <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>
                 {candidate.gender}
                 {formatAge(candidate.dob) ? `, ${formatAge(candidate.dob)}` : ''}
                 {candidate.height_cm ? `, ${candidate.height_cm} cm` : ''}
@@ -1146,7 +1155,7 @@ function CandidateCard({
                 <FactPill label={candidate.preferences ? 'Preferences ready' : 'Preferences pending'} />
             </View>
 
-            <Text numberOfLines={compact ? 3 : expandedBioLines} style={[styles.cardBio, condensed ? styles.cardBioCompact : null]}>
+            <Text numberOfLines={compact ? 3 : expandedBioLines} style={[styles.cardBio, { color: colors.textSecondary }, condensed ? styles.cardBioCompact : null]}>
                 {candidate.bio ?? 'No bio added yet.'}
             </Text>
 
@@ -1158,13 +1167,13 @@ function CandidateCard({
 
     if (onPress) {
         return (
-            <Pressable style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]} onPress={onPress}>
+            <Pressable style={[styles.cardPressable, surfaceStyle, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]} onPress={onPress}>
                 {details}
             </Pressable>
         );
     }
 
-    return <View style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]}>{details}</View>;
+    return <View style={[styles.cardPressable, surfaceStyle, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]}>{details}</View>;
 }
 
 function FilterChip({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) {
