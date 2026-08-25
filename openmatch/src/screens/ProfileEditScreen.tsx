@@ -479,7 +479,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
     if (loading || !form) {
         return (
             <SafeAreaView style={styles.loading} edges={['top', 'left', 'right']}>
-                <ActivityIndicator size="large" color="#123340" />
+                <ActivityIndicator size="large" color="#121732" />
                 <Text style={styles.loadingText}>Loading profile…</Text>
             </SafeAreaView>
         );
@@ -825,7 +825,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
                         {/* ── Revision History ── */}
                         <SectionCard title="Revision History">
                             {loadingRevisions ? (
-                                <ActivityIndicator color="#123340" size="small" style={{ marginVertical: 12 }} />
+                                <ActivityIndicator color="#121732" size="small" style={{ marginVertical: 12 }} />
                             ) : revisions.length === 0 ? (
                                 <Text style={styles.emptyHistoryText}>No revisions saved yet. Revisions are created when you save your profile or apply AI rewrites.</Text>
                             ) : (
@@ -903,7 +903,7 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
             <Switch
                 value={value}
                 onValueChange={onChange}
-                trackColor={{ false: '#d0d0d0', true: '#123340' }}
+                trackColor={{ false: '#d0d0d0', true: '#121732' }}
                 thumbColor="#fff"
             />
         </View>
@@ -915,8 +915,8 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#f4f4f6' },
-    loading: { flex: 1, backgroundColor: '#f4f4f6', alignItems: 'center', justifyContent: 'center', gap: 12 },
+    root: { flex: 1, backgroundColor: '#eef1fb' },
+    loading: { flex: 1, backgroundColor: '#eef1fb', alignItems: 'center', justifyContent: 'center', gap: 12 },
     loadingText: { fontSize: 14, color: '#666' },
     header: {
         flexDirection: 'row', alignItems: 'center',
@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 7,
         paddingVertical: 7,
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
     },
     photoEditorRemoveAction: { backgroundColor: '#f8e6e0' },
     photoEditorActionText: { color: '#fff', fontSize: 11, fontWeight: '800' },
@@ -977,11 +977,11 @@ const styles = StyleSheet.create({
         padding: 18,
         marginBottom: 12,
     },
-    photoEditorEmptyTitle: { color: '#123340', fontSize: 14, fontWeight: '800', marginBottom: 4 },
+    photoEditorEmptyTitle: { color: '#121732', fontSize: 14, fontWeight: '800', marginBottom: 4 },
     photoEditorEmptyText: { color: '#718287', fontSize: 12, textAlign: 'center' },
     photoEditorAddButton: {
         alignItems: 'center',
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 10,
         minHeight: 44,
         justifyContent: 'center',
@@ -996,7 +996,7 @@ const styles = StyleSheet.create({
     },
     toggleLabel: { fontSize: 15, color: '#222' },
     saveBar: { paddingTop: 12, paddingHorizontal: 20, backgroundColor: '#fff', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e5e5' },
-    saveButton: { backgroundColor: '#123340', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+    saveButton: { backgroundColor: '#121732', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
     saveButtonDisabled: { opacity: 0.6 },
     saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
@@ -1018,18 +1018,18 @@ const styles = StyleSheet.create({
     ghostwriterHeaderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     ghostwriterHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     ghostwriterEmoji: { fontSize: 18 },
-    ghostwriterTitle: { fontSize: 15, fontWeight: '600', color: '#123340' },
+    ghostwriterTitle: { fontSize: 15, fontWeight: '600', color: '#121732' },
     ghostwriterToggleText: { fontSize: 14, fontWeight: '600', color: '#1a7a5e' },
     ghostwriterBody: { marginTop: 14 },
     ghostwriterDescription: { fontSize: 13, color: '#666', marginBottom: 14, lineHeight: 18 },
     ghostwriterSublabel: { fontSize: 11, fontWeight: '700', color: '#888', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
     ghostChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#dcdcdc', backgroundColor: '#fafafa' },
-    ghostChipActive: { borderColor: '#123340', backgroundColor: '#eef3f5' },
+    ghostChipActive: { borderColor: '#121732', backgroundColor: '#eef3f5' },
     ghostChipText: { fontSize: 13, color: '#555' },
-    ghostChipTextActive: { color: '#123340', fontWeight: '600' },
+    ghostChipTextActive: { color: '#121732', fontWeight: '600' },
     ghostInput: { borderWidth: 1, borderColor: '#dcdcdc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#333', backgroundColor: '#fafafa', marginBottom: 14 },
     ghostActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-    ghostBtn: { flex: 1, backgroundColor: '#123340', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    ghostBtn: { flex: 1, backgroundColor: '#121732', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
     ghostBtnDisabled: { opacity: 0.6 },
     ghostBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
     ghostUndoBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#dcdcdc', alignItems: 'center' },
@@ -1051,8 +1051,8 @@ const styles = StyleSheet.create({
     revisionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
     revisionTitle: { fontSize: 14, fontWeight: '600', color: '#222' },
     revisionDate: { fontSize: 11, color: '#888' },
-    restoreBtn: { backgroundColor: '#eef3f5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: '#123340' },
-    restoreBtnText: { color: '#123340', fontSize: 12, fontWeight: '600' },
+    restoreBtn: { backgroundColor: '#eef3f5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: '#121732' },
+    restoreBtnText: { color: '#121732', fontSize: 12, fontWeight: '600' },
     revisionSnippet: { fontSize: 12, color: '#666', lineHeight: 16, marginTop: 2 },
     revisionDivider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 10 },
 });

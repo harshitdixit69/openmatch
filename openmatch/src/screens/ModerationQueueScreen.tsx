@@ -93,7 +93,7 @@ export function ModerationQueueScreen({ onClose }: Props) {
 
                 {loading ? (
                     <View style={styles.centeredState}>
-                        <ActivityIndicator size="large" color="#d9643d" />
+                        <ActivityIndicator size="large" color="#ff6a3d" />
                         <Text style={styles.stateText}>Loading complaints...</Text>
                     </View>
                 ) : reports.length === 0 ? (
@@ -176,17 +176,17 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         textTransform: 'uppercase',
         letterSpacing: 1.5,
-        color: '#d9643d',
+        color: '#ff6a3d',
     },
     title: {
         fontSize: 20,
         fontWeight: '800',
-        color: '#123340',
+        color: '#121732',
         marginTop: 2,
     },
     subtitle: {
         fontSize: 12,
-        color: '#7d8c90',
+        color: '#5a6488',
         marginTop: 4,
     },
     centeredState: {
@@ -201,12 +201,12 @@ const styles = StyleSheet.create({
     stateTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#123340',
+        color: '#121732',
         marginTop: 16,
     },
     stateText: {
         fontSize: 14,
-        color: '#7d8c90',
+        color: '#5a6488',
         marginTop: 8,
         textAlign: 'center',
     },

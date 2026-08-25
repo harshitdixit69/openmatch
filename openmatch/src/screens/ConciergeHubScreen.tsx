@@ -281,7 +281,7 @@ export default function ConciergeHubScreen({
     if (loadingSession) {
         return (
             <SafeAreaView style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#11313c" />
+                <ActivityIndicator size="large" color="#121732" />
                 <Text style={styles.loadingText}>Initializing Concierge Hub...</Text>
             </SafeAreaView>
         );
@@ -466,7 +466,7 @@ function dateToAge(dobString: string): number {
                             Please wait while we establish contact. If they accept, we will open a direct connection!
                         </Text>
 
-                        <ActivityIndicator size="small" color="#d4b373" style={{ marginTop: 24 }} />
+                        <ActivityIndicator size="small" color="#ffc24b" style={{ marginTop: 24 }} />
                     </View>
                 </View>
             </SafeAreaView>
@@ -489,7 +489,7 @@ function dateToAge(dobString: string): number {
                 )}
                 <View style={styles.completeContent}>
                     <View style={styles.statusCard}>
-                        <Text style={[styles.checkmarkIcon, { color: '#d4b373' }]}>🎉</Text>
+                        <Text style={[styles.checkmarkIcon, { color: '#ffc24b' }]}>🎉</Text>
                         <Text style={styles.statusTitle}>It's a Mutual Match!</Text>
                         <Text style={styles.statusSubtitle}>
                             The candidate accepted your RM's pitch curation and approved the introduction.
@@ -504,10 +504,10 @@ function dateToAge(dobString: string): number {
 
                         {onOpenChat ? (
                             <Pressable
-                                style={[styles.continueBtn, { backgroundColor: '#d4b373', marginBottom: 12 }]}
+                                style={[styles.continueBtn, { backgroundColor: '#ffc24b', marginBottom: 12 }]}
                                 onPress={onOpenChat}
                             >
-                                <Text style={[styles.continueBtnText, { color: '#0d0c0f' }]}>💬 Open Chat</Text>
+                                <Text style={[styles.continueBtnText, { color: '#070912' }]}>💬 Open Chat</Text>
                             </Pressable>
                         ) : null}
 
@@ -618,7 +618,7 @@ function dateToAge(dobString: string): number {
                                 ) : null}
                             </View>
                         ) : (
-                            <ActivityIndicator size="small" color="#d4b373" style={{ marginTop: 20 }} />
+                            <ActivityIndicator size="small" color="#ffc24b" style={{ marginTop: 20 }} />
                         )}
 
                         <View style={styles.divider} />
@@ -629,10 +629,10 @@ function dateToAge(dobString: string): number {
 
                         {onOpenChat ? (
                             <Pressable
-                                style={[styles.continueBtn, { backgroundColor: '#d4b373', marginBottom: 12 }]}
+                                style={[styles.continueBtn, { backgroundColor: '#ffc24b', marginBottom: 12 }]}
                                 onPress={onOpenChat}
                             >
-                                <Text style={[styles.continueBtnText, { color: '#0d0c0f' }]}>💬 Open Chat</Text>
+                                <Text style={[styles.continueBtnText, { color: '#070912' }]}>💬 Open Chat</Text>
                             </Pressable>
                         ) : null}
 
@@ -786,7 +786,7 @@ function dateToAge(dobString: string): number {
                                 </View>
                             </View>
                             <View style={styles.activityItem}>
-                                <View style={[styles.activityDot, { backgroundColor: '#d4b373' }]} />
+                                <View style={[styles.activityDot, { backgroundColor: '#ffc24b' }]} />
                                 <View>
                                     <Text style={styles.activityItemTitle}>Intake Complete</Text>
                                     <Text style={styles.activityItemDesc}>Your preferences blueprint is saved</Text>
@@ -812,7 +812,7 @@ function dateToAge(dobString: string): number {
             if (loadingShortlist) {
                 return (
                     <View style={styles.loadingShortlistContainer}>
-                        <ActivityIndicator size="large" color="#11313c" />
+                        <ActivityIndicator size="large" color="#121732" />
                         <Text style={styles.loadingShortlistText}>Loading your curated matches...</Text>
                     </View>
                 );
@@ -1019,15 +1019,15 @@ function dateToAge(dobString: string): number {
 
                     {generatingShortlist ? (
                         <View style={{ marginTop: 16, alignItems: 'center' }}>
-                            <ActivityIndicator size="small" color="#11313c" />
-                            <Text style={[styles.statusDesc, { marginTop: 8, color: '#11313c', fontWeight: '600' }]}>
+                            <ActivityIndicator size="small" color="#121732" />
+                            <Text style={[styles.statusDesc, { marginTop: 8, color: '#121732', fontWeight: '600' }]}>
                                 Curating your personalized matches...
                             </Text>
                         </View>
                     ) : (
                         session?.status === 'AWAITING_SHORTLIST' && (
                             <Pressable 
-                                style={[styles.continueBtn, { backgroundColor: '#11313c', marginTop: 16 }]} 
+                                style={[styles.continueBtn, { backgroundColor: '#121732', marginTop: 16 }]} 
                                 onPress={triggerShortlistGeneration}
                             >
                                 <Text style={styles.continueBtnText}>Curate Matches Now</Text>
@@ -1053,32 +1053,32 @@ function dateToAge(dobString: string): number {
 const styles = StyleSheet.create({
     loadingContainer: {
         flex: 1,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
         alignItems: 'center',
         justifyContent: 'center',
     },
     loadingText: {
         marginTop: 12,
-        color: '#d4b373',
+        color: '#ffc24b',
         fontSize: 16,
         fontWeight: '600',
     },
     container: {
         flex: 1,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
     },
     keyboardView: {
         flex: 1,
     },
     header: {
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         paddingHorizontal: 20,
         paddingVertical: 18,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderBottomColor: '#26242e',
+        borderBottomColor: '#1a2142',
     },
     headerTitle: {
         color: '#ffffff',
@@ -1086,7 +1086,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     headerSubtitle: {
-        color: '#d4b373',
+        color: '#ffc24b',
         fontSize: 12,
         marginTop: 2,
     },
@@ -1119,12 +1119,12 @@ const styles = StyleSheet.create({
     chatScroll: {
         padding: 20,
         paddingBottom: 40,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
     },
     welcomeCard: {
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         borderWidth: 1,
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
         borderRadius: 12,
         padding: 20,
         marginBottom: 24,
@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
     },
     welcomeDesc: {
         fontSize: 13,
-        color: '#a19fb0',
+        color: '#8a93b2',
         textAlign: 'center',
         lineHeight: 18,
     },
@@ -1165,15 +1165,15 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     userBubble: {
-        backgroundColor: '#11313c',
+        backgroundColor: '#121732',
         borderBottomRightRadius: 4,
         borderWidth: 1,
         borderColor: '#1d4857',
     },
     assistantBubble: {
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         borderWidth: 1,
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
         borderBottomLeftRadius: 4,
     },
     bubbleText: {
@@ -1202,44 +1202,44 @@ const styles = StyleSheet.create({
     inputBar: {
         flexDirection: 'row',
         padding: 12,
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         borderTopWidth: 1,
-        borderTopColor: '#26242e',
+        borderTopColor: '#1a2142',
         alignItems: 'center',
     },
     input: {
         flex: 1,
         height: 44,
         borderWidth: 1,
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
         borderRadius: 22,
         paddingHorizontal: 16,
         fontSize: 15,
         color: '#ffffff',
-        backgroundColor: '#26242e',
+        backgroundColor: '#1a2142',
     },
     inputDisabled: {
         backgroundColor: '#1c1b22',
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
     },
     sendButton: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 10,
     },
     sendButtonDisabled: {
-        backgroundColor: '#26242e',
+        backgroundColor: '#1a2142',
         opacity: 0.5,
     },
     sendButtonPressed: {
         opacity: 0.8,
     },
     sendButtonText: {
-        color: '#0d0c0f',
+        color: '#070912',
         fontSize: 20,
         fontWeight: 'bold',
         marginTop: -2,
@@ -1250,10 +1250,10 @@ const styles = StyleSheet.create({
         padding: 24,
     },
     statusCard: {
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
         padding: 24,
         alignItems: 'center',
         shadowColor: '#000000',
@@ -1264,7 +1264,7 @@ const styles = StyleSheet.create({
     },
     checkmarkIcon: {
         fontSize: 48,
-        color: '#d4b373',
+        color: '#ffc24b',
         marginBottom: 16,
     },
     statusTitle: {
@@ -1275,7 +1275,7 @@ const styles = StyleSheet.create({
     },
     statusSubtitle: {
         fontSize: 14,
-        color: '#a19fb0',
+        color: '#8a93b2',
         textAlign: 'center',
         lineHeight: 20,
         marginBottom: 20,
@@ -1283,7 +1283,7 @@ const styles = StyleSheet.create({
     summaryScroll: {
         maxHeight: 180,
         width: '100%',
-        backgroundColor: '#26242e',
+        backgroundColor: '#1a2142',
         borderWidth: 1,
         borderColor: '#3a3848',
         borderRadius: 8,
@@ -1295,7 +1295,7 @@ const styles = StyleSheet.create({
     summaryHeader: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#d4b373',
+        color: '#ffc24b',
         textTransform: 'uppercase',
         marginBottom: 6,
     },
@@ -1306,25 +1306,25 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: '#26242e',
+        backgroundColor: '#1a2142',
         width: '100%',
         marginVertical: 20,
     },
     statusBanner: {
         fontSize: 15,
         fontWeight: '700',
-        color: '#d4b373',
+        color: '#ffc24b',
         marginBottom: 6,
     },
     statusDesc: {
         fontSize: 13,
-        color: '#a19fb0',
+        color: '#8a93b2',
         textAlign: 'center',
         lineHeight: 18,
     },
     continueBtn: {
         marginTop: 20,
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 22,
@@ -1332,7 +1332,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     continueBtnText: {
-        color: '#0d0c0f',
+        color: '#070912',
         fontSize: 15,
         fontWeight: '600',
     },
@@ -1341,7 +1341,7 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     logoutFooterText: {
-        color: '#a19fb0',
+        color: '#8a93b2',
         fontSize: 14,
         fontWeight: '500',
         textDecorationLine: 'underline',
@@ -1350,12 +1350,12 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
         padding: 20,
     },
     loadingShortlistText: {
         marginTop: 12,
-        color: '#d4b373',
+        color: '#ffc24b',
         fontSize: 16,
         fontWeight: '600',
     },
@@ -1364,7 +1364,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 32,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
     },
     emptyEmoji: {
         fontSize: 48,
@@ -1372,20 +1372,20 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         fontSize: 16,
-        color: '#a19fb0',
+        color: '#8a93b2',
         textAlign: 'center',
         lineHeight: 22,
     },
     shortlistScroll: {
         padding: 16,
         paddingBottom: 40,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
     },
     matchCard: {
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
         overflow: 'hidden',
         marginBottom: 20,
         shadowColor: '#000000',
@@ -1401,14 +1401,14 @@ const styles = StyleSheet.create({
     imagePlaceholder: {
         width: '100%',
         height: 260,
-        backgroundColor: '#26242e',
+        backgroundColor: '#1a2142',
         justifyContent: 'center',
         alignItems: 'center',
     },
     imagePlaceholderText: {
         fontSize: 64,
         fontWeight: '700',
-        color: '#d4b373',
+        color: '#ffc24b',
     },
     premiumAvatarPlaceholder: {
         width: '100%',
@@ -1426,7 +1426,7 @@ const styles = StyleSheet.create({
     premiumAvatarInitials: {
         fontSize: 24,
         fontWeight: '800',
-        color: '#d4b373',
+        color: '#ffc24b',
         letterSpacing: 2,
     },
     cardInfo: {
@@ -1439,7 +1439,7 @@ const styles = StyleSheet.create({
     },
     candidateLoc: {
         fontSize: 14,
-        color: '#a19fb0',
+        color: '#8a93b2',
         marginTop: 4,
         marginBottom: 12,
     },
@@ -1450,7 +1450,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     attributeTag: {
-        backgroundColor: '#26242e',
+        backgroundColor: '#1a2142',
         color: '#e5c184',
         fontSize: 12,
         fontWeight: '600',
@@ -1461,7 +1461,7 @@ const styles = StyleSheet.create({
     pitchBox: {
         backgroundColor: '#1a1714',
         borderLeftWidth: 3,
-        borderLeftColor: '#d4b373',
+        borderLeftColor: '#ffc24b',
         padding: 14,
         borderRadius: 8,
         marginBottom: 16,
@@ -1491,19 +1491,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     passBtn: {
-        backgroundColor: '#26242e',
+        backgroundColor: '#1a2142',
         marginRight: 12,
     },
     passBtnText: {
-        color: '#a19fb0',
+        color: '#8a93b2',
         fontWeight: '700',
         fontSize: 14,
     },
     likeBtn: {
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
     },
     likeBtnText: {
-        color: '#0d0c0f',
+        color: '#070912',
         fontWeight: '700',
         fontSize: 14,
     },
@@ -1534,9 +1534,9 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 28,
         borderWidth: 1,
-        borderColor: '#d4b373',
+        borderColor: '#ffc24b',
         alignItems: 'center',
-        shadowColor: '#d4b373',
+        shadowColor: '#ffc24b',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.25,
         shadowRadius: 20,
@@ -1548,7 +1548,7 @@ const styles = StyleSheet.create({
         borderRadius: 40,
         backgroundColor: '#2a1f0d',
         borderWidth: 2,
-        borderColor: '#d4b373',
+        borderColor: '#ffc24b',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 20,
@@ -1559,7 +1559,7 @@ const styles = StyleSheet.create({
     unlockTitle: {
         fontSize: 26,
         fontWeight: '800',
-        color: '#d4b373',
+        color: '#ffc24b',
         textAlign: 'center',
         marginBottom: 10,
     },
@@ -1597,7 +1597,7 @@ const styles = StyleSheet.create({
     },
     contactLabel: {
         fontSize: 13,
-        color: '#a19fb0',
+        color: '#8a93b2',
         fontWeight: '600',
     },
     contactValue: {
@@ -1608,7 +1608,7 @@ const styles = StyleSheet.create({
     },
     contactMissing: {
         fontSize: 13,
-        color: '#a19fb0',
+        color: '#8a93b2',
         textAlign: 'center',
         lineHeight: 20,
         fontStyle: 'italic',
@@ -1618,7 +1618,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#12101a',
         borderTopWidth: 1,
-        borderTopColor: '#2a2640',
+        borderTopColor: '#1a2142',
         paddingBottom: 6,
         paddingTop: 8,
         shadowColor: '#000',
@@ -1650,11 +1650,11 @@ const styles = StyleSheet.create({
     conciergeTabLabel: {
         fontSize: 10,
         fontWeight: '500',
-        color: '#6c6880',
+        color: '#5a6488',
         letterSpacing: 0.3,
     },
     conciergeTabLabelActive: {
-        color: '#d4b373',
+        color: '#ffc24b',
         fontWeight: '700',
     },
     // ─── Tab content wrapper ───────────────────────────────────────────────────
@@ -1664,23 +1664,23 @@ const styles = StyleSheet.create({
     },
     // ─── Profile tab ──────────────────────────────────────────────────────────
     profileTabCard: {
-        backgroundColor: '#1a1828',
+        backgroundColor: '#121732',
         borderRadius: 20,
         padding: 24,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#2a2640',
+        borderColor: '#1a2142',
     },
     profileTabAvatar: {
         width: 88,
         height: 88,
         borderRadius: 44,
-        backgroundColor: '#2a2640',
+        backgroundColor: '#1a2142',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 14,
         borderWidth: 3,
-        borderColor: '#d4b373',
+        borderColor: '#ffc24b',
         overflow: 'hidden',
     },
     profileTabAvatarImg: {
@@ -1690,24 +1690,24 @@ const styles = StyleSheet.create({
     },
     profileTabAvatarInitial: {
         fontSize: 34,
-        color: '#d4b373',
+        color: '#ffc24b',
         fontWeight: '700',
     },
     profileTabName: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#f0ece8',
+        color: '#eef1fb',
         marginBottom: 4,
     },
     profileTabSub: {
         fontSize: 13,
-        color: '#8e8aa0',
+        color: '#8a93b2',
         marginBottom: 16,
     },
     profileTabDivider: {
         width: '100%',
         height: 1,
-        backgroundColor: '#2a2640',
+        backgroundColor: '#1a2142',
         marginBottom: 16,
     },
     profileTabRow: {
@@ -1719,12 +1719,12 @@ const styles = StyleSheet.create({
     },
     profileTabLabel: {
         fontSize: 13,
-        color: '#6c6880',
+        color: '#5a6488',
         fontWeight: '500',
     },
     profileTabValue: {
         fontSize: 13,
-        color: '#d4b373',
+        color: '#ffc24b',
         fontWeight: '600',
         flexShrink: 1,
         textAlign: 'right',
@@ -1732,7 +1732,7 @@ const styles = StyleSheet.create({
     viewFullProfileBtn: {
         marginTop: 20,
         width: '100%',
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
         borderRadius: 12,
         paddingVertical: 13,
         alignItems: 'center',
@@ -1740,7 +1740,7 @@ const styles = StyleSheet.create({
     viewFullProfileBtnText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#0d0c0f',
+        color: '#070912',
         letterSpacing: 0.4,
     },
     signOutFullBtn: {
@@ -1749,37 +1749,37 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#2a2640',
+        borderColor: '#1a2142',
         paddingVertical: 12,
         alignItems: 'center',
     },
     signOutFullBtnText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6c6880',
+        color: '#5a6488',
     },
     // ─── Activity tab ─────────────────────────────────────────────────────────
     activityCard: {
-        backgroundColor: '#1a1828',
+        backgroundColor: '#121732',
         borderRadius: 20,
         padding: 22,
         borderWidth: 1,
-        borderColor: '#2a2640',
+        borderColor: '#1a2142',
     },
     activityTitle: {
         fontSize: 17,
         fontWeight: '700',
-        color: '#f0ece8',
+        color: '#eef1fb',
         marginBottom: 4,
     },
     activitySub: {
         fontSize: 13,
-        color: '#8e8aa0',
+        color: '#8a93b2',
         marginBottom: 6,
     },
     activityDivider: {
         height: 1,
-        backgroundColor: '#2a2640',
+        backgroundColor: '#1a2142',
         marginVertical: 14,
     },
     activityItem: {
@@ -1803,12 +1803,12 @@ const styles = StyleSheet.create({
     },
     activityItemDesc: {
         fontSize: 12,
-        color: '#6c6880',
+        color: '#5a6488',
         lineHeight: 17,
     },
     activityHint: {
         fontSize: 12,
-        color: '#d4b373',
+        color: '#ffc24b',
         lineHeight: 18,
         fontStyle: 'italic',
     },

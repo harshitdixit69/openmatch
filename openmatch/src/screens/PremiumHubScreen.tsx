@@ -15,12 +15,15 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import type { ColorValue } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../lib/supabase';
 import { ChatMatch } from '../lib/chat';
 import { fetchChatMatches } from '../lib/chatApi';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { activateSpotlight, fetchCurrentProfile } from '../lib/profileApi';
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
+import { palette, gradients, glow } from '../lib/designSystem';
 import PremiumNotificationsScreen from './PremiumNotificationsScreen';
 import PremiumPartnerPreferencesScreen from './PremiumPartnerPreferencesScreen';
 import PremiumProfileEditScreen from './PremiumProfileEditScreen';
@@ -649,11 +652,17 @@ export default function PremiumHubScreen({
                             : 'PRO MAX';
                         return (
                             <View style={styles.activePremiumHero}>
+                                <LinearGradient
+                                    colors={gradients.auroraDark as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={StyleSheet.absoluteFill}
+                                />
                                 <Text style={styles.activePremiumEyebrow}>👑 OPENMATCH {tierLabel} ACTIVE</Text>
                                 <Text style={styles.activePremiumTitle}>Premium status is unlocked</Text>
                                 <Text style={styles.activePremiumBody}>
                                     Thank you for supporting a fair matchmaking ecosystem. Your subscription is active until{' '}
-                                    <Text style={{ fontWeight: '700', color: '#f0ece8' }}>{expiryDateStr}</Text>.
+                                    <Text style={{ fontWeight: '700', color: '#eef1fb' }}>{expiryDateStr}</Text>.
                                 </Text>
                                 <View style={styles.creditsBox}>
                                     <Text style={styles.creditsNumber}>
@@ -771,8 +780,14 @@ export default function PremiumHubScreen({
                         onPress={handleCheckout}
                         disabled={checkoutLoading}
                     >
+                        <LinearGradient
+                            colors={gradients.premium as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                        />
                         {checkoutLoading ? (
-                            <ActivityIndicator size="small" color="#0d0c0f" />
+                            <ActivityIndicator size="small" color="#070912" />
                         ) : (
                             <Text style={styles.checkoutBtnText}>
                                 Get {memTabType === 'assisted' ? 'Exclusive' : selfServiceSubTier === 'pro' ? 'Pro' : selfServiceSubTier === 'pro_max' ? 'Pro Max' : 'Pro Supreme'} Now
@@ -821,8 +836,8 @@ export default function PremiumHubScreen({
                         <Text style={styles.statLabel}>Requests</Text>
                     </View>
                     <View style={[styles.statCard, styles.statCardAccent, counts.unread > 0 && styles.statCardActive]}>
-                        <Text style={[styles.statValue, { color: '#f0ece8' }]}>{counts.unread}</Text>
-                        <Text style={[styles.statLabel, { color: '#8e8aa0' }]}>Unread</Text>
+                        <Text style={[styles.statValue, { color: '#eef1fb' }]}>{counts.unread}</Text>
+                        <Text style={[styles.statLabel, { color: '#8a93b2' }]}>Unread</Text>
                     </View>
                     <View style={[styles.statCard, counts.contacts > 0 && styles.statCardActive]}>
                         <Text style={styles.statValue}>{counts.contacts}</Text>
@@ -1071,7 +1086,7 @@ export default function PremiumHubScreen({
                                     style={[styles.confirmBtn, { backgroundColor: GOLD, marginTop: 10 }]}
                                     onPress={() => setSelectedLogModal(null)}
                                 >
-                                    <Text style={[styles.confirmText, { color: '#0d0c0f' }]}>Close Summary</Text>
+                                    <Text style={[styles.confirmText, { color: '#070912' }]}>Close Summary</Text>
                                 </Pressable>
                             </View>
                         )}
@@ -1086,13 +1101,13 @@ export default function PremiumHubScreen({
 // Styles: Black & Gold Concierge Aesthetic
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_MUTED = '#6c6880';
-const TEXT_SUB = '#8e8aa0';
+const GOLD = '#ffc24b';
+const DARK_BG = '#070912';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_MUTED = '#5a6488';
+const TEXT_SUB = '#8a93b2';
 
 const styles = StyleSheet.create({
     container: {
@@ -1188,7 +1203,7 @@ const styles = StyleSheet.create({
     },
     navItem: {
         flex: 1,
-        backgroundColor: '#1a1828',
+        backgroundColor: '#121732',
         borderRadius: 20,
         paddingVertical: 12,
         alignItems: 'center',
@@ -1503,6 +1518,8 @@ const styles = StyleSheet.create({
         borderColor: GOLD,
         borderWidth: 1.5,
         marginBottom: 16,
+        overflow: 'hidden',
+        ...glow(palette.amber, 0.3, 20),
     },
     activePremiumEyebrow: {
         fontSize: 11,
@@ -1766,12 +1783,10 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         paddingVertical: 16,
         alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: 24,
-        shadowColor: GOLD,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
+        overflow: 'hidden',
+        ...glow(palette.rose, 0.45, 16),
     },
     checkoutBtnText: {
         fontSize: 16,

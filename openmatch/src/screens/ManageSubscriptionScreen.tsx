@@ -87,7 +87,7 @@ export function ManageSubscriptionScreen({ onBack, onUpgrade }: Props) {
                 <View style={styles.inner}>
                     {loading ? (
                         <View style={styles.centerBox}>
-                            <ActivityIndicator size="large" color="#d1354c" />
+                            <ActivityIndicator size="large" color="#ff5470" />
                         </View>
                     ) : errorMessage ? (
                         <View style={styles.centerBox}>
@@ -202,23 +202,23 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#e5e9ea',
     },
-    headerTitle: { fontSize: 17, fontWeight: '700', color: '#1d2a30' },
+    headerTitle: { fontSize: 17, fontWeight: '700', color: '#121732' },
     content: { paddingVertical: 16, alignItems: 'center' },
     inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, paddingHorizontal: 16 },
     centerBox: { paddingVertical: 64, alignItems: 'center', gap: 16 },
     errorText: { color: '#6c7d84', textAlign: 'center', fontSize: 15 },
-    retryButton: { backgroundColor: '#d1354c', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
+    retryButton: { backgroundColor: '#ff5470', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
     retryText: { color: '#fff', fontWeight: '700' },
 
     planCard: { borderRadius: 16, padding: 20, borderWidth: 1.5 },
-    planCardActive: { backgroundColor: '#fffafb', borderColor: '#d1354c' },
+    planCardActive: { backgroundColor: '#fffafb', borderColor: '#ff5470' },
     planCardFree: { backgroundColor: '#ffffff', borderColor: '#e8e6e4' },
     planLabel: { fontSize: 12, fontWeight: '800', color: '#8a9aa1', letterSpacing: 1 },
-    planName: { fontSize: 28, fontWeight: '900', color: '#1d2a30', marginTop: 4 },
+    planName: { fontSize: 28, fontWeight: '900', color: '#121732', marginTop: 4 },
     planMeta: { fontSize: 14, color: '#5b6b72', marginTop: 6, lineHeight: 20 },
     upgradeButton: {
         marginTop: 16,
-        backgroundColor: '#d1354c',
+        backgroundColor: '#ff5470',
         borderRadius: 10,
         paddingVertical: 13,
         alignItems: 'center',
@@ -236,10 +236,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#e8e6e4',
     },
-    creditValue: { fontSize: 20, fontWeight: '900', color: '#1d2a30' },
+    creditValue: { fontSize: 20, fontWeight: '900', color: '#121732' },
     creditLabel: { fontSize: 12, color: '#6c7d84', marginTop: 2 },
 
-    sectionHeading: { fontSize: 16, fontWeight: '800', color: '#1d2a30', marginTop: 28, marginBottom: 10 },
+    sectionHeading: { fontSize: 16, fontWeight: '800', color: '#121732', marginTop: 28, marginBottom: 10 },
     emptyText: { color: '#6c7d84', fontSize: 14, lineHeight: 20 },
     historyCard: {
         backgroundColor: '#ffffff',
@@ -256,9 +256,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     historyLeft: { flex: 1, paddingRight: 12 },
-    historyDesc: { fontSize: 15, fontWeight: '600', color: '#1d2a30' },
+    historyDesc: { fontSize: 15, fontWeight: '600', color: '#121732' },
     historyMeta: { fontSize: 12.5, color: '#8a9aa1', marginTop: 3 },
-    historyAmount: { fontSize: 15, fontWeight: '800', color: '#1d2a30' },
+    historyAmount: { fontSize: 15, fontWeight: '800', color: '#121732' },
     divider: { height: 1, backgroundColor: '#eef1f2', marginLeft: 16 },
 
     footnote: { fontSize: 12.5, color: '#9aa7ad', marginTop: 24, lineHeight: 18 },

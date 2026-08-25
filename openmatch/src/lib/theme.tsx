@@ -18,28 +18,30 @@ export interface ThemeColors {
 }
 
 export const LIGHT_THEME_COLORS: ThemeColors = {
-    background: '#eff6f8',
+    // v2 futuristic light: cool cloud background, glassy cards, coral accent.
+    background: '#f6f8ff',
     cardBackground: '#ffffff',
-    cardBorder: '#d7e3e6',
-    textPrimary: '#0e2e3a',
-    textSecondary: '#4a6670',
-    textMuted: '#829198',
-    accent: '#e56a3a',
+    cardBorder: '#e2e7f5',
+    textPrimary: '#232a45',
+    textSecondary: '#5a6488',
+    textMuted: '#8a93b2',
+    accent: '#ff6a3d',
     headerBackground: '#ffffff',
-    headerBorder: '#e5e5e5',
+    headerBorder: '#e2e7f5',
     statusBar: 'dark',
 };
 
 export const DARK_THEME_COLORS: ThemeColors = {
-    background: '#0d0c0f',
-    cardBackground: '#16151a',
-    cardBorder: '#2a2640',
-    textPrimary: '#ffffff',
-    textSecondary: '#9e9bb0',
-    textMuted: '#6c6880',
-    accent: '#d4b373',
-    headerBackground: '#16151a',
-    headerBorder: '#2a2640',
+    // v2 futuristic dark: deep space-navy, violet-tinted borders, warm coral accent.
+    background: '#070912',
+    cardBackground: '#121732',
+    cardBorder: '#232b52',
+    textPrimary: '#f4f6ff',
+    textSecondary: '#aab2d5',
+    textMuted: '#6f78a0',
+    accent: '#ff6a3d',
+    headerBackground: '#0c1020',
+    headerBorder: '#1a2142',
     statusBar: 'light',
 };
 

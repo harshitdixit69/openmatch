@@ -182,7 +182,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     <Field label="Full Name" required error={errors.full_name}>
                         <TextInput
                             placeholder="Aarav Sharma"
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.full_name && styles.inputError]}
                             value={form.full_name}
                             onChangeText={(value) => updateField('full_name', value)}
@@ -242,7 +242,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     <Field label="Location (City, State)" required error={errors.location}>
                         <TextInput
                             placeholder="Pune, Maharashtra"
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.location && styles.inputError]}
                             value={form.location}
                             onChangeText={(value) => updateField('location', value)}
@@ -253,7 +253,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         <TextInput
                             keyboardType="number-pad"
                             placeholder="165"
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.height_cm && styles.inputError]}
                             value={form.height_cm ? String(form.height_cm) : ''}
                             onChangeText={(value) => updateField('height_cm', Number(value || 0))}
@@ -307,7 +307,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                             <TextInput
                                 keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                                 placeholder="+91 98765 43210"
-                                placeholderTextColor="#7b8d96"
+                                placeholderTextColor="#5a6488"
                                 style={[styles.input, { flex: 1 }, errors.phone && styles.inputError]}
                                 value={phoneNumber}
                                 editable={!isPhoneVerified}
@@ -327,7 +327,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                                 <Text style={{ color: '#1a7a5e', fontWeight: 'bold' }}>Verified ✅</Text>
                             ) : (
                                 <Pressable
-                                    style={{ backgroundColor: '#e56a3a', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 }}
+                                    style={{ backgroundColor: '#ff6a3d', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 }}
                                     onPress={handleVerifyPhone}
                                 >
                                     <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Verify</Text>
@@ -340,7 +340,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         <TextInput
                             keyboardType={Platform.OS === 'web' ? 'default' : 'phone-pad'}
                             placeholder="+91 98765 43210"
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.whatsapp && styles.inputError]}
                             value={whatsappNumber}
                             onChangeText={(val) => {
@@ -382,7 +382,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     <Field label="Mother Tongue" required error={errors.mother_tongue}>
                         <TextInput
                             placeholder="Hindi, Punjabi, Marathi..."
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.mother_tongue && styles.inputError]}
                             value={form.mother_tongue || ''}
                             onChangeText={(value) => updateField('mother_tongue', value)}
@@ -405,7 +405,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     <Field label="Occupation / Designation" required error={errors.occupation}>
                         <TextInput
                             placeholder="Software Engineer, Business Owner, Doctor..."
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.occupation && styles.inputError]}
                             value={form.occupation || ''}
                             onChangeText={(value) => updateField('occupation', value)}
@@ -415,7 +415,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                     <Field label="Company / Employer Name" required error={errors.company}>
                         <TextInput
                             placeholder="Tech Corp / Self-Employed"
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.company && styles.inputError]}
                             value={form.company || ''}
                             onChangeText={(value) => updateField('company', value)}
@@ -487,7 +487,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         <TextInput
                             keyboardType="number-pad"
                             placeholder="0"
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, errors.num_siblings && styles.inputError]}
                             value={String(form.num_siblings ?? 0)}
                             onChangeText={(value) => updateField('num_siblings', Number(value || 0))}
@@ -550,7 +550,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         <TextInput
                             multiline
                             placeholder="Share your values, family background, work, and lifestyle."
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, styles.textarea, errors.bio && styles.inputError]}
                             textAlignVertical="top"
                             value={form.bio}
@@ -562,7 +562,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         <TextInput
                             multiline
                             placeholder="Describe expected education, values, location, and lifestyle."
-                            placeholderTextColor="#7b8d96"
+                            placeholderTextColor="#5a6488"
                             style={[styles.input, styles.textareaLarge, errors.preferences && styles.inputError]}
                             textAlignVertical="top"
                             value={form.preferences}
@@ -1056,11 +1056,11 @@ const styles = StyleSheet.create({
         height: 6,
     },
     progressSegmentActive: {
-        backgroundColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
     },
     card: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 20,
         borderWidth: 1,
         gap: 16,
@@ -1090,7 +1090,7 @@ const styles = StyleSheet.create({
     },
     input: {
         backgroundColor: '#f7fafb',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1.5,
         color: '#10232a',
@@ -1140,7 +1140,7 @@ const styles = StyleSheet.create({
     },
     chip: {
         backgroundColor: '#f1f5f7',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 10,
         borderWidth: 1,
         paddingHorizontal: 14,
@@ -1169,7 +1169,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     photoCard: {
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 14,
         borderWidth: 1,
         height: 120,
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
     addPhotoCard: {
         alignItems: 'center',
         backgroundColor: '#f7fafb',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 14,
         borderStyle: 'dashed',
         borderWidth: 2,
@@ -1210,7 +1210,7 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     addPhotoSymbol: {
-        color: '#e56a3a',
+        color: '#ff6a3d',
         fontSize: 28,
         fontWeight: '700',
     },
@@ -1237,7 +1237,7 @@ const styles = StyleSheet.create({
     },
     copilotButton: {
         alignItems: 'center',
-        backgroundColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
         borderRadius: 12,
         paddingVertical: 12,
     },
@@ -1294,7 +1294,7 @@ const styles = StyleSheet.create({
     },
     summaryBox: {
         backgroundColor: '#f7fafb',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1,
         gap: 6,
@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
     footer: {
         alignItems: 'center',
         backgroundColor: '#ffffff',
-        borderTopColor: '#d7e3e6',
+        borderTopColor: '#e2e7f5',
         borderTopWidth: 1,
         paddingHorizontal: 20,
         paddingVertical: 14,
@@ -1325,7 +1325,7 @@ const styles = StyleSheet.create({
     },
     primaryButton: {
         alignItems: 'center',
-        backgroundColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
         borderRadius: 12,
         paddingVertical: 14,
     },

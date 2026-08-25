@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     triggerBox: {
         alignItems: 'center',
         backgroundColor: '#f7fafb',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1.5,
         cursor: 'pointer' as any,
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     triggerBoxOpen: {
-        borderColor: '#e56a3a',
+        borderColor: '#ff6a3d',
         backgroundColor: '#ffffff',
     },
     triggerBoxError: {
@@ -425,12 +425,12 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     isoDateText: {
-        color: '#7b8d96',
+        color: '#5a6488',
         fontSize: 12,
         fontWeight: '500',
     },
     placeholderText: {
-        color: '#7b8d96',
+        color: '#5a6488',
         fontSize: 15,
         fontWeight: '500',
     },
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     },
     calendarCard: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 16,
         borderWidth: 1.5,
         marginTop: 6,
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     },
     tabRow: {
         backgroundColor: '#f1f5f7',
-        borderBottomColor: '#d7e3e6',
+        borderBottomColor: '#e2e7f5',
         borderBottomWidth: 1,
         flexDirection: 'row',
         gap: 6,
@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
     },
     tabBtn: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 8,
         borderWidth: 1,
         flex: 1,
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     weekDayText: {
-        color: '#7b8d96',
+        color: '#5a6488',
         fontSize: 12,
         fontWeight: '700',
         textAlign: 'center',
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
         width: `${100 / 7}%`,
     },
     dayCellSelected: {
-        backgroundColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
     },
     dayCellText: {
         color: '#10232a',
@@ -629,15 +629,15 @@ const styles = StyleSheet.create({
     monthCard: {
         alignItems: 'center',
         backgroundColor: '#f1f5f7',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 8,
         borderWidth: 1,
         paddingVertical: 10,
         width: '31%',
     },
     monthCardSelected: {
-        backgroundColor: '#e56a3a',
-        borderColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
+        borderColor: '#ff6a3d',
     },
     monthCardText: {
         color: '#13333f',
@@ -660,15 +660,15 @@ const styles = StyleSheet.create({
     yearCard: {
         alignItems: 'center',
         backgroundColor: '#f1f5f7',
-        borderColor: '#d7e3e6',
+        borderColor: '#e2e7f5',
         borderRadius: 8,
         borderWidth: 1,
         paddingVertical: 8,
         width: '31%',
     },
     yearCardSelected: {
-        backgroundColor: '#e56a3a',
-        borderColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
+        borderColor: '#ff6a3d',
     },
     yearCardText: {
         color: '#13333f',
@@ -679,13 +679,13 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     cardFooter: {
-        borderTopColor: '#d7e3e6',
+        borderTopColor: '#e2e7f5',
         borderTopWidth: 1,
         padding: 10,
     },
     confirmButton: {
         alignItems: 'center',
-        backgroundColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
         borderRadius: 10,
         paddingVertical: 10,
     },

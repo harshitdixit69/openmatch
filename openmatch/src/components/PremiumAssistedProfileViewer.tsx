@@ -455,7 +455,7 @@ export default function PremiumAssistedProfileViewer({
     if (loading || !candidate) {
         return (
             <SafeAreaView style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#d4b373" />
+                <ActivityIndicator size="large" color="#ffc24b" />
                 <Text style={styles.loadingText}>Verifying Concierge Match details...</Text>
             </SafeAreaView>
         );
@@ -731,7 +731,7 @@ export default function PremiumAssistedProfileViewer({
                     <View style={styles.voiceModalCard}>
                         {callStep === 'dialing' && (
                             <View style={styles.voiceStateContainer}>
-                                <ActivityIndicator size="large" color="#d4b373" />
+                                <ActivityIndicator size="large" color="#ffc24b" />
                                 <Text style={styles.voiceStateTitle}>🟡 Dialing Candidate...</Text>
                                 <Text style={styles.voiceStateSub}>
                                     Retell AI Voice Agent is calling {capitalizeName(candidate?.full_name)}...
@@ -815,19 +815,19 @@ export default function PremiumAssistedProfileViewer({
 const styles = StyleSheet.create({
     loadingContainer: {
         flex: 1,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
         justifyContent: 'center',
         alignItems: 'center',
     },
     loadingText: {
         marginTop: 16,
-        color: '#d4b373',
+        color: '#ffc24b',
         fontSize: 16,
         fontWeight: '600',
     },
     container: {
         flex: 1,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
     },
     header: {
         flexDirection: 'row',
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
     backBtnText: {
-        color: '#a19fb0',
+        color: '#8a93b2',
         fontSize: 13,
         fontWeight: '600',
     },
@@ -869,7 +869,7 @@ const styles = StyleSheet.create({
     photoContainer: {
         width: width,
         height: height * 0.45,
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         position: 'relative',
     },
     heroImage: {
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 4,
     },
     paginationDotActive: {
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
         width: 12,
     },
     photoPlaceholder: {
@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     candidateLoc: {
-        color: '#a19fb0',
+        color: '#8a93b2',
         fontSize: 15,
         marginTop: 6,
     },
@@ -979,9 +979,9 @@ const styles = StyleSheet.create({
     },
     gridItem: {
         width: '48%',
-        backgroundColor: '#16151a',
+        backgroundColor: '#0c1020',
         borderWidth: 1,
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
         borderRadius: 8,
         padding: 12,
         marginBottom: 12,
@@ -1002,7 +1002,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 20,
         marginVertical: 20,
         borderWidth: 1,
-        borderColor: '#d4b373',
+        borderColor: '#ffc24b',
         paddingVertical: 14,
         borderRadius: 24,
         justifyContent: 'center',
@@ -1020,7 +1020,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         borderTopWidth: 1,
         borderTopColor: '#1c1b22',
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
     },
     footerBtn: {
         flex: 1,
@@ -1034,15 +1034,15 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     passFooterBtnText: {
-        color: '#a19fb0',
+        color: '#8a93b2',
         fontSize: 15,
         fontWeight: '700',
     },
     likeFooterBtn: {
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
     },
     likeFooterBtnText: {
-        color: '#0d0c0f',
+        color: '#070912',
         fontSize: 15,
         fontWeight: '700',
     },
@@ -1077,7 +1077,7 @@ const styles = StyleSheet.create({
     // Compatibility Chat Styles
     chatContainer: {
         flex: 1,
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
     },
     chatHeader: {
         flexDirection: 'row',
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
     chatCloseBtnText: {
-        color: '#a19fb0',
+        color: '#8a93b2',
         fontSize: 13,
         fontWeight: '600',
     },
@@ -1105,7 +1105,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     chatSubtitle: {
-        color: '#d4b373',
+        color: '#ffc24b',
         fontSize: 11,
         fontWeight: '600',
         marginTop: 2,
@@ -1136,7 +1136,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     userBubble: {
-        backgroundColor: '#11313c',
+        backgroundColor: '#121732',
         borderBottomRightRadius: 4,
         borderWidth: 1,
         borderColor: '#1d4857',
@@ -1168,7 +1168,7 @@ const styles = StyleSheet.create({
         padding: 16,
         borderTopWidth: 1,
         borderTopColor: '#1f1d24',
-        backgroundColor: '#0d0c0f',
+        backgroundColor: '#070912',
         alignItems: 'center',
     },
     chatInput: {
@@ -1176,7 +1176,7 @@ const styles = StyleSheet.create({
         height: 44,
         backgroundColor: '#1c1b22',
         borderWidth: 1,
-        borderColor: '#26242e',
+        borderColor: '#1a2142',
         borderRadius: 22,
         paddingHorizontal: 16,
         color: '#ffffff',
@@ -1186,7 +1186,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 12,
@@ -1199,7 +1199,7 @@ const styles = StyleSheet.create({
         opacity: 0.8,
     },
     chatSendBtnText: {
-        color: '#0d0c0f',
+        color: '#070912',
         fontSize: 20,
         fontWeight: '700',
     },
@@ -1248,12 +1248,12 @@ const styles = StyleSheet.create({
     voiceStateTitle: {
         fontSize: 18,
         fontWeight: '800',
-        color: '#d4b373',
+        color: '#ffc24b',
         textAlign: 'center',
     },
     voiceStateSub: {
         fontSize: 13,
-        color: '#a19fb0',
+        color: '#8a93b2',
         textAlign: 'center',
         lineHeight: 18,
     },
@@ -1294,16 +1294,16 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 12,
         borderWidth: 1,
-        borderColor: '#2a2640',
+        borderColor: '#1a2142',
     },
     sentimentCardLabel: {
         fontSize: 12,
-        color: '#8e8aa0',
+        color: '#8a93b2',
     },
     sentimentCardValue: {
         fontSize: 13,
         fontWeight: '800',
-        color: '#d4b373',
+        color: '#ffc24b',
     },
     voiceSummaryBox: {
         backgroundColor: 'rgba(20,18,30,0.8)',
@@ -1316,7 +1316,7 @@ const styles = StyleSheet.create({
     voiceSummaryHeader: {
         fontSize: 12,
         fontWeight: '800',
-        color: '#d4b373',
+        color: '#ffc24b',
         letterSpacing: 0.5,
         marginBottom: 2,
     },
@@ -1326,17 +1326,17 @@ const styles = StyleSheet.create({
     },
     voiceSummaryDot: {
         fontSize: 12,
-        color: '#d4b373',
+        color: '#ffc24b',
         fontWeight: '900',
     },
     voiceSummaryText: {
         flex: 1,
         fontSize: 12,
-        color: '#f0ece8',
+        color: '#eef1fb',
         lineHeight: 17,
     },
     voiceCloseBtn: {
-        backgroundColor: '#d4b373',
+        backgroundColor: '#ffc24b',
         borderRadius: 14,
         paddingVertical: 12,
         alignItems: 'center',
@@ -1346,6 +1346,6 @@ const styles = StyleSheet.create({
     voiceCloseBtnText: {
         fontSize: 14,
         fontWeight: '800',
-        color: '#0d0c0f',
+        color: '#070912',
     },
 });

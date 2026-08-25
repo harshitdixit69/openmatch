@@ -194,7 +194,7 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
             {submitting && (
                 <View style={styles.spinnerOverlay}>
                     <View style={styles.spinnerCard}>
-                        <ActivityIndicator size="large" color="#e56a3a" style={{ marginBottom: 16 }} />
+                        <ActivityIndicator size="large" color="#ff6a3d" style={{ marginBottom: 16 }} />
                         
                         <Text style={styles.spinnerText}>AI Scanner Active</Text>
                         
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     spinnerText: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#11313c',
+        color: '#121732',
         marginBottom: 16,
     },
     scanStepList: {
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     scanStepActive: {
-        color: '#e56a3a',
+        color: '#ff6a3d',
         fontWeight: '700',
     },
 });

@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     title: {
-        color: '#11313c',
+        color: '#121732',
         fontSize: 22,
         fontWeight: '700',
         marginBottom: 8,
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
     retryBtn: {
-        backgroundColor: '#e56a3a',
+        backgroundColor: '#ff6a3d',
         borderRadius: 12,
         paddingHorizontal: 32,
         paddingVertical: 14,

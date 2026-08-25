@@ -49,7 +49,7 @@ export function RequestTrustDrawer({
 
                     {loading ? (
                         <View style={styles.loadingState}>
-                            <ActivityIndicator size="small" color="#123340" />
+                            <ActivityIndicator size="small" color="#121732" />
                             <Text style={styles.loadingText}>Loading trust summary...</Text>
                         </View>
                     ) : summary ? (
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     sheet: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f8ff',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         gap: 16,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     },
     handle: {
         alignSelf: 'center',
-        backgroundColor: '#d7e1e2',
+        backgroundColor: '#e2e7f5',
         borderRadius: 999,
         height: 5,
         width: 54,
@@ -189,23 +189,23 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     title: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 24,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 14,
         lineHeight: 21,
     },
     closeButton: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     closeButtonText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
         paddingVertical: 32,
     },
     loadingText: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 14,
         lineHeight: 20,
         textAlign: 'center',
@@ -238,13 +238,13 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
     },
     statCardPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     statCardAccent: {
         backgroundColor: '#f3e3d1',
     },
     statCardNeutral: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
     },
     statValue: {
         fontSize: 18,
@@ -254,10 +254,10 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     statValueAccent: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     statValueNeutral: {
-        color: '#14313a',
+        color: '#121732',
     },
     statLabel: {
         fontSize: 12,
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
         color: '#8b6a53',
     },
     statLabelNeutral: {
-        color: '#5d6d71',
+        color: '#5a6488',
     },
     sectionCard: {
         backgroundColor: '#ffffff',
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     sectionTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 16,
         fontWeight: '800',
     },
@@ -297,13 +297,13 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     badgePill: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     badgeText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 12,
         fontWeight: '700',
     },

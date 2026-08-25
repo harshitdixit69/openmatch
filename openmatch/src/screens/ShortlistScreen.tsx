@@ -132,7 +132,7 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#123340" />
+                    <ActivityIndicator size="large" color="#121732" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -153,7 +153,7 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={() => load(true)}
-                            tintColor="#123340"
+                            tintColor="#121732"
                         />
                     }
                     showsVerticalScrollIndicator={false}
@@ -189,7 +189,7 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#f4f4f6' },
+    root: { flex: 1, backgroundColor: '#eef1fb' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     stateBody: { fontSize: 14, color: '#777', textAlign: 'center' },
     stateBtn: {
         marginTop: 6,
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 10,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         alignItems: 'center',
         justifyContent: 'center',
     },

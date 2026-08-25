@@ -111,7 +111,7 @@ export function PartnerPreferencesScreen({ onBack }: Props) {
     if (loading) {
         return (
             <SafeAreaView style={styles.loadingContainer} edges={['top', 'left', 'right']}>
-                <ActivityIndicator size="large" color="#123340" />
+                <ActivityIndicator size="large" color="#121732" />
                 <Text style={styles.loadingText}>Loading your preferences…</Text>
             </SafeAreaView>
         );
@@ -167,6 +167,7 @@ export function PartnerPreferencesScreen({ onBack }: Props) {
 
                         {/* Religion */}
                         <SectionCard title="Religion">
+                            <Text style={styles.hint}>Defaults to your own religion. Pick “Any” to see all faiths.</Text>
                             <ChipPicker
                                 options={PREF_RELIGIONS}
                                 selected={prefs.pref_religion}
@@ -260,10 +261,10 @@ export function PartnerPreferencesScreen({ onBack }: Props) {
 
 const styles = StyleSheet.create({
     flex: { flex: 1 },
-    safeArea: { flex: 1, backgroundColor: '#f4f4f6' },
+    safeArea: { flex: 1, backgroundColor: '#eef1fb' },
     loadingContainer: {
         flex: 1,
-        backgroundColor: '#f4f4f6',
+        backgroundColor: '#eef1fb',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#e5e5e5',
     },
     saveButton: {
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 12,
         paddingVertical: 15,
         alignItems: 'center',

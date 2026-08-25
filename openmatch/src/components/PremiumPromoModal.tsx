@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
         top: 0,
     },
     sheet: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 20,
         gap: 10,
         maxWidth: 420,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     },
     primaryButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         paddingHorizontal: 18,
         paddingVertical: 12,

@@ -1,6 +1,8 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { subscribeToNotifications, type AppNotification } from '../lib/notificationsApi';
@@ -16,6 +18,7 @@ import { fetchCurrentProfile, activateSpotlight } from '../lib/profileApi';
 import { MatchCandidate } from '../lib/matchmaking';
 import { fetchCompatibilitySnapshot } from '../lib/matchmakingApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
+import { palette, gradients, glow } from '../lib/designSystem';
 import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
 import { ModerationQueueScreen } from './ModerationQueueScreen';
@@ -577,7 +580,14 @@ export function MainTabsScreen() {
                             style={[styles.fab, { bottom: tabBarSpacing + 16 }]}
                             onPress={() => setShowSearch(true)}
                         >
-                            <Text style={styles.fabText}>⌕</Text>
+                            <LinearGradient
+                                colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.fabGradient}
+                            >
+                                <Text style={styles.fabText}>⌕</Text>
+                            </LinearGradient>
                         </Pressable>
                     )}
                 </View>
@@ -670,6 +680,14 @@ function TabButton({ label, subtitle, badge, disabled = false, active, onPress }
             onPress={onPress}
             disabled={disabled}
         >
+            {active ? (
+                <LinearGradient
+                    colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+            ) : null}
             {badge ? (
                 <View style={styles.tabBadge}>
                     <Text style={styles.tabBadgeText}>{badge > 99 ? '99+' : String(badge)}</Text>
@@ -810,7 +828,7 @@ function HomeHubTab({
 
                 {loading ? (
                     <View style={styles.summaryLoadingCard}>
-                        <ActivityIndicator size="small" color="#123340" />
+                        <ActivityIndicator size="small" color="#121732" />
                         <Text style={styles.summaryLoadingText}>Refreshing your tab summary...</Text>
                     </View>
                 ) : (
@@ -824,7 +842,7 @@ function HomeHubTab({
 
                 {/* Spotlight Card */}
                 {(isSpotlightActive || (viewerProfile && (viewerProfile.spotlights_remaining ?? 0) > 0)) && (
-                    <View style={[styles.sectionCard, { borderLeftWidth: 4, borderLeftColor: '#c8a261', backgroundColor: '#fffdf9', paddingVertical: 16 }]}>
+                    <View style={[styles.sectionCard, { borderLeftWidth: 4, borderLeftColor: '#ffc24b', backgroundColor: '#fffdf9', paddingVertical: 16 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                             <View style={{ flex: 1, gap: 4, paddingRight: 12 }}>
                                 <Text style={{ fontSize: 16, fontWeight: '800', color: '#8a6b39' }}>
@@ -845,7 +863,7 @@ function HomeHubTab({
                             ) : (
                                 <Pressable 
                                     style={({ pressed }) => [
-                                        { backgroundColor: '#c8a261', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+                                        { backgroundColor: '#ffc24b', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
                                         pressed && { opacity: 0.8 },
                                         activatingSpotlight && { opacity: 0.5 }
                                     ]}
@@ -905,7 +923,7 @@ function HomeHubTab({
                                 <Text style={styles.confirmCancelText}>Cancel</Text>
                             </Pressable>
                             <Pressable
-                                style={[styles.confirmActionBtn, { backgroundColor: '#c8a261' }]}
+                                style={[styles.confirmActionBtn, { backgroundColor: '#ffc24b' }]}
                                 onPress={handleExecuteSpotlight}
                             >
                                 <Text style={styles.confirmActionText}>Activate</Text>
@@ -1182,7 +1200,7 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
 
                 {isActivePremium && (
                     /* Subscribed Premium Member View */
-                    <View style={[styles.heroCard, { backgroundColor: '#14313a', borderColor: '#d9643d', borderWidth: 2, marginBottom: 16 }]}>
+                    <View style={[styles.heroCard, { backgroundColor: '#121732', borderColor: '#ff6a3d', borderWidth: 2, marginBottom: 16 }]}>
                         <Text style={[styles.heroEyebrow, { color: '#f9a159' }]}>
                             👑 OpenMatch {
                                 viewerProfile?.subscription_tier === 'vip' ? 'VIP' :
@@ -1591,14 +1609,14 @@ function buildShellCounts(matches: ChatMatch[], currentUserId: string | null): S
 const styles = StyleSheet.create({
     shell: {
         alignItems: 'center',
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#f6f8ff',
         flex: 1,
     },
     utilityBar: {
         alignItems: 'center',
         alignSelf: 'center',
-        backgroundColor: '#fffaf5',
-        borderBottomColor: '#d7e1e2',
+        backgroundColor: '#f6f8ff',
+        borderBottomColor: '#e2e7f5',
         borderBottomWidth: 1,
         flexDirection: 'row',
         gap: 10,
@@ -1608,13 +1626,13 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     utilityMenuButton: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     utilityMenuButtonText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -1623,12 +1641,12 @@ const styles = StyleSheet.create({
         gap: 1,
     },
     utilityTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 15,
         fontWeight: '800',
     },
     utilitySubtitle: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 11,
         fontWeight: '600',
     },
@@ -1639,7 +1657,7 @@ const styles = StyleSheet.create({
     },
     utilityActionButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         flexDirection: 'row',
         gap: 6,
@@ -1647,12 +1665,12 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     utilityActionButtonText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 12,
         fontWeight: '800',
     },
     utilityBadge: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         minWidth: 20,
         paddingHorizontal: 6,
@@ -1678,15 +1696,18 @@ const styles = StyleSheet.create({
     },
     tabBar: {
         alignSelf: 'center',
-        backgroundColor: '#fffaf5',
-        borderTopColor: '#d7e1e2',
+        backgroundColor: '#ffffff',
+        borderTopColor: '#e2e7f5',
         borderTopWidth: 1,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         flexDirection: 'row',
         gap: 8,
         maxWidth: MAX_CONTENT_WIDTH,
         paddingHorizontal: 12,
         paddingTop: 12,
         width: '100%',
+        ...glow(palette.violet, 0.12, 24),
     },
     fab: {
         position: 'absolute',
@@ -1694,30 +1715,35 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        backgroundColor: '#123340',
+        overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
+        ...glow(palette.magenta, 0.5, 14),
         elevation: 6,
+    },
+    fabGradient: {
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     fabText: { fontSize: 24, color: '#fff', lineHeight: 28 },
     tabButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 18,
         flex: 1,
         gap: 2,
         justifyContent: 'center',
         minHeight: 44,
+        overflow: 'hidden',
         paddingHorizontal: 4,
         paddingVertical: 8,
         position: 'relative',
     },
     tabButtonActive: {
-        backgroundColor: '#14313a',
+        backgroundColor: palette.coral,
+        ...glow(palette.magenta, 0.5, 16),
     },
     tabButtonDisabled: {
         backgroundColor: '#f5f0ea',
@@ -1725,7 +1751,7 @@ const styles = StyleSheet.create({
     },
     tabBadge: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         justifyContent: 'center',
         minWidth: 20,
@@ -1741,7 +1767,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     tabLabel: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -1763,7 +1789,7 @@ const styles = StyleSheet.create({
         color: '#a8a0a0',
     },
     panelSafeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#f6f8ff',
         flex: 1,
     },
     panelScrollContent: {
@@ -1773,7 +1799,7 @@ const styles = StyleSheet.create({
         paddingTop: 14,
     },
     heroCard: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 22,
         gap: 8,
         padding: 15,
@@ -1814,7 +1840,7 @@ const styles = StyleSheet.create({
     summaryLoadingCard: {
         alignItems: 'center',
         backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        borderColor: '#e2e7f5',
         borderRadius: 22,
         borderWidth: 1,
         flexDirection: 'row',
@@ -1822,7 +1848,7 @@ const styles = StyleSheet.create({
         padding: 12,
     },
     summaryLoadingText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 13,
         fontWeight: '700',
     },
@@ -1840,14 +1866,14 @@ const styles = StyleSheet.create({
         padding: 11,
     },
     summaryCardPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     summaryCardAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
     },
     summaryCardNeutral: {
         backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        borderColor: '#e2e7f5',
         borderWidth: 1,
     },
     summaryValue: {
@@ -1858,10 +1884,10 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     summaryValueAccent: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     summaryValueNeutral: {
-        color: '#14313a',
+        color: '#121732',
     },
     summaryLabel: {
         fontSize: 11.5,
@@ -1871,21 +1897,21 @@ const styles = StyleSheet.create({
         color: '#c7d6d8',
     },
     summaryLabelAccent: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     summaryLabelNeutral: {
-        color: '#5d6d71',
+        color: '#5a6488',
     },
     sectionCard: {
         backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        borderColor: '#e2e7f5',
         borderRadius: 18,
         borderWidth: 1,
         gap: 11,
         padding: 13,
     },
     sectionTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 15,
         fontWeight: '800',
     },
@@ -1902,13 +1928,13 @@ const styles = StyleSheet.create({
         paddingVertical: 9,
     },
     quickActionButtonPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     quickActionButtonAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
     },
     quickActionButtonNeutral: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
     },
     quickActionLabel: {
         fontSize: 13,
@@ -1967,7 +1993,7 @@ const styles = StyleSheet.create({
     },
     signOutButton: {
         alignItems: 'center',
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f8ff',
         borderColor: '#ead7c4',
         borderRadius: 15,
         borderWidth: 1,
@@ -1979,7 +2005,7 @@ const styles = StyleSheet.create({
     },
     signOutIcon: {
         alignItems: 'center',
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
         borderRadius: 10,
         height: 34,
         justifyContent: 'center',
@@ -2008,17 +2034,17 @@ const styles = StyleSheet.create({
         color: '#c7d6d8',
     },
     quickActionSubtitleAccent: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     quickActionSubtitleNeutral: {
-        color: '#5d6d71',
+        color: '#5a6488',
     },
     featureRow: {
         flexDirection: 'row',
         gap: 10,
     },
     featureDot: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         height: 8,
         marginTop: 5,
@@ -2029,12 +2055,12 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     featureTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 13.5,
         fontWeight: '800',
     },
     featureBody: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 12.5,
         lineHeight: 18,
     },
@@ -2059,12 +2085,12 @@ const styles = StyleSheet.create({
         elevation: 6,
     },
     confirmModalTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 20,
         fontWeight: '800',
     },
     confirmModalBody: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 15,
         lineHeight: 22,
     },
@@ -2075,7 +2101,7 @@ const styles = StyleSheet.create({
     },
     confirmCancelBtn: {
         flex: 1,
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         paddingVertical: 12,
         borderRadius: 12,
         alignItems: 'center',
@@ -2088,7 +2114,7 @@ const styles = StyleSheet.create({
     },
     confirmActionBtn: {
         flex: 1,
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         paddingVertical: 12,
         borderRadius: 12,
         alignItems: 'center',
@@ -2111,12 +2137,12 @@ const styles = StyleSheet.create({
     pageHeaderTitle: {
         fontSize: 22,
         fontWeight: '900',
-        color: '#14313a',
+        color: '#121732',
     },
     needHelpText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#d1354c',
+        color: '#ff5470',
         textDecorationLine: 'underline',
     },
     upgradeToggleContainer: {
@@ -2149,7 +2175,7 @@ const styles = StyleSheet.create({
         color: '#9e9c9a',
     },
     upgradeToggleTextActive: {
-        color: '#14313a',
+        color: '#121732',
     },
     exclusiveTitle: {
         fontSize: 18,
@@ -2185,7 +2211,7 @@ const styles = StyleSheet.create({
     exclusiveFeatureTitle: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#1d2a30',
+        color: '#121732',
         lineHeight: 20,
     },
     exclusiveFeatureSubBullets: {
@@ -2208,7 +2234,7 @@ const styles = StyleSheet.create({
     },
     requestCallBackBtn: {
         borderWidth: 1.5,
-        borderColor: '#d1354c',
+        borderColor: '#ff5470',
         borderRadius: 8,
         paddingVertical: 10,
         paddingHorizontal: 20,
@@ -2216,12 +2242,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     requestCallBackText: {
-        color: '#d1354c',
+        color: '#ff5470',
         fontSize: 14,
         fontWeight: '700',
     },
     knowMoreText: {
-        color: '#d1354c',
+        color: '#ff5470',
         fontSize: 14,
         fontWeight: '700',
         textDecorationLine: 'underline',
@@ -2277,7 +2303,7 @@ const styles = StyleSheet.create({
     columnTitle: {
         fontSize: 11,
         fontWeight: '800',
-        color: '#1d2a30',
+        color: '#121732',
         textAlign: 'center',
     },
     radioButtonOuter: {
@@ -2290,13 +2316,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     radioButtonOuterActive: {
-        borderColor: '#d1354c',
+        borderColor: '#ff5470',
     },
     radioButtonInner: {
         width: 9,
         height: 9,
         borderRadius: 4.5,
-        backgroundColor: '#d1354c',
+        backgroundColor: '#ff5470',
     },
     tableRow: {
         flexDirection: 'row',
@@ -2335,7 +2361,7 @@ const styles = StyleSheet.create({
     rowValText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#1d2a30',
+        color: '#121732',
     },
     discountBannerContainer: {
         flexDirection: 'row',
@@ -2353,7 +2379,7 @@ const styles = StyleSheet.create({
     discountBannerText: {
         fontSize: 10.5,
         fontWeight: '800',
-        color: '#d1354c',
+        color: '#ff5470',
         letterSpacing: 0.5,
     },
     durationSection: {
@@ -2391,7 +2417,7 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     newPackageCardSelected: {
-        borderColor: '#d1354c',
+        borderColor: '#ff5470',
         backgroundColor: '#fffafb',
     },
     newPackageCardHeader: {
@@ -2414,7 +2440,7 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     newPackageDurationSelected: {
-        color: '#d1354c',
+        color: '#ff5470',
     },
     newPackageOriginalPrice: {
         fontSize: 11,
@@ -2425,10 +2451,10 @@ const styles = StyleSheet.create({
     newPackagePrice: {
         fontSize: 16,
         fontWeight: '900',
-        color: '#1d2a30',
+        color: '#121732',
     },
     crimsonBtn: {
-        backgroundColor: '#d1354c',
+        backgroundColor: '#ff5470',
         borderRadius: 8,
         height: 48,
         justifyContent: 'center',
@@ -2586,7 +2612,7 @@ function MatchProfileScreenModal({
     if (loading || !candidate) {
         return (
             <View style={{ flex: 1, backgroundColor: '#eff6f8', justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#11313c" />
+                <ActivityIndicator size="large" color="#121732" />
             </View>
         );
     }

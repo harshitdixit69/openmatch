@@ -15,9 +15,12 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 
 import { BackButton } from '../components/BackButton';
 import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
+import { palette, gradients, glow } from '../lib/designSystem';
 import { fetchFitFrictionBreakdown } from '../lib/aiApi';
 import { MatchCandidate, ViewerEmbeddingStatus } from '../lib/matchmaking';
 import { getDisplayFirstName, ProfileContactDetails, ProfileRecord } from '../lib/profile';
@@ -887,7 +890,7 @@ export function HomeScreen({
                                 <Text style={styles.photoManagerCount}>
                                     {viewerPhotoUrls.length} of {maxProfilePhotos} photos added
                                 </Text>
-                                {photoMutationPending ? <ActivityIndicator size="small" color="#123340" /> : null}
+                                {photoMutationPending ? <ActivityIndicator size="small" color="#121732" /> : null}
                             </View>
 
                             {viewerPhotoUrls.length > 0 ? (
@@ -1128,7 +1131,7 @@ function CandidateCard({
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null]}>{candidate.full_name}</Text>
                 {candidate.subscription_tier && candidate.subscription_tier !== 'free' ? (
-                    <Text style={{ fontSize: 16, marginLeft: 6, color: '#c8a261', alignSelf: 'center' }}>👑</Text>
+                    <Text style={{ fontSize: 16, marginLeft: 6, color: '#ffc24b', alignSelf: 'center' }}>👑</Text>
                 ) : null}
             </View>
             <Text style={styles.cardMeta}>
@@ -1194,6 +1197,32 @@ function ActionButton({ label, tone, compact = false, emphasis = false, onPress 
             : tone === 'accent'
                 ? styles.actionButtonTextAccent
                 : styles.actionButtonTextPrimary;
+
+    // The primary affirmative choice gets a warm coral->magenta gradient with a glow.
+    if (tone === 'primary') {
+        return (
+            <Pressable
+                style={({ pressed }) => [
+                    styles.actionButtonPrimaryWrap,
+                    emphasis ? styles.actionButtonEmphasis : null,
+                    glow(palette.magenta, 0.45, 18),
+                    pressed ? styles.actionButtonPressed : null,
+                ]}
+                onPress={onPress}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+            >
+                <LinearGradient
+                    colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.actionButton, compact ? styles.actionButtonCompact : null]}
+                >
+                    <Text style={[styles.actionButtonText, styles.actionButtonTextPrimary]} numberOfLines={1}>{label}</Text>
+                </LinearGradient>
+            </Pressable>
+        );
+    }
 
     return (
         <Pressable
@@ -1345,7 +1374,7 @@ function HomeFeedSkeleton() {
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: palette.cloud50,
         flex: 1,
         minHeight: 0,
     },
@@ -1379,12 +1408,12 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     title: {
-        color: '#14313a',
+        color: palette.slate800,
         fontSize: 30,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 15,
         lineHeight: 22,
     },
@@ -1395,18 +1424,19 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     searchCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#d6e1df',
+        backgroundColor: palette.white,
+        borderColor: palette.cloud200,
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
         marginTop: 8,
         padding: 14,
+        ...glow(palette.violet, 0.1, 22),
     },
     searchInput: {
-        backgroundColor: '#f4f8f7',
+        backgroundColor: palette.cloud100,
         borderRadius: 16,
-        color: '#14313a',
+        color: palette.slate800,
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -1416,16 +1446,16 @@ const styles = StyleSheet.create({
         paddingRight: 4,
     },
     filterChip: {
-        backgroundColor: '#eef3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     filterChipActive: {
-        backgroundColor: '#14313a',
+        backgroundColor: palette.slate800,
     },
     filterChipText: {
-        color: '#4a646b',
+        color: '#5a6488',
         fontSize: 13,
         fontWeight: '700',
     },
@@ -1433,7 +1463,7 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     signOutButton: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -1449,13 +1479,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     photosButton: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
     photosButtonText: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1495,9 +1525,9 @@ const styles = StyleSheet.create({
         width: '96%',
         height: 440,
         borderRadius: 28,
-        backgroundColor: '#f5f9f9',
+        backgroundColor: '#f6f8ff',
         borderWidth: 1,
-        borderColor: '#dbe6e8',
+        borderColor: '#e2e7f5',
         padding: 16,
         gap: 12,
     },
@@ -1533,7 +1563,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#d7e3e5',
     },
     loadingText: {
-        color: '#4f656a',
+        color: '#5a6488',
         fontSize: 15,
     },
     stateCard: {
@@ -1543,20 +1573,21 @@ const styles = StyleSheet.create({
         gap: 12,
         marginTop: 40,
         padding: 28,
-        shadowColor: '#14313a',
+        shadowColor: '#121732',
         shadowOffset: { width: 0, height: 12 },
         shadowOpacity: 0.08,
         shadowRadius: 24,
     },
     premiumPromoCard: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: palette.ink700,
         borderRadius: 22,
         flexDirection: 'row',
         gap: 12,
         marginBottom: 12,
         paddingHorizontal: 14,
         paddingVertical: 14,
+        ...glow(palette.violet, 0.35, 20),
     },
     premiumPromoCopy: {
         flex: 1,
@@ -1593,7 +1624,7 @@ const styles = StyleSheet.create({
     premiumProfileTag: {
         alignItems: 'center',
         alignSelf: 'flex-start',
-        backgroundColor: '#f7ead8',
+        backgroundColor: '#ffe9dc',
         borderColor: '#e6c69a',
         borderRadius: 12,
         borderWidth: 1,
@@ -1606,7 +1637,7 @@ const styles = StyleSheet.create({
         marginTop: -2,
     },
     premiumProfileTagText: {
-        color: '#7e4f24',
+        color: '#9a3b18',
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.4,
@@ -1618,21 +1649,22 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     stateTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 24,
         fontWeight: '800',
     },
     stateSubtitle: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 15,
         lineHeight: 22,
     },
     refreshButton: {
         alignSelf: 'flex-start',
-        backgroundColor: '#d9643d',
+        backgroundColor: palette.coral,
         borderRadius: 999,
         paddingHorizontal: 18,
         paddingVertical: 12,
+        ...glow(palette.magenta, 0.4, 16),
     },
     refreshButtonText: {
         color: '#ffffff',
@@ -1676,13 +1708,13 @@ const styles = StyleSheet.create({
     },
     activeCard: {
         elevation: 8,
-        shadowColor: '#14313a',
+        shadowColor: palette.violet,
         shadowOffset: { width: 0, height: 18 },
-        shadowOpacity: 0.12,
+        shadowOpacity: 0.22,
         shadowRadius: 30,
     },
     cardPressable: {
-        backgroundColor: '#fefbf7',
+        backgroundColor: '#ffffff',
         borderColor: '#ecd9c7',
         borderRadius: 30,
         borderWidth: 1,
@@ -1691,7 +1723,7 @@ const styles = StyleSheet.create({
         padding: 24,
     },
     cardPressablePremium: {
-        borderColor: '#c8a261',
+        borderColor: '#ffc24b',
         borderWidth: 2.5,
         backgroundColor: '#fffcf5',
     },
@@ -1717,12 +1749,12 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     cardPhotoInitial: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 54,
         fontWeight: '800',
     },
     cardPhotoHint: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 13,
         fontWeight: '700',
         marginTop: 6,
@@ -1733,7 +1765,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     scorePill: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
@@ -1749,7 +1781,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     cardName: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 31,
         fontWeight: '800',
         marginTop: 4,
@@ -1769,7 +1801,7 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     factPill: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
@@ -1827,20 +1859,25 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
     },
     actionButtonAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
     },
     actionButtonPrimary: {
-        backgroundColor: '#d9643d',
+        backgroundColor: palette.coral,
+    },
+    actionButtonPrimaryWrap: {
+        borderRadius: 18,
+        flex: 1,
+        overflow: 'hidden',
     },
     actionButtonText: {
         fontSize: 13,
         fontWeight: '800',
     },
     actionButtonTextMuted: {
-        color: '#4a646b',
+        color: '#5a6488',
     },
     actionButtonTextAccent: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     actionButtonTextPrimary: {
         color: '#ffffff',
@@ -1853,7 +1890,7 @@ const styles = StyleSheet.create({
         padding: 22,
     },
     modalCard: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f8ff',
         borderRadius: 28,
         gap: 12,
         maxWidth: 420,
@@ -1887,7 +1924,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     modalTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 28,
         fontWeight: '800',
     },
@@ -1920,12 +1957,12 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     detailHeroInitial: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 66,
         fontWeight: '800',
     },
     detailHeroHint: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1940,13 +1977,13 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     detailPillPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     detailPillNeutral: {
-        backgroundColor: '#eef3f2',
+        backgroundColor: '#f6f8ff',
     },
     detailPillAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
     },
     detailPillText: {
         fontSize: 12,
@@ -1959,7 +1996,7 @@ const styles = StyleSheet.create({
         color: '#45606a',
     },
     detailPillTextAccent: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
     },
     detailThumbnailRow: {
         gap: 10,
@@ -1972,7 +2009,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     detailThumbnailFrameActive: {
-        borderColor: '#d9643d',
+        borderColor: '#ff6a3d',
     },
     detailThumbnailImage: {
         height: 92,
@@ -1987,7 +2024,7 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     detailSectionTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 18,
         fontWeight: '800',
     },
@@ -2011,7 +2048,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     detailFactValue: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         fontWeight: '700',
         lineHeight: 20,
@@ -2029,7 +2066,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     photoManagerCount: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         fontWeight: '700',
     },
@@ -2087,19 +2124,19 @@ const styles = StyleSheet.create({
         paddingVertical: 24,
     },
     profilePhotoEmptyTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 18,
         fontWeight: '800',
     },
     profilePhotoEmptyText: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 14,
         lineHeight: 21,
         textAlign: 'center',
     },
     photoManagerAddButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 16,
         paddingHorizontal: 18,
         paddingVertical: 14,
@@ -2124,26 +2161,26 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     contactSectionTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 17,
         fontWeight: '800',
     },
     contactSectionBody: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 14,
         lineHeight: 21,
     },
     contactInput: {
-        backgroundColor: '#f4f8f7',
+        backgroundColor: '#eef1fb',
         borderRadius: 14,
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     contactSaveButton: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 16,
         marginTop: 4,
         paddingHorizontal: 16,
@@ -2158,7 +2195,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     contactSavedHint: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 13,
         fontWeight: '700',
         lineHeight: 19,
@@ -2171,7 +2208,7 @@ const styles = StyleSheet.create({
         padding: 14,
     },
     insightSectionTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         fontWeight: '800',
     },
@@ -2181,7 +2218,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     insightDot: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         height: 8,
         marginTop: 8,
@@ -2202,7 +2239,7 @@ const styles = StyleSheet.create({
     },
     modalButton: {
         alignSelf: 'flex-end',
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 16,
         marginTop: 4,
         paddingHorizontal: 18,
@@ -2219,20 +2256,20 @@ const styles = StyleSheet.create({
     },
     detailFooterSecondaryButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 16,
         flex: 1,
         paddingHorizontal: 18,
         paddingVertical: 14,
     },
     detailFooterSecondaryButtonText: {
-        color: '#47616a',
+        color: '#5a6488',
         fontSize: 14,
         fontWeight: '800',
     },
     detailFooterPrimaryButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 16,
         flex: 1.2,
         paddingHorizontal: 18,

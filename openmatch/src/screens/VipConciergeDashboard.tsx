@@ -106,7 +106,7 @@ export default function VipConciergeDashboard({
                 );
 
                 let statusText = 'Reviewing Profile';
-                let statusColor = '#71717a';
+                let statusColor = '#8a93b2';
 
                 if (req) {
                     if (req.status === 'accepted') {
@@ -115,7 +115,7 @@ export default function VipConciergeDashboard({
                     } else if (req.status === 'sent') {
                         if (req.sender_id === viewerProfileId) {
                             statusText = 'Awaiting Handshake';
-                            statusColor = '#E6C687';
+                            statusColor = '#ffd27a';
                         } else {
                             statusText = 'Request Received';
                             statusColor = '#10b981'; 
@@ -126,7 +126,7 @@ export default function VipConciergeDashboard({
                     statusColor = '#10b981';
                 } else {
                     statusText = 'Awaiting Handshake';
-                    statusColor = '#E6C687';
+                    statusColor = '#ffd27a';
                 }
 
                 const nameParts = p.full_name ? p.full_name.split(' ') : ['Candidate'];
@@ -167,7 +167,7 @@ export default function VipConciergeDashboard({
                         location: c.location || 'Unknown location',
                         compatibility: Math.round((c.similarity || 0.85) * 100),
                         status: 'Ready to Pitch',
-                        statusColor: '#E6C687',
+                        statusColor: '#ffd27a',
                     });
                 });
             }
@@ -276,7 +276,7 @@ export default function VipConciergeDashboard({
                         
                         {loading && candidates.length === 0 ? (
                             <View style={styles.loaderContainer}>
-                                <ActivityIndicator size="small" color="#E6C687" />
+                                <ActivityIndicator size="small" color="#ffd27a" />
                                 <Text style={styles.loaderText}>Sourcing real-time candidates...</Text>
                             </View>
                         ) : candidates.length === 0 ? (
@@ -318,7 +318,7 @@ export default function VipConciergeDashboard({
                                                 ]} />
                                                 <Text style={[
                                                     styles.liveStatusText,
-                                                    { color: isAwaiting ? '#10b981' : '#E6C687' }
+                                                    { color: isAwaiting ? '#10b981' : '#ffd27a' }
                                                 ]}>
                                                     {active.status}
                                                 </Text>
@@ -336,7 +336,7 @@ export default function VipConciergeDashboard({
                                         {active.status === 'Ready to Pitch' && (
                                             <View style={styles.activeActionRow}>
                                                 {actioningId === active.id ? (
-                                                    <ActivityIndicator size="small" color="#E6C687" style={{ flex: 1, paddingVertical: 10 }} />
+                                                    <ActivityIndicator size="small" color="#ffd27a" style={{ flex: 1, paddingVertical: 10 }} />
                                                 ) : (
                                                     <>
                                                         <Pressable 
@@ -394,7 +394,7 @@ export default function VipConciergeDashboard({
                                                 <Text style={styles.queuedName}>{capitalizedName}</Text>
                                                 <Text style={styles.queuedMeta}>{c.location}</Text>
                                                 <View style={styles.queuedStatusRow}>
-                                                    <Text style={[styles.queuedStatusText, { color: c.statusColor || '#71717a' }]}>
+                                                    <Text style={[styles.queuedStatusText, { color: c.statusColor || '#8a93b2' }]}>
                                                         {queueStatus}
                                                     </Text>
                                                     <Text style={styles.queuedCompatibility}>{c.compatibility}% Fit</Text>
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     vipTag: {
         fontSize: 10,
         fontWeight: '800',
-        color: '#E6C687',
+        color: '#ffd27a',
         letterSpacing: 2,
     },
     statusBadge: {
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#E6C687',
+        backgroundColor: '#ffd27a',
         opacity: 0.4,
     },
     statusDotActive: {
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     statusBadgeText: {
         fontSize: 9,
         fontWeight: '700',
-        color: '#E6C687',
+        color: '#ffd27a',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
@@ -544,14 +544,14 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#E6C687',
+        shadowColor: '#ffd27a',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.1,
         shadowRadius: 10,
     },
     silhouetteInitials: {
         fontSize: 24,
-        color: '#E6C687',
+        color: '#ffd27a',
         fontFamily: Platform.OS === 'ios' ? 'Playfair Display' : 'serif',
         opacity: 0.8,
     },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     },
     activeLocation: {
         fontSize: 13,
-        color: '#71717a',
+        color: '#8a93b2',
         textAlign: 'center',
     },
     telemetryRow: {
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#10b981',
     },
     liveIndicatorDotGold: {
-        backgroundColor: '#E6C687',
+        backgroundColor: '#ffd27a',
     },
     liveStatusText: {
         fontSize: 11,
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     },
     alignmentStat: {
         fontSize: 11,
-        color: '#71717a',
+        color: '#8a93b2',
         fontWeight: '700',
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },
@@ -632,13 +632,13 @@ const styles = StyleSheet.create({
         flex: 1.2,
         backgroundColor: 'rgba(230, 198, 135, 0.08)',
         borderWidth: 1,
-        borderColor: '#E6C687',
+        borderColor: '#ffd27a',
         paddingVertical: 12,
         borderRadius: 12,
         alignItems: 'center',
     },
     approveText: {
-        color: '#E6C687',
+        color: '#ffd27a',
         fontSize: 12,
         fontWeight: '700',
     },
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     declineText: {
-        color: '#71717a',
+        color: '#8a93b2',
         fontSize: 12,
         fontWeight: '700',
     },
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     queuedAvatarText: {
-        color: '#71717a',
+        color: '#8a93b2',
         fontSize: 14,
         fontWeight: '600',
     },
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
     },
     queuedStatusText: {
         fontSize: 9,
-        color: '#71717a',
+        color: '#8a93b2',
         fontWeight: '700',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -738,13 +738,13 @@ const styles = StyleSheet.create({
     escrowTitle: {
         fontSize: 11,
         fontWeight: '700',
-        color: '#E6C687',
+        color: '#ffd27a',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     escrowText: {
         fontSize: 10,
-        color: '#71717a',
+        color: '#8a93b2',
         lineHeight: 14,
     },
     footer: {
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
     },
     loaderText: {
         fontSize: 11,
-        color: '#71717a',
+        color: '#8a93b2',
     },
     emptyContainer: {
         alignItems: 'center',
@@ -787,6 +787,6 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         fontSize: 12,
-        color: '#71717a',
+        color: '#8a93b2',
     },
 });

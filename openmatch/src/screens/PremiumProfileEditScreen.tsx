@@ -96,7 +96,7 @@ export default function PremiumProfileEditScreen({ onBack }: { onBack: () => voi
                     disabled={saving}
                 >
                     {saving ? (
-                        <ActivityIndicator size="small" color="#0d0c0f" />
+                        <ActivityIndicator size="small" color="#070912" />
                     ) : (
                         <Text style={styles.saveBtnText}>Save</Text>
                     )}
@@ -105,7 +105,7 @@ export default function PremiumProfileEditScreen({ onBack }: { onBack: () => voi
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#ffc24b" size="large" />
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.formContent} showsVerticalScrollIndicator={false}>
@@ -114,13 +114,13 @@ export default function PremiumProfileEditScreen({ onBack }: { onBack: () => voi
                         <Text style={styles.sectionTitle}>Basic Information</Text>
 
                         <Text style={styles.label}>Full Name</Text>
-                        <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="Full Name" placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="Full Name" placeholderTextColor="#5a6488" />
 
                         <Text style={styles.label}>Bio / About Me</Text>
-                        <TextInput style={[styles.input, styles.multiline]} value={bio} onChangeText={setBio} multiline placeholder="Describe your background and lifestyle..." placeholderTextColor="#5a5570" />
+                        <TextInput style={[styles.input, styles.multiline]} value={bio} onChangeText={setBio} multiline placeholder="Describe your background and lifestyle..." placeholderTextColor="#5a6488" />
 
                         <Text style={styles.label}>Location (City, Country)</Text>
-                        <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="City, Country" placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="City, Country" placeholderTextColor="#5a6488" />
                     </View>
 
                     {/* Career & Education */}
@@ -128,10 +128,10 @@ export default function PremiumProfileEditScreen({ onBack }: { onBack: () => voi
                         <Text style={styles.sectionTitle}>Career & Education</Text>
 
                         <Text style={styles.label}>Occupation / Role</Text>
-                        <TextInput style={styles.input} value={occupation} onChangeText={setOccupation} placeholder="e.g. Software Engineer" placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={occupation} onChangeText={setOccupation} placeholder="e.g. Software Engineer" placeholderTextColor="#5a6488" />
 
                         <Text style={styles.label}>Highest Education</Text>
-                        <TextInput style={styles.input} value={education} onChangeText={setEducation} placeholder="e.g. Master's in CS" placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={education} onChangeText={setEducation} placeholder="e.g. Master's in CS" placeholderTextColor="#5a6488" />
                     </View>
 
                     {/* Personal Attributes */}
@@ -139,13 +139,13 @@ export default function PremiumProfileEditScreen({ onBack }: { onBack: () => voi
                         <Text style={styles.sectionTitle}>Personal Attributes</Text>
 
                         <Text style={styles.label}>Height (cm)</Text>
-                        <TextInput style={styles.input} value={height} onChangeText={setHeight} keyboardType="numeric" placeholder="175" placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={height} onChangeText={setHeight} keyboardType="numeric" placeholder="175" placeholderTextColor="#5a6488" />
 
                         <Text style={styles.label}>Religion / Background</Text>
-                        <TextInput style={styles.input} value={religion} onChangeText={setReligion} placeholder="e.g. Hindu / Jain" placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={religion} onChangeText={setReligion} placeholder="e.g. Hindu / Jain" placeholderTextColor="#5a6488" />
 
                         <Text style={styles.label}>Dietary Preference</Text>
-                        <TextInput style={styles.input} value={diet} onChangeText={setDiet} placeholder="e.g. Vegetarian / Eggetarian" placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={diet} onChangeText={setDiet} placeholder="e.g. Vegetarian / Eggetarian" placeholderTextColor="#5a6488" />
                     </View>
                 </ScrollView>
             )}
@@ -153,13 +153,13 @@ export default function PremiumProfileEditScreen({ onBack }: { onBack: () => voi
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
+const GOLD = '#ffc24b';
+const DARK_BG = '#070912';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_SUB = '#8a93b2';
+const TEXT_MUTED = '#5a6488';
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: DARK_BG },

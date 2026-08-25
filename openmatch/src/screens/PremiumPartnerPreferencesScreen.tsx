@@ -92,7 +92,7 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                     disabled={saving}
                 >
                     {saving ? (
-                        <ActivityIndicator size="small" color="#0d0c0f" />
+                        <ActivityIndicator size="small" color="#070912" />
                     ) : (
                         <Text style={styles.saveBtnText}>Save</Text>
                     )}
@@ -101,7 +101,7 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#ffc24b" size="large" />
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.formContent} showsVerticalScrollIndicator={false}>
@@ -111,11 +111,11 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                         <View style={styles.rowInputs}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Min Age</Text>
-                                <TextInput style={styles.input} value={minAge} onChangeText={setMinAge} keyboardType="numeric" placeholder="21" placeholderTextColor="#5a5570" />
+                                <TextInput style={styles.input} value={minAge} onChangeText={setMinAge} keyboardType="numeric" placeholder="21" placeholderTextColor="#5a6488" />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Max Age</Text>
-                                <TextInput style={styles.input} value={maxAge} onChangeText={setMaxAge} keyboardType="numeric" placeholder="35" placeholderTextColor="#5a5570" />
+                                <TextInput style={styles.input} value={maxAge} onChangeText={setMaxAge} keyboardType="numeric" placeholder="35" placeholderTextColor="#5a6488" />
                             </View>
                         </View>
                     </View>
@@ -126,11 +126,11 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                         <View style={styles.rowInputs}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Min Height</Text>
-                                <TextInput style={styles.input} value={minHeight} onChangeText={setMinHeight} keyboardType="numeric" placeholder="155" placeholderTextColor="#5a5570" />
+                                <TextInput style={styles.input} value={minHeight} onChangeText={setMinHeight} keyboardType="numeric" placeholder="155" placeholderTextColor="#5a6488" />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Max Height</Text>
-                                <TextInput style={styles.input} value={maxHeight} onChangeText={setMaxHeight} keyboardType="numeric" placeholder="190" placeholderTextColor="#5a5570" />
+                                <TextInput style={styles.input} value={maxHeight} onChangeText={setMaxHeight} keyboardType="numeric" placeholder="190" placeholderTextColor="#5a6488" />
                             </View>
                         </View>
                     </View>
@@ -140,13 +140,13 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
                         <Text style={styles.sectionTitle}>Background & Lifestyle</Text>
 
                         <Text style={styles.label}>Preferred Religion</Text>
-                        <TextInput style={styles.input} value={religion} onChangeText={setReligion} placeholder="Hindu, Jain, Sikh..." placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={religion} onChangeText={setReligion} placeholder="Hindu, Jain, Sikh..." placeholderTextColor="#5a6488" />
 
                         <Text style={styles.label}>Education Requirement</Text>
-                        <TextInput style={styles.input} value={education} onChangeText={setEducation} placeholder="Bachelor's, Master's..." placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={education} onChangeText={setEducation} placeholder="Bachelor's, Master's..." placeholderTextColor="#5a6488" />
 
                         <Text style={styles.label}>Diet Preference</Text>
-                        <TextInput style={styles.input} value={diet} onChangeText={setDiet} placeholder="Vegetarian, Eggetarian..." placeholderTextColor="#5a5570" />
+                        <TextInput style={styles.input} value={diet} onChangeText={setDiet} placeholder="Vegetarian, Eggetarian..." placeholderTextColor="#5a6488" />
                     </View>
                 </ScrollView>
             )}
@@ -154,13 +154,13 @@ export default function PremiumPartnerPreferencesScreen({ onBack }: { onBack: ()
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
+const GOLD = '#ffc24b';
+const DARK_BG = '#070912';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_SUB = '#8a93b2';
+const TEXT_MUTED = '#5a6488';
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: DARK_BG },

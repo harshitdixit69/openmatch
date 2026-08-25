@@ -66,7 +66,7 @@ export default function PremiumSearchScreen({
                 <TextInput
                     style={styles.searchInput}
                     placeholder="Search by name, city, or interests..."
-                    placeholderTextColor="#5a5570"
+                    placeholderTextColor="#5a6488"
                     value={query}
                     onChangeText={setQuery}
                 />
@@ -75,7 +75,7 @@ export default function PremiumSearchScreen({
             {/* Results */}
             {loading ? (
                 <View style={styles.loadingWrap}>
-                    <ActivityIndicator color="#d4b373" size="large" />
+                    <ActivityIndicator color="#ffc24b" size="large" />
                     <Text style={styles.loadingText}>Loading candidates...</Text>
                 </View>
             ) : filtered.length === 0 ? (
@@ -113,13 +113,13 @@ export default function PremiumSearchScreen({
     );
 }
 
-const GOLD = '#d4b373';
-const DARK_BG = '#0d0c0f';
-const CARD_BG = '#1a1828';
-const BORDER = '#2a2640';
-const TEXT_PRIMARY = '#f0ece8';
-const TEXT_SUB = '#8e8aa0';
-const TEXT_MUTED = '#6c6880';
+const GOLD = '#ffc24b';
+const DARK_BG = '#070912';
+const CARD_BG = '#121732';
+const BORDER = '#1a2142';
+const TEXT_PRIMARY = '#eef1fb';
+const TEXT_SUB = '#8a93b2';
+const TEXT_MUTED = '#5a6488';
 
 const styles = StyleSheet.create({
     container: {

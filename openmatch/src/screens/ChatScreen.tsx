@@ -17,6 +17,8 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { BackButton } from '../components/BackButton';
@@ -69,6 +71,7 @@ import {
 } from '../lib/paymentSheet';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { supabase } from '../lib/supabase';
+import { palette, gradients, glow } from '../lib/designSystem';
 import { trackPremiumEvent } from '../lib/premiumAnalytics';
 import { PremiumPromoVariant, resolvePremiumPromoVariant } from '../lib/premiumTargeting';
 import {
@@ -1407,7 +1410,7 @@ export function ChatScreen({
     }
 
     return (
-        <SafeAreaView style={[styles.safeArea, isPremium && { backgroundColor: '#0d0c0f' }]} edges={['left', 'right']}>
+        <SafeAreaView style={[styles.safeArea, isPremium && { backgroundColor: '#070912' }]} edges={['left', 'right']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
@@ -1457,7 +1460,7 @@ export function ChatScreen({
                                                     <Text style={styles.headerNameBadge}>✅</Text>
                                                 ) : null}
                                                 {activeMatch.otherUserSubscriptionTier && activeMatch.otherUserSubscriptionTier !== 'free' ? (
-                                                    <Text style={[styles.headerNameBadge, { color: '#c8a261' }]}>👑</Text>
+                                                    <Text style={[styles.headerNameBadge, { color: '#ffc24b' }]}>👑</Text>
                                                 ) : null}
                                             </View>
                                             <Text
@@ -1654,29 +1657,29 @@ export function ChatScreen({
                                 <Text style={styles.stateText}>Loading your conversations...</Text>
                             </View>
                         ) : matches.length === 0 ? (
-                            <View style={[styles.emptyCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e', borderWidth: 1 }]}>
+                            <View style={[styles.emptyCard, isPremium && { backgroundColor: '#0c1020', borderColor: '#1a2142', borderWidth: 1 }]}>
                                 <Text style={[styles.emptyTitle, isPremium && { color: '#ffffff' }]}>No conversations yet</Text>
-                                <Text style={[styles.emptyBody, isPremium && { color: '#a19fb0' }]}>
+                                <Text style={[styles.emptyBody, isPremium && { color: '#8a93b2' }]}>
                                     Swipe right on a match from the feed first. Each interested swipe creates a pending conversation here.
                                 </Text>
 
                                 <Pressable
-                                    style={[styles.refreshButton, isPremium && { backgroundColor: '#d4b373' }]}
+                                    style={[styles.refreshButton, isPremium && { backgroundColor: '#ffc24b' }]}
                                     onPress={() => void loadMatches(false)}
                                     disabled={matchesRefreshing}
                                 >
-                                    <Text style={[styles.refreshButtonText, isPremium && { color: '#0d0c0f' }]}>
+                                    <Text style={[styles.refreshButtonText, isPremium && { color: '#070912' }]}>
                                         {matchesRefreshing ? 'Refreshing...' : 'Refresh chats'}
                                     </Text>
                                 </Pressable>
                             </View>
                         ) : (
                             <>
-                                <View style={[styles.inboxToolbarCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e' }]}>
+                                <View style={[styles.inboxToolbarCard, isPremium && { backgroundColor: '#0c1020', borderColor: '#1a2142' }]}>
                                     <TextInput
-                                        style={[styles.inboxSearchInput, isPremium && { backgroundColor: '#26242e', color: '#ffffff' }]}
+                                        style={[styles.inboxSearchInput, isPremium && { backgroundColor: '#1a2142', color: '#ffffff' }]}
                                         placeholder="Search chats by name, city, or profile text"
-                                        placeholderTextColor={isPremium ? '#8e8aa0' : '#8b9aa0'}
+                                        placeholderTextColor={isPremium ? '#8a93b2' : '#8b9aa0'}
                                         value={matchSearchQuery}
                                         onChangeText={setMatchSearchQuery}
                                         autoCapitalize="none"
@@ -1686,9 +1689,9 @@ export function ChatScreen({
                                     {!isChatScreen && (
                                         <HorizontalScrollAffordance
                                             contentContainerStyle={styles.matchFilterList}
-                                            fadeColor={isPremium ? '#16151a' : '#ffffff'}
-                                            chevronColor={isPremium ? '#e8e4f0' : '#14313a'}
-                                            arrowBorderColor={isPremium ? '#26242e' : '#d7e1e2'}
+                                            fadeColor={isPremium ? '#0c1020' : '#ffffff'}
+                                            chevronColor={isPremium ? '#e8e4f0' : '#121732'}
+                                            arrowBorderColor={isPremium ? '#1a2142' : '#e2e7f5'}
                                             arrowAccessibilityLabelPrefix="chat filters"
                                         >
                                             {chatListFilters.map((item) => (
@@ -1707,9 +1710,9 @@ export function ChatScreen({
                                     <HorizontalScrollAffordance
                                         contentContainerStyle={styles.messageVisibilityRow}
                                         style={styles.messageVisibilityScroller}
-                                        fadeColor={isPremium ? '#16151a' : '#ffffff'}
-                                        chevronColor={isPremium ? '#e8e4f0' : '#14313a'}
-                                        arrowBorderColor={isPremium ? '#26242e' : '#d7e1e2'}
+                                        fadeColor={isPremium ? '#0c1020' : '#ffffff'}
+                                        chevronColor={isPremium ? '#e8e4f0' : '#121732'}
+                                        arrowBorderColor={isPremium ? '#1a2142' : '#e2e7f5'}
                                         arrowAccessibilityLabelPrefix="message filters"
                                     >
                                         <MatchFilterChip
@@ -1739,19 +1742,19 @@ export function ChatScreen({
                                 </View>
 
                                 {visibleMatches.length === 0 ? (
-                                    <View style={[styles.emptyCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e', borderWidth: 1 }]}>
+                                    <View style={[styles.emptyCard, isPremium && { backgroundColor: '#0c1020', borderColor: '#1a2142', borderWidth: 1 }]}>
                                         <Text style={[styles.emptyTitle, isPremium && { color: '#ffffff' }]}>{getEmptyInboxTitle(matchListFilter)}</Text>
-                                        <Text style={[styles.emptyBody, isPremium && { color: '#a19fb0' }]}>{getEmptyInboxBody(matchListFilter)}</Text>
+                                        <Text style={[styles.emptyBody, isPremium && { color: '#8a93b2' }]}>{getEmptyInboxBody(matchListFilter)}</Text>
 
                                         <Pressable
-                                            style={[styles.refreshButton, isPremium && { backgroundColor: '#d4b373' }]}
+                                            style={[styles.refreshButton, isPremium && { backgroundColor: '#ffc24b' }]}
                                             onPress={() => {
                                                 setMatchSearchQuery('');
                                                 setMatchListFilter('accepted');
                                                 setMessageVisibilityFilter('all');
                                             }}
                                         >
-                                            <Text style={[styles.refreshButtonText, isPremium && { color: '#0d0c0f' }]}>Clear filters</Text>
+                                            <Text style={[styles.refreshButtonText, isPremium && { color: '#070912' }]}>Clear filters</Text>
                                         </Pressable>
                                     </View>
                                 ) : (
@@ -1992,7 +1995,7 @@ export function ChatScreen({
                                     <Pressable
                                         style={[
                                             styles.callbackActionButton,
-                                            { marginTop: 8, marginBottom: 12, alignSelf: 'flex-start', backgroundColor: '#d9643d' },
+                                            { marginTop: 8, marginBottom: 12, alignSelf: 'flex-start', backgroundColor: '#ff6a3d' },
                                             extendingSla ? styles.sendButtonDisabled : null
                                         ]}
                                         onPress={() => void handleExtendSla(activeMatch)}
@@ -2307,7 +2310,7 @@ export function ChatScreen({
                                             style: ({ pressed }: { pressed: boolean }) => [
                                                 styles.messageBubble,
                                                 isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
-                                                isPremium && (isOwnMessage ? { backgroundColor: '#d4b373' } : { backgroundColor: '#16151a' }),
+                                                isPremium && (isOwnMessage ? { backgroundColor: '#ffc24b' } : { backgroundColor: '#0c1020' }),
                                                 styles.messageBubbleFlagged,
                                                 pressed ? { opacity: 0.7 } : null
                                             ]
@@ -2315,7 +2318,7 @@ export function ChatScreen({
                                             style: [
                                                 styles.messageBubble,
                                                 isOwnMessage ? styles.messageBubbleOwn : styles.messageBubbleOther,
-                                                isPremium && (isOwnMessage ? { backgroundColor: '#d4b373' } : { backgroundColor: '#16151a' }),
+                                                isPremium && (isOwnMessage ? { backgroundColor: '#ffc24b' } : { backgroundColor: '#0c1020' }),
                                                 item.isFlaggedBySystem ? styles.messageBubbleFlagged : null,
                                             ]
                                         };
@@ -2327,13 +2330,13 @@ export function ChatScreen({
                                                     disabled={Boolean(isFlaggedAndLocked)}
                                                     linkColor={
                                                         isPremium
-                                                            ? (isOwnMessage ? '#0d0c0f' : '#d4b373')
+                                                            ? (isOwnMessage ? '#070912' : '#ffc24b')
                                                             : (isOwnMessage ? '#9fd0d8' : '#0b6b74')
                                                     }
                                                     textStyle={[
                                                         styles.messageText,
                                                         isOwnMessage ? styles.messageTextOwn : styles.messageTextOther,
-                                                        isPremium && (isOwnMessage ? { color: '#0d0c0f' } : { color: '#ffffff' }),
+                                                        isPremium && (isOwnMessage ? { color: '#070912' } : { color: '#ffffff' }),
                                                         isFlaggedAndLocked ? styles.messageTextFlagged : null,
                                                     ]}
                                                 />
@@ -2341,7 +2344,7 @@ export function ChatScreen({
                                                     style={[
                                                         styles.messageMeta,
                                                         isOwnMessage ? styles.messageMetaOwn : styles.messageMetaOther,
-                                                        isPremium && (isOwnMessage ? { color: 'rgba(13,12,15,0.6)' } : { color: '#8e8aa0' }),
+                                                        isPremium && (isOwnMessage ? { color: 'rgba(13,12,15,0.6)' } : { color: '#8a93b2' }),
                                                     ]}
                                                 >
                                                     {formatMessageTime(item.createdAt)}
@@ -2365,7 +2368,7 @@ export function ChatScreen({
                         </View>
 
                         {promptSuggestions.length > 0 || chemistry ? (
-                            <View style={[styles.promptsCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e' }]}>
+                            <View style={[styles.promptsCard, isPremium && { backgroundColor: '#0c1020', borderColor: '#1a2142' }]}>
                                 <View style={styles.promptsHeaderRow}>
                                     <Text style={[styles.promptsTitle, isPremium && { color: '#ffffff' }]}>
                                         {promptsLoading ? '✨ Thinking...' : '✨ AI chat copilot'}
@@ -2410,7 +2413,7 @@ export function ChatScreen({
                                                     setChemistry(null);
                                                 }}
                                             >
-                                                <Text style={[styles.promptCardText, isPremium && { color: '#d4b373' }]}>{prompt}</Text>
+                                                <Text style={[styles.promptCardText, isPremium && { color: '#ffc24b' }]}>{prompt}</Text>
                                             </Pressable>
                                         ))}
                                     </View>
@@ -2420,9 +2423,9 @@ export function ChatScreen({
 
                         <View style={styles.composerRow}>
                             <TextInput
-                                style={[styles.composerInput, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e', color: '#ffffff' }]}
+                                style={[styles.composerInput, isPremium && { backgroundColor: '#0c1020', borderColor: '#1a2142', color: '#ffffff' }]}
                                 placeholder="Write a message"
-                                placeholderTextColor={isPremium ? '#8e8aa0' : '#7d8c90'}
+                                placeholderTextColor={isPremium ? '#8a93b2' : '#5a6488'}
                                 value={draft}
                                 onChangeText={handleDraftChange}
                                 multiline
@@ -2447,11 +2450,19 @@ export function ChatScreen({
                             </Pressable>
 
                             <Pressable
-                                style={[styles.sendButton, isPremium && { backgroundColor: '#d4b373' }, sending ? styles.sendButtonDisabled : null]}
+                                style={[styles.sendButton, isPremium && { backgroundColor: '#ffc24b' }, sending ? styles.sendButtonDisabled : null]}
                                 onPress={() => void handleSend()}
                                 disabled={sending || !draft.trim()}
                             >
-                                <Text style={[styles.sendButtonText, isPremium && { color: '#0d0c0f' }]}>{sending ? '…' : 'Send'}</Text>
+                                {!isPremium ? (
+                                    <LinearGradient
+                                        colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={StyleSheet.absoluteFill}
+                                    />
+                                ) : null}
+                                <Text style={[styles.sendButtonText, isPremium && { color: '#070912' }]}>{sending ? '…' : 'Send'}</Text>
                             </Pressable>
                         </View>
                     </>
@@ -2497,16 +2508,16 @@ function MatchFilterChip({
         <Pressable
             style={[
                 styles.matchFilterChip,
-                isPremium && { backgroundColor: '#26242e' },
-                active ? (isPremium ? { backgroundColor: '#d4b373' } : styles.matchFilterChipActive) : null
+                isPremium && { backgroundColor: '#1a2142' },
+                active ? (isPremium ? { backgroundColor: '#ffc24b' } : styles.matchFilterChipActive) : null
             ]}
             onPress={onPress}
         >
             <Text
                 style={[
                     styles.matchFilterChipText,
-                    isPremium && { color: '#a19fb0' },
-                    active ? (isPremium ? { color: '#0d0c0f' } : styles.matchFilterChipTextActive) : null
+                    isPremium && { color: '#8a93b2' },
+                    active ? (isPremium ? { color: '#070912' } : styles.matchFilterChipTextActive) : null
                 ]}
             >
                 {count > 0 ? `${label} (${count})` : label}
@@ -2571,7 +2582,7 @@ function ProfileListItemCard({
     const premiumHighlight = getPremiumInboxHighlight(item);
 
     return (
-        <View style={[styles.matchCard, isPremium && { backgroundColor: '#16151a', borderColor: '#26242e' }, premiumHighlight ? styles.matchCardPremium : null]}>
+        <View style={[styles.matchCard, isPremium && { backgroundColor: '#0c1020', borderColor: '#1a2142' }, premiumHighlight ? styles.matchCardPremium : null]}>
             <Pressable
                 style={styles.matchCardPressableContent}
                 onPress={onPress}
@@ -2698,7 +2709,7 @@ function ProfileListItemCard({
                             style={[styles.matchCardSecondaryAction, styles.matchCardQuickSecondaryAction]}
                             onPress={() => void onContactAction(item, 'call')}
                         >
-                            <PhoneIcon size={14} color="#35525b" />
+                            <PhoneIcon size={14} color="#232a45" />
                             <Text style={styles.matchCardSecondaryActionText}>Call</Text>
                         </Pressable>
                     ) : null}
@@ -2722,7 +2733,7 @@ function ChatListItemCard({ item, onPress, isPremium = false }: { item: ChatMatc
 
     return (
         <Pressable
-            style={({ pressed }) => [styles.chatCard, isPremium && { backgroundColor: '#16151a', borderBottomColor: '#26242e' }, pressed && (isPremium ? { backgroundColor: '#1f1c2e' } : styles.chatCardPressed)]}
+            style={({ pressed }) => [styles.chatCard, isPremium && { backgroundColor: '#0c1020', borderBottomColor: '#1a2142' }, pressed && (isPremium ? { backgroundColor: '#1f1c2e' } : styles.chatCardPressed)]}
             onPress={onPress}
         >
             <View style={styles.chatCardAvatarContainer}>
@@ -2744,16 +2755,16 @@ function ChatListItemCard({ item, onPress, isPremium = false }: { item: ChatMatc
                             {item.otherUserName}
                         </Text>
                         {item.otherUserSubscriptionTier && item.otherUserSubscriptionTier !== 'free' ? (
-                            <Text style={{ fontSize: 14, marginLeft: 4, color: '#c8a261' }}>👑</Text>
+                            <Text style={{ fontSize: 14, marginLeft: 4, color: '#ffc24b' }}>👑</Text>
                         ) : null}
                     </View>
-                    <Text style={[styles.chatCardTime, isPremium && { color: '#8e8aa0' }]}>
+                    <Text style={[styles.chatCardTime, isPremium && { color: '#8a93b2' }]}>
                         {formatChatListTime(item.lastActivityAt)}
                     </Text>
                 </View>
 
                 <View style={styles.chatCardMessageRow}>
-                    <Text style={[styles.chatCardMessage, isPremium && { color: '#a19fb0' }]} numberOfLines={1}>
+                    <Text style={[styles.chatCardMessage, isPremium && { color: '#8a93b2' }]} numberOfLines={1}>
                         {lastMessage}
                     </Text>
                     {item.unreadCount > 0 ? (
@@ -3689,7 +3700,7 @@ function getUnlockCardCopy(match: ChatMatch, contactShareBlocked = false, credit
 
 const styles = StyleSheet.create({
     safeArea: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#f6f8ff',
         flex: 1,
         minHeight: 0,
     },
@@ -3849,7 +3860,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     headerUnlockNote: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 12,
         fontWeight: '600',
     },
@@ -3946,7 +3957,7 @@ const styles = StyleSheet.create({
         width: '62%',
     },
     stateText: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 15,
     },
     emptyCard: {
@@ -3957,18 +3968,18 @@ const styles = StyleSheet.create({
         padding: 24,
     },
     emptyTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 24,
         fontWeight: '800',
     },
     emptyBody: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 15,
         lineHeight: 22,
     },
     refreshButton: {
         alignSelf: 'flex-start',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         paddingHorizontal: 18,
         paddingVertical: 12,
@@ -3980,7 +3991,7 @@ const styles = StyleSheet.create({
     },
     inboxToolbarCard: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e1e2',
+        borderColor: '#e2e7f5',
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
@@ -3988,7 +3999,7 @@ const styles = StyleSheet.create({
         padding: 14,
     },
     inboxPremiumPromoCard: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 16,
         flexDirection: 'row',
         gap: 10,
@@ -4029,9 +4040,9 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     inboxSearchInput: {
-        backgroundColor: '#f4f8f7',
+        backgroundColor: '#eef1fb',
         borderRadius: 16,
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -4049,16 +4060,16 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     matchFilterChip: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     matchFilterChipActive: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     matchFilterChipText: {
-        color: '#47616a',
+        color: '#5a6488',
         fontSize: 13,
         fontWeight: '800',
     },
@@ -4070,7 +4081,7 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
     },
     matchCard: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f8ff',
         borderColor: '#ecd9c7',
         borderRadius: 24,
         borderWidth: 1,
@@ -4091,7 +4102,7 @@ const styles = StyleSheet.create({
     matchPremiumTag: {
         alignItems: 'center',
         alignSelf: 'flex-start',
-        backgroundColor: '#f7ead8',
+        backgroundColor: '#ffe9dc',
         borderColor: '#e6c290',
         borderRadius: 12,
         borderWidth: 1,
@@ -4101,7 +4112,7 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
     },
     matchPremiumTagText: {
-        color: '#7e4f24',
+        color: '#9a3b18',
         fontSize: 10,
         fontWeight: '800',
         letterSpacing: 0.4,
@@ -4131,7 +4142,7 @@ const styles = StyleSheet.create({
         width: 60,
     },
     matchAvatarInitial: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 24,
         fontWeight: '800',
     },
@@ -4156,12 +4167,12 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     matchName: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 20,
         fontWeight: '800',
     },
     matchStatusPill: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 999,
         color: '#ffffff',
         fontSize: 12,
@@ -4172,7 +4183,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     matchUnreadPill: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         color: '#ffffff',
         fontSize: 12,
@@ -4208,13 +4219,13 @@ const styles = StyleSheet.create({
         paddingVertical: 5,
     },
     stateChipPrimary: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     stateChipAccent: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
     },
     stateChipMuted: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
     },
     stateChipText: {
         fontSize: 11,
@@ -4227,10 +4238,10 @@ const styles = StyleSheet.create({
         color: '#744a33',
     },
     stateChipTextMuted: {
-        color: '#47616a',
+        color: '#5a6488',
     },
     matchPreviewStatus: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 13,
         fontWeight: '700',
         lineHeight: 20,
@@ -4250,7 +4261,7 @@ const styles = StyleSheet.create({
     },
     matchCardPrimaryAction: {
         alignItems: 'center',
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 16,
         flex: 1,
         justifyContent: 'center',
@@ -4267,7 +4278,7 @@ const styles = StyleSheet.create({
     },
     matchCardSecondaryAction: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 16,
         flex: 1,
         flexDirection: 'row',
@@ -4280,18 +4291,18 @@ const styles = StyleSheet.create({
         flexBasis: '48%',
     },
     matchCardSecondaryActionText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 14,
         fontWeight: '800',
     },
     unlockCard: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 20,
         gap: 12,
         padding: 18,
     },
     unlockRequestInlineCard: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 20,
         gap: 12,
         marginBottom: 12,
@@ -4379,7 +4390,7 @@ const styles = StyleSheet.create({
     },
     unlockButton: {
         alignSelf: 'flex-start',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         paddingHorizontal: 18,
         paddingVertical: 12,
@@ -4407,19 +4418,19 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     noticeCard: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
         borderRadius: 18,
         marginBottom: 12,
         padding: 16,
     },
     noticeText: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 14,
         fontWeight: '700',
         lineHeight: 20,
     },
     requestCard: {
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f8ff',
         borderColor: '#decfbc',
         borderRadius: 18,
         borderWidth: 1,
@@ -4494,13 +4505,13 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     inlineTrustButton: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     inlineTrustButtonText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -4523,14 +4534,14 @@ const styles = StyleSheet.create({
     },
     requestSecondaryButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 14,
         justifyContent: 'center',
         minHeight: 46,
         paddingHorizontal: 16,
     },
     requestSecondaryButtonText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 14,
         fontWeight: '800',
     },
@@ -4547,24 +4558,24 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     deadlineBody: {
-        color: '#7a4a2c',
+        color: '#9a3b18',
         fontSize: 13,
         lineHeight: 19,
     },
     deadlineCardMuted: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 16,
         gap: 6,
         marginBottom: 10,
         padding: 13,
     },
     deadlineTitleMuted: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 14,
         fontWeight: '800',
     },
     deadlineBodyMuted: {
-        color: '#47616a',
+        color: '#5a6488',
         fontSize: 13,
         lineHeight: 19,
     },
@@ -4632,7 +4643,7 @@ const styles = StyleSheet.create({
     },
     recoverySuggestionCard: {
         backgroundColor: '#f4f7f7',
-        borderColor: '#d7e1e2',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1,
         gap: 8,
@@ -4645,7 +4656,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     recoverySuggestionBody: {
-        color: '#47616a',
+        color: '#5a6488',
         fontSize: 13,
         lineHeight: 19,
     },
@@ -4687,7 +4698,7 @@ const styles = StyleSheet.create({
     },
     contactActionsCard: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e1e2',
+        borderColor: '#e2e7f5',
         borderRadius: 18,
         borderWidth: 1,
         gap: 12,
@@ -4697,7 +4708,7 @@ const styles = StyleSheet.create({
     contactActionsSlimBar: {
         alignItems: 'center',
         backgroundColor: '#f4f7f7',
-        borderColor: '#d7e1e2',
+        borderColor: '#e2e7f5',
         borderRadius: 12,
         borderWidth: 1,
         flexDirection: 'row',
@@ -4707,7 +4718,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     contactActionsSlimText: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 13,
         fontWeight: '600',
         flexShrink: 1,
@@ -4718,13 +4729,13 @@ const styles = StyleSheet.create({
         marginLeft: 10,
     },
     contactSlimButton: {
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 6,
     },
     contactSlimButtonText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -4734,12 +4745,12 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     contactActionsTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 15,
         fontWeight: '800',
     },
     contactActionsBadge: {
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
         borderRadius: 999,
         color: '#ffffff',
         fontSize: 11,
@@ -4749,7 +4760,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     contactActionsBody: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 14,
         lineHeight: 21,
     },
@@ -4760,7 +4771,7 @@ const styles = StyleSheet.create({
     },
     contactPrimaryButton: {
         alignItems: 'center',
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         paddingHorizontal: 16,
         paddingVertical: 11,
@@ -4772,19 +4783,19 @@ const styles = StyleSheet.create({
     },
     contactSecondaryButton: {
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 16,
         paddingVertical: 11,
     },
     contactSecondaryButtonText: {
-        color: '#35525b',
+        color: '#232a45',
         fontSize: 13,
         fontWeight: '800',
     },
     promptsCard: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e1e2',
+        borderColor: '#e2e7f5',
         borderRadius: 16,
         borderWidth: 1,
         gap: 8,
@@ -4798,12 +4809,12 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     promptsTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 14,
         fontWeight: '800',
     },
     promptsAction: {
-        backgroundColor: '#eef4f2',
+        backgroundColor: '#f6f8ff',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 7,
@@ -4819,7 +4830,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     promptsCloseButton: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 7,
@@ -4830,7 +4841,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     promptsBody: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 13,
         lineHeight: 19,
     },
@@ -4865,19 +4876,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     chemistryTitle: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 12,
         fontWeight: '800',
         letterSpacing: 0.2,
         textTransform: 'uppercase',
     },
     chemistryScore: {
-        color: '#14313a',
+        color: '#121732',
         fontSize: 16,
         fontWeight: '800',
     },
     chemistryScoreUnit: {
-        color: '#7d8c90',
+        color: '#5a6488',
         fontSize: 12,
         fontWeight: '700',
     },
@@ -4896,13 +4907,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#c98a5e',
     },
     chemistryFillMid: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
     },
     chemistryFillHigh: {
         backgroundColor: '#2f7d5b',
     },
     chemistryLabel: {
-        color: '#5d6d71',
+        color: '#5a6488',
         fontSize: 12,
         fontWeight: '700',
         marginRight: 2,
@@ -4929,14 +4940,14 @@ const styles = StyleSheet.create({
     },
     messageBubbleOwn: {
         alignSelf: 'flex-end',
-        backgroundColor: '#14313a',
+        backgroundColor: '#121732',
     },
     messageBubbleOther: {
         alignSelf: 'flex-start',
         backgroundColor: '#ffffff',
     },
     messageBubbleFlagged: {
-        borderColor: '#d9643d',
+        borderColor: '#ff6a3d',
         borderWidth: 1,
     },
     messageText: {
@@ -4950,7 +4961,7 @@ const styles = StyleSheet.create({
         color: '#26434b',
     },
     messageTextFlagged: {
-        color: '#d9643d',
+        color: '#ff6a3d',
         fontWeight: '600',
     },
     messageMeta: {
@@ -4961,7 +4972,7 @@ const styles = StyleSheet.create({
         color: '#cad7d8',
     },
     messageMetaOther: {
-        color: '#7d8c90',
+        color: '#5a6488',
     },
     composerRow: {
         alignItems: 'center',
@@ -4971,10 +4982,10 @@ const styles = StyleSheet.create({
     },
     composerInput: {
         backgroundColor: '#ffffff',
-        borderColor: '#d7e1e2',
+        borderColor: '#e2e7f5',
         borderRadius: 24,
         borderWidth: 1,
-        color: '#14313a',
+        color: '#121732',
         flex: 1,
         fontSize: 15,
         maxHeight: 120,
@@ -4984,12 +4995,14 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top',
     },
     sendButton: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 24,
         height: 48,
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
         paddingHorizontal: 20,
+        ...glow(palette.magenta, 0.4, 12),
     },
     sendButtonDisabled: {
         opacity: 0.6,
@@ -5001,7 +5014,7 @@ const styles = StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: 12,
-        color: '#7d8c90',
+        color: '#5a6488',
         marginTop: 2,
     },
     headerSubtitleTyping: {
@@ -5022,7 +5035,7 @@ const styles = StyleSheet.create({
     },
     typingDots: {
         fontSize: 14,
-        color: '#7d8c90',
+        color: '#5a6488',
         letterSpacing: 2,
     },
     moreHeaderButton: {
@@ -5088,11 +5101,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
         alignItems: 'center',
-        backgroundColor: '#edf3f2',
+        backgroundColor: '#f6f8ff',
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#d6e1df',
+        borderBottomColor: '#e2e7f5',
         gap: 12,
         zIndex: 1,
     },

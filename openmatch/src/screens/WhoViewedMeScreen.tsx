@@ -140,7 +140,7 @@ export function WhoViewedMeScreen({ onBack, onSelectViewer }: Props) {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#123340" size="large" />
+                    <ActivityIndicator color="#121732" size="large" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -160,7 +160,7 @@ export function WhoViewedMeScreen({ onBack, onSelectViewer }: Props) {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={() => load(true)}
-                            tintColor="#123340"
+                            tintColor="#121732"
                         />
                     }
                     showsVerticalScrollIndicator={false}
@@ -205,12 +205,12 @@ const styles = StyleSheet.create({
         borderBottomColor: '#e8e5df',
     },
     headerCenter: { alignItems: 'center', flex: 1 },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
     headerCount: { fontSize: 12, color: '#888', marginTop: 2 },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    errorText: { fontSize: 14, color: '#c0392b', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#123340', borderRadius: 8 },
+    errorText: { fontSize: 14, color: '#ff5470', textAlign: 'center', paddingHorizontal: 24 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#121732', borderRadius: 8 },
     retryBtnText: { color: '#fff', fontWeight: '600' },
 
     list: { flex: 1 },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
 
     empty: { alignItems: 'center', paddingTop: 64, gap: 8 },
     emptyIcon: { fontSize: 40 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
     emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
 
     card: {
@@ -249,9 +249,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    cardImgInitial: { fontSize: 22, fontWeight: '700', color: '#123340' },
+    cardImgInitial: { fontSize: 22, fontWeight: '700', color: '#121732' },
     cardBody: { flex: 1, gap: 2 },
-    cardName: { fontSize: 15, fontWeight: '700', color: '#123340' },
+    cardName: { fontSize: 15, fontWeight: '700', color: '#121732' },
     cardMeta: { fontSize: 12, color: '#666' },
     cardBio: { fontSize: 12, color: '#888', marginTop: 2 },
     cardRight: { alignItems: 'flex-end', gap: 4 },

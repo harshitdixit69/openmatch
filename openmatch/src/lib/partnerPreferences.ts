@@ -74,7 +74,7 @@ export const DEFAULT_PARTNER_PREFERENCES: PartnerPreferences = {
     pref_age_max: 35,
     pref_height_min: null,
     pref_height_max: null,
-    pref_religion: 'Any',
+    pref_religion: null,
     pref_marital_status: ['never_married'],
     pref_education: 'Any',
     pref_income_band: 'any',

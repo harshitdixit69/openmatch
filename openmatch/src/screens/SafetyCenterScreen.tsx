@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     cardTitle: { color: '#111', fontSize: 16, fontWeight: '700' },
     pointRow: { flexDirection: 'row', gap: 10 },
     bullet: {
-        backgroundColor: '#d9643d',
+        backgroundColor: '#ff6a3d',
         borderRadius: 999,
         height: 6,
         marginTop: 8,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     pointText: { color: '#374151', flex: 1, fontSize: 14, lineHeight: 21 },
     contactButton: {
         alignItems: 'center',
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 12,
         marginTop: 4,
         paddingVertical: 12,

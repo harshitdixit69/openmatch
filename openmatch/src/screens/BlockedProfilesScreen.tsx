@@ -95,7 +95,7 @@ export function BlockedProfilesScreen({ onBack }: { onBack: () => void }) {
                 <View style={styles.inner}>
                     {loading ? (
                         <View style={styles.centered}>
-                            <ActivityIndicator color="#123340" />
+                            <ActivityIndicator color="#121732" />
                             <Text style={styles.mutedText}>Loading blocked profiles…</Text>
                         </View>
                     ) : errorMessage ? (
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     emptyTitle: { color: '#111', fontSize: 17, fontWeight: '700' },
     mutedText: { color: '#6b7280', fontSize: 14, lineHeight: 21, textAlign: 'center' },
     retryButton: {
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         borderRadius: 12,
         marginTop: 6,
         paddingHorizontal: 18,
@@ -194,17 +194,17 @@ const styles = StyleSheet.create({
     row: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
     avatar: { borderRadius: 20, height: 40, width: 40 },
     avatarPlaceholder: { alignItems: 'center', backgroundColor: '#dbe5e7', justifyContent: 'center' },
-    avatarInitial: { color: '#123340', fontSize: 16, fontWeight: '800' },
+    avatarInitial: { color: '#121732', fontSize: 16, fontWeight: '800' },
     rowCopy: { flex: 1, gap: 2, minWidth: 0 },
     rowName: { color: '#111', fontSize: 15, fontWeight: '600' },
     rowMeta: { color: '#8a8f98', fontSize: 12 },
     unblockButton: {
-        backgroundColor: '#f0e2d2',
+        backgroundColor: '#ffe9dc',
         borderRadius: 999,
         flexShrink: 0,
         paddingHorizontal: 14,
         paddingVertical: 8,
     },
     unblockButtonPressed: { opacity: 0.75 },
-    unblockButtonText: { color: '#7a4a2c', fontSize: 13, fontWeight: '800' },
+    unblockButtonText: { color: '#9a3b18', fontSize: 13, fontWeight: '800' },
 });

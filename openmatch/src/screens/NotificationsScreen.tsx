@@ -186,7 +186,7 @@ export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#123340" size="large" />
+                    <ActivityIndicator color="#121732" size="large" />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
@@ -206,7 +206,7 @@ export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={() => load(true)}
-                            tintColor="#123340"
+                            tintColor="#121732"
                         />
                     }
                     showsVerticalScrollIndicator={false}
@@ -247,14 +247,14 @@ const styles = StyleSheet.create({
         borderBottomColor: '#e8e5df',
     },
     headerCenter: { flex: 1, alignItems: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
     headerUnread: { fontSize: 12, color: '#888', marginTop: 2 },
     markAllBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-    markAllText: { fontSize: 12, color: '#123340', fontWeight: '600' },
+    markAllText: { fontSize: 12, color: '#121732', fontWeight: '600' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    errorText: { fontSize: 14, color: '#c0392b', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#123340', borderRadius: 8 },
+    errorText: { fontSize: 14, color: '#ff5470', textAlign: 'center', paddingHorizontal: 24 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#121732', borderRadius: 8 },
     retryBtnText: { color: '#fff', fontWeight: '600' },
 
     list: { flex: 1 },
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
 
     empty: { alignItems: 'center', paddingTop: 64, gap: 8 },
     emptyIcon: { fontSize: 40 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#123340' },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
     emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
 
     row: {
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     rowBody: { flex: 1, gap: 3 },
     rowHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
     rowTitle: { fontSize: 14, color: '#333', flex: 1 },
-    rowTitleBold: { fontWeight: '700', color: '#123340' },
+    rowTitleBold: { fontWeight: '700', color: '#121732' },
     rowTime: { fontSize: 11, color: '#999', flexShrink: 0 },
     rowBody2: { fontSize: 13, color: '#666', lineHeight: 18 },
 
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#123340',
+        backgroundColor: '#121732',
         marginTop: 6,
         flexShrink: 0,
     },
