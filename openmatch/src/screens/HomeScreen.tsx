@@ -203,7 +203,12 @@ export function HomeScreen({
         }
 
         try {
-            const offset = isAppend ? candidates.length : 0;
+            // Passed/rejected profiles are appended by the API for the "Passed" tab
+            // but are NOT part of the match_profiles pagination window, so exclude
+            // them when computing the offset for the next page.
+            const offset = isAppend
+                ? candidates.filter((c) => c.matchStatus !== 'passed' && c.matchStatus !== 'rejected').length
+                : 0;
             const result = await fetchSemanticMatches(50, offset);
 
             if (isAppend) {
@@ -1290,11 +1295,14 @@ function getPremiumHighlightForCandidate(candidate: MatchCandidate) {
 }
 
 function matchesFeedFilter(candidate: MatchCandidate, filter: FeedFilter, viewerLocation: string | null) {
+    const isPassed = candidate.matchStatus === 'passed' || candidate.matchStatus === 'rejected';
+
     if (filter === 'passed') {
-        return candidate.matchStatus === 'rejected';
+        return isPassed;
     }
 
-    if (candidate.matchStatus === 'rejected') {
+    // Passed / rejected profiles only belong in the "Passed" tab.
+    if (isPassed) {
         return false;
     }
 

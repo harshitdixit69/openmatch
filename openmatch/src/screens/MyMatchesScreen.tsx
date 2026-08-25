@@ -22,13 +22,14 @@ import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 // Helpers
 // ---------------------------------------------------------------------------
 
-type FilterTab = 'all' | 'connected' | 'unlocked' | 'pending';
+type FilterTab = 'all' | 'connected' | 'unlocked' | 'pending' | 'passed';
 
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'connected', label: 'Connected' },
     { key: 'unlocked', label: 'Contacts Shared' },
     { key: 'pending', label: 'Pending' },
+    { key: 'passed', label: 'Passed' },
 ];
 
 function applyFilter(matches: ChatMatch[], tab: FilterTab): ChatMatch[] {
@@ -39,8 +40,11 @@ function applyFilter(matches: ChatMatch[], tab: FilterTab): ChatMatch[] {
             return matches.filter((m) => m.isUnlocked);
         case 'pending':
             return matches.filter((m) => m.status === 'pending');
+        case 'passed':
+            return matches.filter((m) => m.status === 'passed');
         default:
-            return matches;
+            // "All" shows active matches only — passed profiles live in their own tab.
+            return matches.filter((m) => m.status !== 'passed');
     }
 }
 
@@ -60,6 +64,7 @@ function statusLabel(m: ChatMatch): { text: string; color: string } {
     if (m.isUnlocked) return { text: 'Contacts shared', color: '#1a7a5e' };
     if (m.status === 'connected') return { text: 'Connected', color: '#121732' };
     if (m.status === 'pending') return { text: 'Pending', color: '#b07d2e' };
+    if (m.status === 'passed') return { text: 'Passed', color: '#8a8a8a' };
     return { text: m.status, color: '#666' };
 }
 
@@ -168,10 +173,11 @@ export function MyMatchesScreen({ onBack, onOpenChat }: Props) {
 
     // Tab counts
     const counts: Record<FilterTab, number> = {
-        all: allMatches.length,
+        all: allMatches.filter((m) => m.status !== 'passed').length,
         connected: allMatches.filter((m) => m.status === 'connected' && !m.isUnlocked).length,
         unlocked: allMatches.filter((m) => m.isUnlocked).length,
         pending: allMatches.filter((m) => m.status === 'pending').length,
+        passed: allMatches.filter((m) => m.status === 'passed').length,
     };
 
     return (

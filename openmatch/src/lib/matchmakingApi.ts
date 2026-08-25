@@ -198,12 +198,77 @@ export async function fetchSemanticMatches(limit = 50, offset = 0): Promise<Matc
             );
         });
 
+    // The match_profiles RPC excludes passed/rejected profiles, so they'd vanish
+    // from the "Passed" tab after a refresh. Re-hydrate them here by fetching the
+    // underlying profiles for any match rows the viewer has passed on. Only do this
+    // on the first page (offset 0) so paginated appends don't duplicate them.
+    const passedIds =
+        offset === 0
+            ? [...matchStatusMap.entries()]
+                  .filter(([, status]) => status === 'passed' || status === 'rejected')
+                  .map(([id]) => id)
+            : [];
+
+    const passedCandidates = await fetchPassedCandidates(user.id, passedIds, matchStatusMap);
+
     return {
-        candidates,
+        candidates: [...candidates, ...passedCandidates],
         viewerEmbeddingReady: true,
         viewerEmbeddingStatus: 'ready',
         usedLegacyFunction: false,
     };
+}
+
+async function fetchPassedCandidates(
+    currentUserId: string,
+    passedIds: string[],
+    matchStatusMap: Map<string, string>,
+): Promise<MatchCandidate[]> {
+    if (passedIds.length === 0) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select(
+            'id, full_name, gender, dob, location, bio, preferences, photo_urls, height_cm, profile_owner, partner_gender_preference, verification_status, subscription_tier',
+        )
+        .in('id', passedIds);
+
+    if (error || !Array.isArray(data)) {
+        // Non-fatal: the Passed tab just stays empty if this lookup fails.
+        return [];
+    }
+
+    return data
+        .filter((row) => row && typeof row === 'object' && 'id' in row && row.id !== currentUserId)
+        .map((row) => {
+            const profile = row as Record<string, unknown>;
+            return {
+                id: String(profile.id),
+                full_name: typeof profile.full_name === 'string' ? profile.full_name : '',
+                gender: typeof profile.gender === 'string' ? profile.gender : '',
+                dob: typeof profile.dob === 'string' ? profile.dob : '',
+                location: typeof profile.location === 'string' ? profile.location : '',
+                bio: typeof profile.bio === 'string' ? profile.bio : null,
+                preferences: typeof profile.preferences === 'string' ? profile.preferences : null,
+                photo_urls: Array.isArray(profile.photo_urls)
+                    ? profile.photo_urls.filter((url): url is string => typeof url === 'string')
+                    : [],
+                height_cm: typeof profile.height_cm === 'number' ? profile.height_cm : null,
+                profile_owner: (profile.profile_owner as MatchCandidate['profile_owner']) ?? null,
+                partner_gender_preference:
+                    typeof profile.partner_gender_preference === 'string'
+                        ? profile.partner_gender_preference
+                        : null,
+                similarity: 0,
+                verification_status: profile.verification_status as MatchCandidate['verification_status'],
+                distance_km: null,
+                matchStatus: matchStatusMap.get(String(profile.id)) || 'passed',
+                subscription_tier:
+                    typeof profile.subscription_tier === 'string' ? profile.subscription_tier : null,
+            } satisfies MatchCandidate;
+        });
 }
 
 export async function fetchCompatibilitySnapshot(candidateProfileId: string) {
