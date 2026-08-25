@@ -17,6 +17,8 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 import { BackButton } from '../components/BackButton';
@@ -69,6 +71,7 @@ import {
 } from '../lib/paymentSheet';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { supabase } from '../lib/supabase';
+import { palette, gradients, glow } from '../lib/designSystem';
 import { trackPremiumEvent } from '../lib/premiumAnalytics';
 import { PremiumPromoVariant, resolvePremiumPromoVariant } from '../lib/premiumTargeting';
 import {
@@ -2451,6 +2454,14 @@ export function ChatScreen({
                                 onPress={() => void handleSend()}
                                 disabled={sending || !draft.trim()}
                             >
+                                {!isPremium ? (
+                                    <LinearGradient
+                                        colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={StyleSheet.absoluteFill}
+                                    />
+                                ) : null}
                                 <Text style={[styles.sendButtonText, isPremium && { color: '#070912' }]}>{sending ? '…' : 'Send'}</Text>
                             </Pressable>
                         </View>
@@ -4989,7 +5000,9 @@ const styles = StyleSheet.create({
         height: 48,
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
         paddingHorizontal: 20,
+        ...glow(palette.magenta, 0.4, 12),
     },
     sendButtonDisabled: {
         opacity: 0.6,

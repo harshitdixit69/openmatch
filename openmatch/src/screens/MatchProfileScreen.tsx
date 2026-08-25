@@ -11,9 +11,12 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 
 import { BackButton } from '../components/BackButton';
 import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
+import { palette, gradients, glow } from '../lib/designSystem';
 import { RequestTrustDrawer } from '../components/RequestTrustDrawer';
 import { ProfileReliabilitySummary } from '../lib/intentEscrow';
 import { getRequestTrustSummary, generateRequestReasons, submitInterestRequest } from '../lib/intentEscrowApi';
@@ -859,7 +862,13 @@ export function MatchProfileScreen({
                                     <Text style={styles.connectButtonText}>✨ Super Interest</Text>
                                 </Pressable>
                             )}
-                            <Pressable style={styles.connectButton} onPress={onConnect} disabled={actionLoading}>
+                            <Pressable style={[styles.connectButton, styles.connectButtonGradientWrap]} onPress={onConnect} disabled={actionLoading}>
+                                <LinearGradient
+                                    colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={StyleSheet.absoluteFill}
+                                />
                                 <Text style={styles.connectButtonText}>Connect now</Text>
                             </Pressable>
                         </>
@@ -906,6 +915,12 @@ export function MatchProfileScreen({
                                 </Pressable>
                             ) : (
                                 <Pressable style={styles.connectButton} onPress={onConnect}>
+                                    <LinearGradient
+                                        colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={StyleSheet.absoluteFill}
+                                    />
                                     <Text style={styles.connectButtonText}>Unlock Contact</Text>
                                 </Pressable>
                             )}
@@ -1810,8 +1825,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#ff6a3d',
         borderRadius: 18,
         flex: 1.25,
+        overflow: 'hidden',
         paddingHorizontal: 18,
         paddingVertical: 15,
+        ...glow(palette.magenta, 0.4, 14),
+    },
+    connectButtonGradientWrap: {
+        flex: 1.25,
     },
     connectButtonText: {
         color: '#ffffff',

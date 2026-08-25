@@ -15,12 +15,15 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import type { ColorValue } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../lib/supabase';
 import { ChatMatch } from '../lib/chat';
 import { fetchChatMatches } from '../lib/chatApi';
 import { getDisplayFirstName, ProfileRecord } from '../lib/profile';
 import { activateSpotlight, fetchCurrentProfile } from '../lib/profileApi';
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
+import { palette, gradients, glow } from '../lib/designSystem';
 import PremiumNotificationsScreen from './PremiumNotificationsScreen';
 import PremiumPartnerPreferencesScreen from './PremiumPartnerPreferencesScreen';
 import PremiumProfileEditScreen from './PremiumProfileEditScreen';
@@ -649,6 +652,12 @@ export default function PremiumHubScreen({
                             : 'PRO MAX';
                         return (
                             <View style={styles.activePremiumHero}>
+                                <LinearGradient
+                                    colors={gradients.auroraDark as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={StyleSheet.absoluteFill}
+                                />
                                 <Text style={styles.activePremiumEyebrow}>👑 OPENMATCH {tierLabel} ACTIVE</Text>
                                 <Text style={styles.activePremiumTitle}>Premium status is unlocked</Text>
                                 <Text style={styles.activePremiumBody}>
@@ -771,6 +780,12 @@ export default function PremiumHubScreen({
                         onPress={handleCheckout}
                         disabled={checkoutLoading}
                     >
+                        <LinearGradient
+                            colors={gradients.premium as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                        />
                         {checkoutLoading ? (
                             <ActivityIndicator size="small" color="#070912" />
                         ) : (
@@ -1503,6 +1518,8 @@ const styles = StyleSheet.create({
         borderColor: GOLD,
         borderWidth: 1.5,
         marginBottom: 16,
+        overflow: 'hidden',
+        ...glow(palette.amber, 0.3, 20),
     },
     activePremiumEyebrow: {
         fontSize: 11,
@@ -1766,12 +1783,10 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         paddingVertical: 16,
         alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: 24,
-        shadowColor: GOLD,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
+        overflow: 'hidden',
+        ...glow(palette.rose, 0.45, 16),
     },
     checkoutBtnText: {
         fontSize: 16,

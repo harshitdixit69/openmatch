@@ -1,6 +1,8 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { subscribeToNotifications, type AppNotification } from '../lib/notificationsApi';
@@ -16,6 +18,7 @@ import { fetchCurrentProfile, activateSpotlight } from '../lib/profileApi';
 import { MatchCandidate } from '../lib/matchmaking';
 import { fetchCompatibilitySnapshot } from '../lib/matchmakingApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
+import { palette, gradients, glow } from '../lib/designSystem';
 import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
 import { ModerationQueueScreen } from './ModerationQueueScreen';
@@ -577,7 +580,14 @@ export function MainTabsScreen() {
                             style={[styles.fab, { bottom: tabBarSpacing + 16 }]}
                             onPress={() => setShowSearch(true)}
                         >
-                            <Text style={styles.fabText}>⌕</Text>
+                            <LinearGradient
+                                colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.fabGradient}
+                            >
+                                <Text style={styles.fabText}>⌕</Text>
+                            </LinearGradient>
                         </Pressable>
                     )}
                 </View>
@@ -670,6 +680,14 @@ function TabButton({ label, subtitle, badge, disabled = false, active, onPress }
             onPress={onPress}
             disabled={disabled}
         >
+            {active ? (
+                <LinearGradient
+                    colors={gradients.primary as unknown as readonly [ColorValue, ColorValue, ...ColorValue[]]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+            ) : null}
             {badge ? (
                 <View style={styles.tabBadge}>
                     <Text style={styles.tabBadgeText}>{badge > 99 ? '99+' : String(badge)}</Text>
@@ -1678,15 +1696,18 @@ const styles = StyleSheet.create({
     },
     tabBar: {
         alignSelf: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: '#ffffff',
         borderTopColor: '#e2e7f5',
         borderTopWidth: 1,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         flexDirection: 'row',
         gap: 8,
         maxWidth: MAX_CONTENT_WIDTH,
         paddingHorizontal: 12,
         paddingTop: 12,
         width: '100%',
+        ...glow(palette.violet, 0.12, 24),
     },
     fab: {
         position: 'absolute',
@@ -1694,14 +1715,17 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        backgroundColor: '#121732',
+        overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
+        ...glow(palette.magenta, 0.5, 14),
         elevation: 6,
+    },
+    fabGradient: {
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     fabText: { fontSize: 24, color: '#fff', lineHeight: 28 },
     tabButton: {
@@ -1712,12 +1736,14 @@ const styles = StyleSheet.create({
         gap: 2,
         justifyContent: 'center',
         minHeight: 44,
+        overflow: 'hidden',
         paddingHorizontal: 4,
         paddingVertical: 8,
         position: 'relative',
     },
     tabButtonActive: {
-        backgroundColor: '#121732',
+        backgroundColor: palette.coral,
+        ...glow(palette.magenta, 0.5, 16),
     },
     tabButtonDisabled: {
         backgroundColor: '#f5f0ea',
