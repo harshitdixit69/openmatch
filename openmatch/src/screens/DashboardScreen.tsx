@@ -1,6 +1,6 @@
 // src/screens/DashboardScreen.tsx
 // F9 – Dashboard / Activity Stats
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     AppState,
@@ -17,6 +17,7 @@ import type { ActivityStats } from '../lib/activityStatsApi';
 import { fetchActivityStats } from '../lib/activityStatsApi';
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -33,6 +34,7 @@ function StatCard({
     sublabel?: string;
     accent?: 'good' | 'warn' | 'bad' | 'neutral';
 }) {
+    const styles = useThemedStyles();
     const accentColor =
         accent === 'good' ? '#1a7a5e' :
             accent === 'warn' ? '#b07d2e' :
@@ -49,6 +51,7 @@ function StatCard({
 }
 
 function SectionHeader({ title }: { title: string }) {
+    const styles = useThemedStyles();
     return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
@@ -67,6 +70,7 @@ function ScoreBar({
     accentLow?: string;
     highIsGood?: boolean;
 }) {
+    const styles = useThemedStyles();
     const pct = Math.min(100, Math.max(0, (score / maxScore) * 100));
     const isGoodValue = highIsGood ? pct >= 50 : pct < 50;
     const barColor = isGoodValue ? accentHigh : accentLow;
@@ -107,6 +111,7 @@ interface Props {
 }
 
 export function DashboardScreen({ onBack }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [stats, setStats] = useState<ActivityStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -246,23 +251,23 @@ export function DashboardScreen({ onBack }: Props) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f5f4f0' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: 1,
-        borderBottomColor: '#e8e5df',
+        borderBottomColor: c.headerBorder,
     },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
     errorText: { fontSize: 14, color: '#ff5470', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#121732', borderRadius: 8 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: c.accent, borderRadius: 8 },
     retryBtnText: { color: '#fff', fontWeight: '600' },
 
     scroll: { flex: 1 },
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
     sectionHeader: {
         fontSize: 13,
         fontWeight: '700',
-        color: '#888',
+        color: c.textMuted,
         textTransform: 'uppercase',
         letterSpacing: 0.8,
         marginTop: 16,
@@ -293,32 +298,32 @@ const styles = StyleSheet.create({
     statCard: {
         flex: 1,
         minWidth: '44%',
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         padding: 14,
         borderWidth: 1,
-        borderColor: '#e8e5df',
+        borderColor: c.cardBorder,
         gap: 2,
     },
-    statValue: { fontSize: 28, fontWeight: '800', color: '#121732' },
-    statLabel: { fontSize: 13, color: '#555', fontWeight: '600' },
-    statSublabel: { fontSize: 11, color: '#999' },
+    statValue: { fontSize: 28, fontWeight: '800', color: c.textPrimary },
+    statLabel: { fontSize: 13, color: c.textSecondary, fontWeight: '600' },
+    statSublabel: { fontSize: 11, color: c.textMuted },
 
     scoreSection: {
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#e8e5df',
+        borderColor: c.cardBorder,
         gap: 16,
     },
     scoreBarWrap: { gap: 6 },
     scoreBarHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    scoreBarLabel: { fontSize: 13, color: '#555', fontWeight: '600', flex: 1 },
+    scoreBarLabel: { fontSize: 13, color: c.textSecondary, fontWeight: '600', flex: 1 },
     scoreBarValue: { fontSize: 16, fontWeight: '800' },
     scoreBarTrack: {
         height: 8,
-        backgroundColor: '#eee',
+        backgroundColor: c.cardBorder,
         borderRadius: 4,
         overflow: 'hidden',
     },
@@ -329,13 +334,18 @@ const styles = StyleSheet.create({
 
     tipCard: {
         marginTop: 12,
-        backgroundColor: '#eef4f7',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         padding: 14,
         borderWidth: 1,
-        borderColor: '#d0e4ed',
+        borderColor: c.cardBorder,
         gap: 6,
     },
-    tipTitle: { fontSize: 13, fontWeight: '700', color: '#121732' },
-    tipBody: { fontSize: 13, color: '#555', lineHeight: 19 },
+    tipTitle: { fontSize: 13, fontWeight: '700', color: c.textPrimary },
+    tipBody: { fontSize: 13, color: c.textSecondary, lineHeight: 19 },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

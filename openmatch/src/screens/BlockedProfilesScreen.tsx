@@ -1,7 +1,7 @@
 // src/screens/BlockedProfilesScreen.tsx
 //
 // Replaces the placeholder Alert that the Settings row used to show.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -20,6 +20,7 @@ import { unblockUser } from '../lib/chatApi';
 import { BlockedProfile, fetchBlockedProfiles } from '../lib/discoverySafetyApi';
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 function formatBlockedDate(iso: string) {
     const date = new Date(iso);
@@ -28,6 +29,7 @@ function formatBlockedDate(iso: string) {
 }
 
 export function BlockedProfilesScreen({ onBack }: { onBack: () => void }) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [blocked, setBlocked] = useState<BlockedProfile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -164,40 +166,41 @@ export function BlockedProfilesScreen({ onBack }: { onBack: () => void }) {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { backgroundColor: '#f4f5f7', flex: 1 },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    root: { backgroundColor: c.background, flex: 1 },
     header: {
         alignItems: 'center',
-        borderBottomColor: '#e3e5ea',
+        borderBottomColor: c.headerBorder,
         borderBottomWidth: StyleSheet.hairlineWidth,
         flexDirection: 'row',
         justifyContent: 'space-between',
         paddingHorizontal: 12,
         paddingVertical: 10,
+        backgroundColor: c.headerBackground,
     },
-    headerTitle: { color: '#111', fontSize: 17, fontWeight: '700' },
+    headerTitle: { color: c.textPrimary, fontSize: 17, fontWeight: '700' },
     scroll: { paddingTop: 16 },
     inner: { alignSelf: 'center', maxWidth: MAX_CONTENT_WIDTH, paddingHorizontal: 16, width: '100%' },
     centered: { alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingVertical: 48 },
-    emptyTitle: { color: '#111', fontSize: 17, fontWeight: '700' },
-    mutedText: { color: '#6b7280', fontSize: 14, lineHeight: 21, textAlign: 'center' },
+    emptyTitle: { color: c.textPrimary, fontSize: 17, fontWeight: '700' },
+    mutedText: { color: c.textSecondary, fontSize: 14, lineHeight: 21, textAlign: 'center' },
     retryButton: {
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         borderRadius: 12,
         marginTop: 6,
         paddingHorizontal: 18,
         paddingVertical: 10,
     },
     retryButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-    card: { backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden' },
-    divider: { backgroundColor: '#e9ebef', height: StyleSheet.hairlineWidth, marginLeft: 68 },
+    card: { backgroundColor: c.cardBackground, borderRadius: 14, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: c.cardBorder },
+    divider: { backgroundColor: c.cardBorder, height: StyleSheet.hairlineWidth, marginLeft: 68 },
     row: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
     avatar: { borderRadius: 20, height: 40, width: 40 },
-    avatarPlaceholder: { alignItems: 'center', backgroundColor: '#dbe5e7', justifyContent: 'center' },
-    avatarInitial: { color: '#121732', fontSize: 16, fontWeight: '800' },
+    avatarPlaceholder: { alignItems: 'center', backgroundColor: c.cardBorder, justifyContent: 'center' },
+    avatarInitial: { color: c.textPrimary, fontSize: 16, fontWeight: '800' },
     rowCopy: { flex: 1, gap: 2, minWidth: 0 },
-    rowName: { color: '#111', fontSize: 15, fontWeight: '600' },
-    rowMeta: { color: '#8a8f98', fontSize: 12 },
+    rowName: { color: c.textPrimary, fontSize: 15, fontWeight: '600' },
+    rowMeta: { color: c.textMuted, fontSize: 12 },
     unblockButton: {
         backgroundColor: '#ffe9dc',
         borderRadius: 999,
@@ -208,3 +211,8 @@ const styles = StyleSheet.create({
     unblockButtonPressed: { opacity: 0.75 },
     unblockButtonText: { color: '#9a3b18', fontSize: 13, fontWeight: '800' },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

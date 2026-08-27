@@ -1,6 +1,6 @@
 // src/screens/MyMatchesScreen.tsx
 // F6 – My Matches: all accepted/connected matches in one view
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -17,6 +17,7 @@ import { getProfileFacts, type ChatMatch } from '../lib/chat';
 import { fetchChatMatches } from '../lib/chatApi';
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -79,6 +80,7 @@ function MatchCard({
     match: ChatMatch;
     onPress: (m: ChatMatch) => void;
 }) {
+    const styles = useThemedStyles();
     const photo = match.otherUserPhotoUrls?.[0];
     const { text: statusText, color: statusColor } = statusLabel(match);
 
@@ -143,6 +145,7 @@ interface Props {
 }
 
 export function MyMatchesScreen({ onBack, onOpenChat }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [allMatches, setAllMatches] = useState<ChatMatch[]>([]);
     const [loading, setLoading] = useState(true);
@@ -261,35 +264,35 @@ export function MyMatchesScreen({ onBack, onOpenChat }: Props) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f5f4f0' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: 1,
-        borderBottomColor: '#e8e5df',
+        borderBottomColor: c.headerBorder,
     },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
 
-    filterRow: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e8e5df' },
+    filterRow: { backgroundColor: c.headerBackground, borderBottomWidth: 1, borderBottomColor: c.headerBorder },
     filterContent: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
     filterChip: {
         paddingHorizontal: 14,
         paddingVertical: 6,
         borderRadius: 20,
-        backgroundColor: '#f0ede6',
+        backgroundColor: c.background,
     },
-    filterChipActive: { backgroundColor: '#121732' },
-    filterChipText: { fontSize: 13, color: '#555', fontWeight: '500' },
+    filterChipActive: { backgroundColor: c.accent },
+    filterChipText: { fontSize: 13, color: c.textSecondary, fontWeight: '500' },
     filterChipTextActive: { color: '#fff', fontWeight: '700' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
     errorText: { fontSize: 14, color: '#ff5470', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#121732', borderRadius: 8 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: c.accent, borderRadius: 8 },
     retryBtnText: { color: '#fff', fontWeight: '600' },
 
     list: { flex: 1 },
@@ -304,18 +307,18 @@ const styles = StyleSheet.create({
 
     empty: { alignItems: 'center', paddingTop: 64, gap: 8 },
     emptyIcon: { fontSize: 40 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
-    emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    emptySubtitle: { fontSize: 14, color: c.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
 
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         padding: 12,
         gap: 12,
         borderWidth: 1,
-        borderColor: '#e8e5df',
+        borderColor: c.cardBorder,
     },
     cardPressed: { opacity: 0.85 },
     cardPhoto: { position: 'relative' },
@@ -324,11 +327,11 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#d4cfc6',
+        backgroundColor: c.cardBorder,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    cardImgInitial: { fontSize: 22, fontWeight: '700', color: '#121732' },
+    cardImgInitial: { fontSize: 22, fontWeight: '700', color: c.textPrimary },
     unlockedBadge: {
         position: 'absolute',
         bottom: 0,
@@ -344,11 +347,11 @@ const styles = StyleSheet.create({
 
     cardBody: { flex: 1, gap: 2, minWidth: 0 },
     cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between' },
-    cardName: { fontSize: 15, fontWeight: '700', color: '#121732', flex: 1 },
-    cardTime: { fontSize: 11, color: '#999', marginLeft: 8 },
-    cardLocation: { fontSize: 12, color: '#666' },
-    cardBio: { fontSize: 12, color: '#888', marginTop: 2 },
-    cardFacts: { color: '#666', fontSize: 12, fontWeight: '600', lineHeight: 18, marginTop: 2 },
+    cardName: { fontSize: 15, fontWeight: '700', color: c.textPrimary, flex: 1 },
+    cardTime: { fontSize: 11, color: c.textMuted, marginLeft: 8 },
+    cardLocation: { fontSize: 12, color: c.textSecondary },
+    cardBio: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+    cardFacts: { color: c.textSecondary, fontSize: 12, fontWeight: '600', lineHeight: 18, marginTop: 2 },
 
     cardRight: { alignItems: 'flex-end', flexShrink: 1, gap: 6 },
     statusPill: {
@@ -369,3 +372,8 @@ const styles = StyleSheet.create({
     },
     unreadBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

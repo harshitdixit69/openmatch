@@ -2,12 +2,13 @@
 //
 // The Settings row used to open https://openmatch.app/safety, which is not a
 // live site. The content lives in-app so the row can never become a dead link.
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '../components/BackButton';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 export const SUPPORT_EMAIL = 'support@openmatch.app';
 
@@ -52,6 +53,7 @@ export const SAFETY_TOPICS: SafetyTopic[] = [
 ];
 
 export function SafetyCenterScreen({ onBack }: { onBack: () => void }) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
 
     return (
@@ -107,18 +109,19 @@ export function SafetyCenterScreen({ onBack }: { onBack: () => void }) {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { backgroundColor: '#f4f5f7', flex: 1 },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    root: { backgroundColor: c.background, flex: 1 },
     header: {
         alignItems: 'center',
-        borderBottomColor: '#e3e5ea',
+        borderBottomColor: c.headerBorder,
         borderBottomWidth: StyleSheet.hairlineWidth,
         flexDirection: 'row',
         justifyContent: 'space-between',
         paddingHorizontal: 12,
         paddingVertical: 10,
+        backgroundColor: c.headerBackground,
     },
-    headerTitle: { color: '#111', fontSize: 17, fontWeight: '700' },
+    headerTitle: { color: c.textPrimary, fontSize: 17, fontWeight: '700' },
     scroll: { paddingTop: 16 },
     inner: {
         alignSelf: 'center',
@@ -127,10 +130,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         width: '100%',
     },
-    intro: { color: '#4b5563', fontSize: 15, lineHeight: 23, paddingHorizontal: 2 },
-    card: { backgroundColor: '#fff', borderRadius: 14, gap: 10, padding: 16 },
+    intro: { color: c.textSecondary, fontSize: 15, lineHeight: 23, paddingHorizontal: 2 },
+    card: { backgroundColor: c.cardBackground, borderRadius: 14, gap: 10, padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: c.cardBorder },
     urgentCard: { backgroundColor: '#fdf1ec' },
-    cardTitle: { color: '#111', fontSize: 16, fontWeight: '700' },
+    cardTitle: { color: c.textPrimary, fontSize: 16, fontWeight: '700' },
     pointRow: { flexDirection: 'row', gap: 10 },
     bullet: {
         backgroundColor: '#ff6a3d',
@@ -139,10 +142,10 @@ const styles = StyleSheet.create({
         marginTop: 8,
         width: 6,
     },
-    pointText: { color: '#374151', flex: 1, fontSize: 14, lineHeight: 21 },
+    pointText: { color: c.textSecondary, flex: 1, fontSize: 14, lineHeight: 21 },
     contactButton: {
         alignItems: 'center',
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         borderRadius: 12,
         marginTop: 4,
         paddingVertical: 12,
@@ -150,3 +153,8 @@ const styles = StyleSheet.create({
     contactButtonPressed: { opacity: 0.85 },
     contactButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

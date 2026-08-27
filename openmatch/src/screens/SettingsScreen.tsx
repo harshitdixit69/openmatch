@@ -1,5 +1,5 @@
 // src/screens/SettingsScreen.tsx
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     ActivityIndicator,
@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase';
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { updateUserPresence } from '../lib/chatApi';
+import { useTheme, type ThemeMode, type ThemeColors } from '../lib/theme';
 import { pickProfilePhotoFromLibrary } from '../lib/profilePhotoApi';
 import { fetchCurrentProfile, submitVerification } from '../lib/profileApi';
 import {
@@ -66,6 +67,7 @@ function SettingsSection({
     title: string;
     children: React.ReactNode;
 }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>{title}</Text>
@@ -87,6 +89,7 @@ function SettingsRow({
     destructive?: boolean;
     right?: React.ReactNode;
 }) {
+    const styles = useThemedStyles();
     const inner = (
         <View style={styles.row}>
             <View style={styles.rowLeft}>
@@ -108,7 +111,51 @@ function SettingsRow({
 }
 
 function Divider() {
+    const styles = useThemedStyles();
     return <View style={styles.divider} />;
+}
+
+// ---------------------------------------------------------------------------
+// Appearance — Light / Dark / System theme selector
+// ---------------------------------------------------------------------------
+
+function ThemeModeRow() {
+    const styles = useThemedStyles();
+    const { themeMode, setThemeMode } = useTheme();
+    const options: { value: ThemeMode; label: string; icon: string }[] = [
+        { value: 'light', label: 'Light', icon: '☀️' },
+        { value: 'dark', label: 'Dark', icon: '🌙' },
+        { value: 'system', label: 'System', icon: '⚙️' },
+    ];
+
+    return (
+        <View style={styles.row}>
+            <View style={styles.rowLeft}>
+                <Text style={styles.rowLabel}>Theme</Text>
+                <Text style={styles.rowSubtitle}>Choose light, dark, or match your device</Text>
+            </View>
+            <View style={styles.themeSegment}>
+                {options.map((opt) => {
+                    const active = themeMode === opt.value;
+                    return (
+                        <Pressable
+                            key={opt.value}
+                            onPress={() => void setThemeMode(opt.value)}
+                            style={[styles.themeSegmentItem, active && styles.themeSegmentItemActive]}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: active }}
+                            accessibilityLabel={`${opt.label} theme`}
+                        >
+                            <Text style={styles.themeSegmentIcon}>{opt.icon}</Text>
+                            <Text style={[styles.themeSegmentLabel, active && styles.themeSegmentLabelActive]}>
+                                {opt.label}
+                            </Text>
+                        </Pressable>
+                    );
+                })}
+            </View>
+        </View>
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +163,7 @@ function Divider() {
 // ---------------------------------------------------------------------------
 
 function ChangePasswordRow() {
+    const styles = useThemedStyles();
     const [expanded, setExpanded] = useState(false);
     const [newPassword, setNewPassword] = useState('');
     const [confirm, setConfirm] = useState('');
@@ -194,6 +242,7 @@ function ChangePasswordRow() {
 // ---------------------------------------------------------------------------
 
 export function SettingsScreen({ onBack, onSignedOut }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [userEmail, setUserEmail] = useState('');
     const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIF_PREFS);
@@ -501,6 +550,11 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
                         <ChangePasswordRow />
                     </SettingsSection>
 
+                    {/* ── Appearance ── */}
+                    <SettingsSection title="Appearance">
+                        <ThemeModeRow />
+                    </SettingsSection>
+
                     {/* ── Availability ── */}
                     <SettingsSection title="Availability">
                         <SettingsRow
@@ -748,25 +802,27 @@ export function SettingsScreen({ onBack, onSignedOut }: Props) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#eef1fb' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e5e5e5',
+        borderBottomColor: c.headerBorder,
     },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: '#111' },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.textPrimary },
     scroll: { paddingTop: 20 },
     inner: { maxWidth: MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
     section: {
         marginBottom: 24,
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 14,
         overflow: 'hidden',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.cardBorder,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.06,
@@ -776,7 +832,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#888',
+        color: c.textMuted,
         textTransform: 'uppercase',
         letterSpacing: 0.6,
         paddingHorizontal: 16,
@@ -792,26 +848,52 @@ const styles = StyleSheet.create({
         paddingVertical: 13,
         minHeight: 50,
     },
-    rowPressed: { backgroundColor: '#f5f5f5' },
+    rowPressed: { backgroundColor: c.background },
     rowLeft: { flex: 1, marginRight: 12 },
-    rowLabel: { fontSize: 15, color: '#111' },
+    rowLabel: { fontSize: 15, color: c.textPrimary },
     rowLabelDestructive: { color: '#ff5470' },
-    rowSubtitle: { fontSize: 12, color: '#999', marginTop: 2 },
-    rowChevron: { fontSize: 20, color: '#bbb', lineHeight: 24 },
-    divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#f0f0f0', marginLeft: 16 },
+    rowSubtitle: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+    rowChevron: { fontSize: 20, color: c.textMuted, lineHeight: 24 },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.cardBorder, marginLeft: 16 },
+    themeSegment: {
+        flexDirection: 'row',
+        backgroundColor: c.background,
+        borderRadius: 12,
+        padding: 3,
+        gap: 2,
+    },
+    themeSegmentItem: {
+        alignItems: 'center',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    themeSegmentItemActive: {
+        backgroundColor: c.cardBackground,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.cardBorder,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.12,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    themeSegmentIcon: { fontSize: 15 },
+    themeSegmentLabel: { fontSize: 11, color: c.textMuted, fontWeight: '600', marginTop: 1 },
+    themeSegmentLabelActive: { color: c.textPrimary, fontWeight: '800' },
     inlineForm: { paddingHorizontal: 16, paddingBottom: 14, gap: 10 },
     inlineInput: {
         borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderColor: c.cardBorder,
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 11,
         fontSize: 15,
-        color: '#111',
-        backgroundColor: '#fafafa',
+        color: c.textPrimary,
+        backgroundColor: c.background,
     },
     inlineButton: {
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         borderRadius: 10,
         paddingVertical: 12,
         alignItems: 'center',
@@ -819,3 +901,8 @@ const styles = StyleSheet.create({
     inlineButtonDisabled: { opacity: 0.6 },
     inlineButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

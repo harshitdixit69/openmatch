@@ -4,7 +4,7 @@
 // current plan, expiry and remaining credits, and — when on the free/expired plan — an
 // upgrade CTA. Also renders the full payment history inline so the user has one place for
 // everything billing-related.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Pressable,
@@ -26,6 +26,7 @@ import {
     SubscriptionSummary,
     tierLabel,
 } from '../lib/paymentsApi';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 interface Props {
     onBack: () => void;
@@ -41,6 +42,7 @@ function formatDate(iso: string | null) {
 }
 
 export function ManageSubscriptionScreen({ onBack, onUpgrade }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [summary, setSummary] = useState<SubscriptionSummary | null>(null);
     const [history, setHistory] = useState<PaymentRecord[]>([]);
@@ -182,6 +184,7 @@ export function ManageSubscriptionScreen({ onBack, onUpgrade }: Props) {
 }
 
 function CreditPill({ label, value }: { label: string; value: number }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.creditPill}>
             <Text style={styles.creditValue}>{value}</Text>
@@ -190,32 +193,32 @@ function CreditPill({ label, value }: { label: string; value: number }) {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#eef2f3' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 12,
         paddingVertical: 10,
-        backgroundColor: '#ffffff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e9ea',
+        borderBottomColor: c.headerBorder,
     },
-    headerTitle: { fontSize: 17, fontWeight: '700', color: '#121732' },
+    headerTitle: { fontSize: 17, fontWeight: '700', color: c.textPrimary },
     content: { paddingVertical: 16, alignItems: 'center' },
     inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, paddingHorizontal: 16 },
     centerBox: { paddingVertical: 64, alignItems: 'center', gap: 16 },
-    errorText: { color: '#6c7d84', textAlign: 'center', fontSize: 15 },
+    errorText: { color: c.textSecondary, textAlign: 'center', fontSize: 15 },
     retryButton: { backgroundColor: '#ff5470', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
     retryText: { color: '#fff', fontWeight: '700' },
 
     planCard: { borderRadius: 16, padding: 20, borderWidth: 1.5 },
-    planCardActive: { backgroundColor: '#fffafb', borderColor: '#ff5470' },
-    planCardFree: { backgroundColor: '#ffffff', borderColor: '#e8e6e4' },
-    planLabel: { fontSize: 12, fontWeight: '800', color: '#8a9aa1', letterSpacing: 1 },
-    planName: { fontSize: 28, fontWeight: '900', color: '#121732', marginTop: 4 },
-    planMeta: { fontSize: 14, color: '#5b6b72', marginTop: 6, lineHeight: 20 },
+    planCardActive: { backgroundColor: c.cardBackground, borderColor: '#ff5470' },
+    planCardFree: { backgroundColor: c.cardBackground, borderColor: c.cardBorder },
+    planLabel: { fontSize: 12, fontWeight: '800', color: c.textMuted, letterSpacing: 1 },
+    planName: { fontSize: 28, fontWeight: '900', color: c.textPrimary, marginTop: 4 },
+    planMeta: { fontSize: 14, color: c.textSecondary, marginTop: 6, lineHeight: 20 },
     upgradeButton: {
         marginTop: 16,
         backgroundColor: '#ff5470',
@@ -227,25 +230,25 @@ const styles = StyleSheet.create({
 
     creditsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
     creditPill: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         paddingVertical: 12,
         paddingHorizontal: 16,
         alignItems: 'center',
         minWidth: 84,
         borderWidth: 1,
-        borderColor: '#e8e6e4',
+        borderColor: c.cardBorder,
     },
-    creditValue: { fontSize: 20, fontWeight: '900', color: '#121732' },
-    creditLabel: { fontSize: 12, color: '#6c7d84', marginTop: 2 },
+    creditValue: { fontSize: 20, fontWeight: '900', color: c.textPrimary },
+    creditLabel: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
 
-    sectionHeading: { fontSize: 16, fontWeight: '800', color: '#121732', marginTop: 28, marginBottom: 10 },
-    emptyText: { color: '#6c7d84', fontSize: 14, lineHeight: 20 },
+    sectionHeading: { fontSize: 16, fontWeight: '800', color: c.textPrimary, marginTop: 28, marginBottom: 10 },
+    emptyText: { color: c.textSecondary, fontSize: 14, lineHeight: 20 },
     historyCard: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#e8e6e4',
+        borderColor: c.cardBorder,
         overflow: 'hidden',
     },
     historyRow: {
@@ -256,10 +259,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     historyLeft: { flex: 1, paddingRight: 12 },
-    historyDesc: { fontSize: 15, fontWeight: '600', color: '#121732' },
-    historyMeta: { fontSize: 12.5, color: '#8a9aa1', marginTop: 3 },
-    historyAmount: { fontSize: 15, fontWeight: '800', color: '#121732' },
-    divider: { height: 1, backgroundColor: '#eef1f2', marginLeft: 16 },
+    historyDesc: { fontSize: 15, fontWeight: '600', color: c.textPrimary },
+    historyMeta: { fontSize: 12.5, color: c.textMuted, marginTop: 3 },
+    historyAmount: { fontSize: 15, fontWeight: '800', color: c.textPrimary },
+    divider: { height: 1, backgroundColor: c.cardBorder, marginLeft: 16 },
 
-    footnote: { fontSize: 12.5, color: '#9aa7ad', marginTop: 24, lineHeight: 18 },
+    footnote: { fontSize: 12.5, color: c.textMuted, marginTop: 24, lineHeight: 18 },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

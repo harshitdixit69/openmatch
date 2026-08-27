@@ -25,6 +25,7 @@ import { BackButton } from '../components/BackButton';
 import { PhoneIcon } from '../components/PhoneIcon';
 import { RequestTrustDrawer } from '../components/RequestTrustDrawer';
 import { WhatsAppLogo } from '../components/WhatsAppLogo';
+import { useTheme, type ThemeColors } from '../lib/theme';
 import { fetchChatCopilot } from '../lib/aiApi';
 import { BrokerCallSummary, ChatChemistry, ChatMatch, ChatMessage, getProfileFacts, MatchUnlockAction } from '../lib/chat';
 import { ProfileReliabilitySummary } from '../lib/intentEscrow';
@@ -148,6 +149,7 @@ export function ChatScreen({
     onConversationOpenChange,
     initialActiveMatchId = null,
 }: ChatScreenProps) {
+    const styles = useThemedStyles();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const isNarrowHeader = windowWidth < 400;
     const isCompactHeader = isCompactChatHeader(windowWidth);
@@ -2504,6 +2506,7 @@ function MatchFilterChip({
     onPress: () => void;
     isPremium?: boolean;
 }) {
+    const styles = useThemedStyles();
     return (
         <Pressable
             style={[
@@ -2527,6 +2530,7 @@ function MatchFilterChip({
 }
 
 function InboxSkeletonList() {
+    const styles = useThemedStyles();
     return (
         <View style={styles.inboxSkeletonList}>
             <View style={styles.inboxSkeletonCard} />
@@ -2537,6 +2541,7 @@ function InboxSkeletonList() {
 }
 
 function MessageSkeletonList() {
+    const styles = useThemedStyles();
     return (
         <View style={styles.messageSkeletonList}>
             <View style={styles.messageSkeletonBubbleOther} />
@@ -2579,6 +2584,7 @@ function ProfileListItemCard({
     onViewProfile,
     isPremium = false,
 }: ProfileListItemCardProps) {
+    const styles = useThemedStyles();
     const premiumHighlight = getPremiumInboxHighlight(item);
 
     return (
@@ -2729,6 +2735,7 @@ function ProfileListItemCard({
 }
 
 function ChatListItemCard({ item, onPress, isPremium = false }: { item: ChatMatch; onPress: () => void; isPremium?: boolean }) {
+    const styles = useThemedStyles();
     const lastMessage = getMatchInboxPreview(item);
 
     return (
@@ -2801,6 +2808,7 @@ function formatChatListTime(dateString: string): string {
 }
 
 function StateChip({ label, tone }: { label: string; tone: 'primary' | 'accent' | 'muted' }) {
+    const styles = useThemedStyles();
     return (
         <View
             style={[
@@ -2825,6 +2833,7 @@ function StateChip({ label, tone }: { label: string; tone: 'primary' | 'accent' 
 }
 
 function ChemistryMeter({ chemistry }: { chemistry: ChatChemistry }) {
+    const styles = useThemedStyles();
     const score = Math.max(0, Math.min(100, chemistry.score));
     const fillStyle =
         score >= 67 ? styles.chemistryFillHigh : score >= 34 ? styles.chemistryFillMid : styles.chemistryFillLow;
@@ -2854,6 +2863,7 @@ function ChemistryMeter({ chemistry }: { chemistry: ChatChemistry }) {
 }
 
 function BrokerToolsToggle({ open, onToggle, summary }: { open: boolean; onToggle: () => void; summary?: string | null }) {
+    const styles = useThemedStyles();
     return (
         <Pressable style={styles.brokerToggleRow} onPress={onToggle} accessibilityRole="button">
             {summary ? (
@@ -2870,6 +2880,7 @@ function BrokerToolsToggle({ open, onToggle, summary }: { open: boolean; onToggl
 }
 
 function FollowupJobStatusBlock({ match }: { match: ChatMatch }) {
+    const styles = useThemedStyles();
     const latestJob = match.followupJobSummary?.latestJob;
     if (!latestJob) {
         return null;
@@ -2891,6 +2902,7 @@ function RecoverySuggestionCard({
     pending: boolean;
     onPress?: () => void;
 }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.recoverySuggestionCard}>
             <Text style={styles.recoverySuggestionTitle}>{suggestion.title}</Text>
@@ -3698,9 +3710,9 @@ function getUnlockCardCopy(match: ChatMatch, contactShareBlocked = false, credit
     };
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     safeArea: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         flex: 1,
         minHeight: 0,
     },
@@ -3715,8 +3727,8 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     headerRow: {
-        backgroundColor: '#f7f9fa',
-        borderBottomColor: '#e5e7eb',
+        backgroundColor: c.headerBackground,
+        borderBottomColor: c.headerBorder,
         borderBottomWidth: 1,
         gap: 6,
         marginBottom: 0,
@@ -3903,13 +3915,13 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
     title: {
-        color: '#102a43',
+        color: c.textPrimary,
         fontSize: 20,
         fontWeight: '700',
         letterSpacing: -0.3,
     },
     subtitle: {
-        color: '#6b7d82',
+        color: c.textSecondary,
         fontSize: 13,
         letterSpacing: 0.1,
         lineHeight: 18,
@@ -3957,23 +3969,23 @@ const styles = StyleSheet.create({
         width: '62%',
     },
     stateText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 15,
     },
     emptyCard: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 24,
         gap: 12,
         marginTop: 36,
         padding: 24,
     },
     emptyTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 24,
         fontWeight: '800',
     },
     emptyBody: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 15,
         lineHeight: 22,
     },
@@ -3990,8 +4002,8 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     inboxToolbarCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
@@ -4040,9 +4052,9 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     inboxSearchInput: {
-        backgroundColor: '#eef1fb',
+        backgroundColor: c.background,
         borderRadius: 16,
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -4060,7 +4072,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     matchFilterChip: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
@@ -4069,7 +4081,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#121732',
     },
     matchFilterChipText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 13,
         fontWeight: '800',
     },
@@ -4081,8 +4093,8 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
     },
     matchCard: {
-        backgroundColor: '#f6f8ff',
-        borderColor: '#ecd9c7',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 24,
         borderWidth: 1,
         gap: 10,
@@ -4167,7 +4179,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     matchName: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 20,
         fontWeight: '800',
     },
@@ -4225,7 +4237,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffe9dc',
     },
     stateChipMuted: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
     },
     stateChipText: {
         fontSize: 11,
@@ -4238,7 +4250,7 @@ const styles = StyleSheet.create({
         color: '#744a33',
     },
     stateChipTextMuted: {
-        color: '#5a6488',
+        color: c.textSecondary,
     },
     matchPreviewStatus: {
         color: '#9a3b18',
@@ -4278,7 +4290,7 @@ const styles = StyleSheet.create({
     },
     matchCardSecondaryAction: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 16,
         flex: 1,
         flexDirection: 'row',
@@ -4291,7 +4303,7 @@ const styles = StyleSheet.create({
         flexBasis: '48%',
     },
     matchCardSecondaryActionText: {
-        color: '#232a45',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '800',
     },
@@ -4430,8 +4442,8 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     requestCard: {
-        backgroundColor: '#f6f8ff',
-        borderColor: '#decfbc',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 18,
         borderWidth: 1,
         gap: 12,
@@ -4697,8 +4709,8 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     contactActionsCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 18,
         borderWidth: 1,
         gap: 12,
@@ -4745,7 +4757,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     contactActionsTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 15,
         fontWeight: '800',
     },
@@ -4760,7 +4772,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     contactActionsBody: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 14,
         lineHeight: 21,
     },
@@ -4783,19 +4795,19 @@ const styles = StyleSheet.create({
     },
     contactSecondaryButton: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 999,
         paddingHorizontal: 16,
         paddingVertical: 11,
     },
     contactSecondaryButtonText: {
-        color: '#232a45',
+        color: c.textPrimary,
         fontSize: 13,
         fontWeight: '800',
     },
     promptsCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 16,
         borderWidth: 1,
         gap: 8,
@@ -4809,12 +4821,12 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     promptsTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '800',
     },
     promptsAction: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 7,
@@ -4841,7 +4853,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     promptsBody: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 13,
         lineHeight: 19,
     },
@@ -4863,8 +4875,8 @@ const styles = StyleSheet.create({
         flexShrink: 1,
     },
     chemistryCard: {
-        backgroundColor: '#f7fafa',
-        borderColor: '#e0e9ea',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 14,
         borderWidth: 1,
         gap: 7,
@@ -4876,19 +4888,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     chemistryTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 12,
         fontWeight: '800',
         letterSpacing: 0.2,
         textTransform: 'uppercase',
     },
     chemistryScore: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 16,
         fontWeight: '800',
     },
     chemistryScoreUnit: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 12,
         fontWeight: '700',
     },
@@ -4913,7 +4925,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#2f7d5b',
     },
     chemistryLabel: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 12,
         fontWeight: '700',
         marginRight: 2,
@@ -4944,7 +4956,7 @@ const styles = StyleSheet.create({
     },
     messageBubbleOther: {
         alignSelf: 'flex-start',
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
     },
     messageBubbleFlagged: {
         borderColor: '#ff6a3d',
@@ -4958,7 +4970,7 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     messageTextOther: {
-        color: '#26434b',
+        color: c.textPrimary,
     },
     messageTextFlagged: {
         color: '#ff6a3d',
@@ -4972,7 +4984,7 @@ const styles = StyleSheet.create({
         color: '#cad7d8',
     },
     messageMetaOther: {
-        color: '#5a6488',
+        color: c.textMuted,
     },
     composerRow: {
         alignItems: 'center',
@@ -4981,11 +4993,11 @@ const styles = StyleSheet.create({
         marginTop: 12,
     },
     composerInput: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 24,
         borderWidth: 1,
-        color: '#121732',
+        color: c.textPrimary,
         flex: 1,
         fontSize: 15,
         maxHeight: 120,
@@ -5014,7 +5026,7 @@ const styles = StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: 12,
-        color: '#5a6488',
+        color: c.textSecondary,
         marginTop: 2,
     },
     headerSubtitleTyping: {
@@ -5067,10 +5079,10 @@ const styles = StyleSheet.create({
     },
     headerDropdownMenu: {
         position: 'absolute',
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: c.cardBorder,
         paddingVertical: 4,
         width: 140,
         shadowColor: '#000000',
@@ -5086,7 +5098,7 @@ const styles = StyleSheet.create({
     },
     headerDropdownItemText: {
         fontSize: 14,
-        color: '#0f172a',
+        color: c.textPrimary,
     },
     headerDropdownItemTextDestructive: {
         fontSize: 14,
@@ -5095,17 +5107,17 @@ const styles = StyleSheet.create({
     },
     headerDropdownDivider: {
         height: 1,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: c.cardBorder,
     },
     contactActionSubBar: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#e2e7f5',
+        borderBottomColor: c.cardBorder,
         gap: 12,
         zIndex: 1,
     },
@@ -5177,13 +5189,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         paddingVertical: 14,
         paddingHorizontal: 16,
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f7',
+        borderBottomColor: c.cardBorder,
         alignItems: 'center',
     },
     chatCardPressed: {
-        backgroundColor: '#f8fafc',
+        backgroundColor: c.background,
     },
     chatCardAvatarContainer: {
         marginRight: 14,
@@ -5219,13 +5231,13 @@ const styles = StyleSheet.create({
     chatCardName: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#0f172a',
+        color: c.textPrimary,
         flex: 1,
         marginRight: 8,
     },
     chatCardTime: {
         fontSize: 12,
-        color: '#64748b',
+        color: c.textSecondary,
     },
     chatCardMessageRow: {
         flexDirection: 'row',
@@ -5234,7 +5246,7 @@ const styles = StyleSheet.create({
     },
     chatCardMessage: {
         fontSize: 14,
-        color: '#64748b',
+        color: c.textSecondary,
         flex: 1,
         marginRight: 8,
     },
@@ -5280,3 +5292,8 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

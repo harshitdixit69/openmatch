@@ -1,5 +1,5 @@
 // src/screens/ProfileEditScreen.tsx
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -41,6 +41,7 @@ import {
     saveProfileRevision,
 } from '../lib/aiApi';
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 // ---------------------------------------------------------------------------
 // Option constants
@@ -157,6 +158,7 @@ interface Props {
 }
 
 export function ProfileEditScreen({ onBack, onSaved }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [form, setForm] = useState<EditableProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -888,6 +890,7 @@ export function ProfileEditScreen({ onBack, onSaved }: Props) {
 // ---------------------------------------------------------------------------
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.field}>
             <Text style={styles.fieldLabel}>{label}</Text>
@@ -897,6 +900,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.toggleRow}>
             <Text style={styles.toggleLabel}>{label}</Text>
@@ -914,39 +918,39 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#eef1fb' },
-    loading: { flex: 1, backgroundColor: '#eef1fb', alignItems: 'center', justifyContent: 'center', gap: 12 },
-    loadingText: { fontSize: 14, color: '#666' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.background },
+    loading: { flex: 1, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center', gap: 12 },
+    loadingText: { fontSize: 14, color: c.textSecondary },
     header: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
-        backgroundColor: '#fff',
-        borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e5e5',
+        backgroundColor: c.headerBackground,
+        borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.headerBorder,
     },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: '#111' },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.textPrimary },
     scroll: { paddingTop: 16 },
     inner: { maxWidth: MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
     field: { marginBottom: 14 },
-    fieldLabel: { fontSize: 12, color: '#888', fontWeight: '500', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
+    fieldLabel: { fontSize: 12, color: c.textMuted, fontWeight: '500', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
     input: {
-        borderWidth: 1.5, borderColor: '#d0d0d0', borderRadius: 10,
+        borderWidth: 1.5, borderColor: c.cardBorder, borderRadius: 10,
         paddingHorizontal: 14, paddingVertical: 11,
-        fontSize: 15, color: '#111', backgroundColor: '#fafafa',
+        fontSize: 15, color: c.textPrimary, backgroundColor: c.cardBackground,
     },
     textArea: { height: 100, textAlignVertical: 'top', paddingTop: 12 },
-    photoManagerDescription: { color: '#66777d', fontSize: 13, lineHeight: 18, marginBottom: 12 },
+    photoManagerDescription: { color: c.textSecondary, fontSize: 13, lineHeight: 18, marginBottom: 12 },
     photoEditorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
     photoEditorTile: {
         width: '48%',
         minWidth: 130,
         borderRadius: 12,
         overflow: 'hidden',
-        backgroundColor: '#f1f5f5',
+        backgroundColor: c.cardBackground,
         borderWidth: 1,
-        borderColor: '#dbe4e5',
+        borderColor: c.cardBorder,
     },
-    photoEditorImage: { width: '100%', aspectRatio: 0.82, backgroundColor: '#dfe9ea' },
+    photoEditorImage: { width: '100%', aspectRatio: 0.82, backgroundColor: c.cardBorder },
     photoEditorBadge: {
         position: 'absolute',
         left: 8,
@@ -963,7 +967,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 7,
         paddingVertical: 7,
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
     },
     photoEditorRemoveAction: { backgroundColor: '#f8e6e0' },
     photoEditorActionText: { color: '#fff', fontSize: 11, fontWeight: '800' },
@@ -972,16 +976,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#dbe4e5',
+        borderColor: c.cardBorder,
         borderStyle: 'dashed',
         padding: 18,
         marginBottom: 12,
     },
-    photoEditorEmptyTitle: { color: '#121732', fontSize: 14, fontWeight: '800', marginBottom: 4 },
-    photoEditorEmptyText: { color: '#718287', fontSize: 12, textAlign: 'center' },
+    photoEditorEmptyTitle: { color: c.textPrimary, fontSize: 14, fontWeight: '800', marginBottom: 4 },
+    photoEditorEmptyText: { color: c.textSecondary, fontSize: 12, textAlign: 'center' },
     photoEditorAddButton: {
         alignItems: 'center',
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         borderRadius: 10,
         minHeight: 44,
         justifyContent: 'center',
@@ -989,24 +993,24 @@ const styles = StyleSheet.create({
     },
     photoEditorButtonDisabled: { opacity: 0.6 },
     photoEditorAddButtonText: { color: '#fff', fontSize: 14, fontWeight: '800' },
-    photoEditorLimitText: { color: '#718287', fontSize: 12, textAlign: 'center', paddingVertical: 8 },
+    photoEditorLimitText: { color: c.textSecondary, fontSize: 12, textAlign: 'center', paddingVertical: 8 },
     toggleRow: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0',
+        paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
     },
-    toggleLabel: { fontSize: 15, color: '#222' },
-    saveBar: { paddingTop: 12, paddingHorizontal: 20, backgroundColor: '#fff', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e5e5' },
-    saveButton: { backgroundColor: '#121732', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+    toggleLabel: { fontSize: 15, color: c.textPrimary },
+    saveBar: { paddingTop: 12, paddingHorizontal: 20, backgroundColor: c.headerBackground, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.headerBorder },
+    saveButton: { backgroundColor: c.accent, borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
     saveButtonDisabled: { opacity: 0.6 },
     saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
     // Ghostwriter Styles
     row: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
     ghostwriterContainer: {
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         borderWidth: 1.5,
-        borderColor: '#e1e3e5',
+        borderColor: c.cardBorder,
         padding: 16,
         marginBottom: 16,
         shadowColor: '#000',
@@ -1018,41 +1022,46 @@ const styles = StyleSheet.create({
     ghostwriterHeaderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     ghostwriterHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     ghostwriterEmoji: { fontSize: 18 },
-    ghostwriterTitle: { fontSize: 15, fontWeight: '600', color: '#121732' },
+    ghostwriterTitle: { fontSize: 15, fontWeight: '600', color: c.textPrimary },
     ghostwriterToggleText: { fontSize: 14, fontWeight: '600', color: '#1a7a5e' },
     ghostwriterBody: { marginTop: 14 },
-    ghostwriterDescription: { fontSize: 13, color: '#666', marginBottom: 14, lineHeight: 18 },
-    ghostwriterSublabel: { fontSize: 11, fontWeight: '700', color: '#888', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
-    ghostChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#dcdcdc', backgroundColor: '#fafafa' },
-    ghostChipActive: { borderColor: '#121732', backgroundColor: '#eef3f5' },
-    ghostChipText: { fontSize: 13, color: '#555' },
-    ghostChipTextActive: { color: '#121732', fontWeight: '600' },
-    ghostInput: { borderWidth: 1, borderColor: '#dcdcdc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#333', backgroundColor: '#fafafa', marginBottom: 14 },
+    ghostwriterDescription: { fontSize: 13, color: c.textSecondary, marginBottom: 14, lineHeight: 18 },
+    ghostwriterSublabel: { fontSize: 11, fontWeight: '700', color: c.textMuted, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
+    ghostChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: c.cardBorder, backgroundColor: c.background },
+    ghostChipActive: { borderColor: c.accent, backgroundColor: c.cardBackground },
+    ghostChipText: { fontSize: 13, color: c.textSecondary },
+    ghostChipTextActive: { color: c.accent, fontWeight: '600' },
+    ghostInput: { borderWidth: 1, borderColor: c.cardBorder, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: c.textPrimary, backgroundColor: c.background, marginBottom: 14 },
     ghostActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-    ghostBtn: { flex: 1, backgroundColor: '#121732', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    ghostBtn: { flex: 1, backgroundColor: c.accent, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
     ghostBtnDisabled: { opacity: 0.6 },
     ghostBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-    ghostUndoBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#dcdcdc', alignItems: 'center' },
-    ghostUndoBtnText: { color: '#555', fontSize: 14, fontWeight: '500' },
-    previewContainer: { backgroundColor: '#f6fdfa', borderWidth: 1, borderColor: '#a3e2c9', borderRadius: 8, padding: 14 },
+    ghostUndoBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: c.cardBorder, alignItems: 'center' },
+    ghostUndoBtnText: { color: c.textSecondary, fontSize: 14, fontWeight: '500' },
+    previewContainer: { backgroundColor: c.cardBackground, borderWidth: 1, borderColor: '#a3e2c9', borderRadius: 8, padding: 14 },
     previewTitle: { fontSize: 14, fontWeight: '700', color: '#1a7a5e', marginBottom: 10 },
     summaryBadge: { backgroundColor: '#e6f7f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start', marginBottom: 10 },
     summaryText: { fontSize: 12, color: '#1a7a5e', fontWeight: '500' },
     previewField: { marginBottom: 10 },
-    previewFieldLabel: { fontSize: 11, fontWeight: '600', color: '#888', textTransform: 'uppercase', marginBottom: 2 },
-    previewFieldText: { fontSize: 13, color: '#333', lineHeight: 18 },
+    previewFieldLabel: { fontSize: 11, fontWeight: '600', color: c.textMuted, textTransform: 'uppercase', marginBottom: 2 },
+    previewFieldText: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
     previewActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
     applyBtn: { flex: 1, backgroundColor: '#1a7a5e', paddingVertical: 10, borderRadius: 6, alignItems: 'center' },
     applyBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-    discardBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 6, borderWidth: 1, borderColor: '#dcdcdc', alignItems: 'center' },
-    discardBtnText: { color: '#666', fontSize: 13, fontWeight: '500' },
-    emptyHistoryText: { fontSize: 13, color: '#666', fontStyle: 'italic', textAlign: 'center', paddingVertical: 10 },
+    discardBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 6, borderWidth: 1, borderColor: c.cardBorder, alignItems: 'center' },
+    discardBtnText: { color: c.textSecondary, fontSize: 13, fontWeight: '500' },
+    emptyHistoryText: { fontSize: 13, color: c.textSecondary, fontStyle: 'italic', textAlign: 'center', paddingVertical: 10 },
     revisionItem: { marginVertical: 8 },
     revisionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-    revisionTitle: { fontSize: 14, fontWeight: '600', color: '#222' },
-    revisionDate: { fontSize: 11, color: '#888' },
-    restoreBtn: { backgroundColor: '#eef3f5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: '#121732' },
-    restoreBtnText: { color: '#121732', fontSize: 12, fontWeight: '600' },
-    revisionSnippet: { fontSize: 12, color: '#666', lineHeight: 16, marginTop: 2 },
-    revisionDivider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 10 },
+    revisionTitle: { fontSize: 14, fontWeight: '600', color: c.textPrimary },
+    revisionDate: { fontSize: 11, color: c.textMuted },
+    restoreBtn: { backgroundColor: c.cardBackground, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4, borderWidth: 1, borderColor: c.accent },
+    restoreBtnText: { color: c.accent, fontSize: 12, fontWeight: '600' },
+    revisionSnippet: { fontSize: 12, color: c.textSecondary, lineHeight: 16, marginTop: 2 },
+    revisionDivider: { height: 1, backgroundColor: c.cardBorder, marginVertical: 10 },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

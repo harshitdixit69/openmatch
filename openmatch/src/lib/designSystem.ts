@@ -59,7 +59,7 @@ export const gradients = {
     /** Premium / VIP — gold-amber into rose. */
     premium: ['#ffc24b', '#ff5470'] as const,
     /** Aurora backdrop for dark screens (very subtle, low opacity when layered). */
-    auroraDark: ['#0c1020', '#151a3a', '#0c1020'] as const,
+    auroraDark: ['#070912', '#0c1020', '#070912'] as const,
     /** Aurora backdrop for light screens. */
     auroraLight: ['#f6f8ff', '#eef1fb', '#e8ecfb'] as const,
     /** Success. */

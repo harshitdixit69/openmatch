@@ -21,6 +21,7 @@ import type { ColorValue } from 'react-native';
 import { BackButton } from '../components/BackButton';
 import { HorizontalScrollAffordance } from '../components/HorizontalScrollAffordance';
 import { palette, gradients, glow } from '../lib/designSystem';
+import { useTheme, type ThemeColors } from '../lib/theme';
 import { fetchFitFrictionBreakdown } from '../lib/aiApi';
 import { MatchCandidate, ViewerEmbeddingStatus } from '../lib/matchmaking';
 import { getDisplayFirstName, ProfileContactDetails, ProfileRecord } from '../lib/profile';
@@ -97,6 +98,8 @@ export function HomeScreen({
     unreadNotificationsCount?: number;
     initialPhotoManagerOpen?: boolean;
 } = {}) {
+    const { colors } = useTheme();
+    const styles = useThemedStyles();
     const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -719,7 +722,7 @@ export function HomeScreen({
     const embeddingStateContent = getEmbeddingStateContent(viewerEmbeddingStatus);
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['left', 'right']}>
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
@@ -729,7 +732,7 @@ export function HomeScreen({
                 <View style={[styles.headerRow, useStackedHeader ? styles.headerRowStacked : null]}>
                     <View style={styles.headerCopy}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                            <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1} ellipsizeMode="tail">
+                            <Text style={[styles.title, { flex: 1, marginRight: 8, color: colors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
                                 {viewerFirstName ? `Hi, ${viewerFirstName}` : 'Semantic Feed'}
                             </Text>
                             {onOpenNotifications && (
@@ -759,7 +762,7 @@ export function HomeScreen({
                                 </Pressable>
                             )}
                         </View>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                             {viewerFirstName
                                 ? 'Swipe through profiles ranked for you and tap a card for the compatibility snapshot.'
                                 : 'Swipe through profiles ranked by profile embeddings and tap a card for the compatibility snapshot.'}
@@ -770,11 +773,11 @@ export function HomeScreen({
                             </Text>
                         ) : null}
 
-                        <View style={styles.searchCard}>
+                        <View style={[styles.searchCard, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }]}>
                             <TextInput
-                                style={styles.searchInput}
+                                style={[styles.searchInput, { backgroundColor: colors.background, color: colors.textPrimary }]}
                                 placeholder="Search matches by name, city, or profile text"
-                                placeholderTextColor="#8b9aa0"
+                                placeholderTextColor={colors.textMuted}
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
                                 autoCapitalize="none"
@@ -783,7 +786,7 @@ export function HomeScreen({
 
                             <HorizontalScrollAffordance
                                 contentContainerStyle={styles.filterChipsRow}
-                                fadeColor="#ffffff"
+                                fadeColor={colors.cardBackground}
                                 arrowAccessibilityLabelPrefix="filters"
                             >
                                 {feedFilters.map((filter) => (
@@ -1086,6 +1089,8 @@ function CandidateCard({
     expandedBioLines = 6,
     onPress,
 }: CandidateCardProps) {
+    const { colors } = useTheme();
+    const styles = useThemedStyles();
     const primaryPhotoUrl = candidate.photo_urls[0];
     const fallbackInitial = getDisplayFirstName(candidate.full_name).slice(0, 1).toUpperCase() || '?';
     const premiumHighlight = getPremiumHighlightForCandidate(candidate);
@@ -1134,12 +1139,12 @@ function CandidateCard({
             ) : null}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null]}>{candidate.full_name}</Text>
+                <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null, { color: colors.textPrimary }]}>{candidate.full_name}</Text>
                 {candidate.subscription_tier && candidate.subscription_tier !== 'free' ? (
                     <Text style={{ fontSize: 16, marginLeft: 6, color: '#ffc24b', alignSelf: 'center' }}>👑</Text>
                 ) : null}
             </View>
-            <Text style={styles.cardMeta}>
+            <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>
                 {candidate.gender}
                 {formatAge(candidate.dob) ? `, ${formatAge(candidate.dob)}` : ''}
                 {candidate.height_cm ? `, ${candidate.height_cm} cm` : ''}
@@ -1150,7 +1155,7 @@ function CandidateCard({
                 <FactPill label={candidate.preferences ? 'Preferences ready' : 'Preferences pending'} />
             </View>
 
-            <Text numberOfLines={compact ? 3 : expandedBioLines} style={[styles.cardBio, condensed ? styles.cardBioCompact : null]}>
+            <Text numberOfLines={compact ? 3 : expandedBioLines} style={[styles.cardBio, condensed ? styles.cardBioCompact : null, { color: colors.textSecondary }]}>
                 {candidate.bio ?? 'No bio added yet.'}
             </Text>
 
@@ -1162,19 +1167,31 @@ function CandidateCard({
 
     if (onPress) {
         return (
-            <Pressable style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]} onPress={onPress}>
+            <Pressable style={[styles.cardPressable, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]} onPress={onPress}>
                 {details}
             </Pressable>
         );
     }
 
-    return <View style={[styles.cardPressable, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]}>{details}</View>;
+    return <View style={[styles.cardPressable, { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder }, condensed ? styles.cardPressableCompact : null, isPremium ? styles.cardPressablePremium : null]}>{details}</View>;
 }
 
 function FilterChip({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) {
+    const { colors, activeTheme } = useTheme();
+    const styles = useThemedStyles();
+    const inactiveBg = activeTheme === 'dark' ? '#1a2142' : '#f6f8ff';
     return (
-        <Pressable style={[styles.filterChip, active ? styles.filterChipActive : null]} onPress={onPress}>
-            <Text style={[styles.filterChipText, active ? styles.filterChipTextActive : null]}>{`${label} (${count})`}</Text>
+        <Pressable
+            style={[styles.filterChip, { backgroundColor: inactiveBg }, active ? styles.filterChipActive : null]}
+            onPress={onPress}
+        >
+            <Text
+                style={[
+                    styles.filterChipText,
+                    { color: colors.textSecondary },
+                    active ? styles.filterChipTextActive : null,
+                ]}
+            >{`${label} (${count})`}</Text>
         </Pressable>
     );
 }
@@ -1189,6 +1206,7 @@ type ActionButtonProps = {
 };
 
 function ActionButton({ label, tone, compact = false, emphasis = false, onPress }: ActionButtonProps) {
+    const styles = useThemedStyles();
     const toneStyle =
         tone === 'muted'
             ? styles.actionButtonMuted
@@ -1248,6 +1266,7 @@ function ActionButton({ label, tone, compact = false, emphasis = false, onPress 
 }
 
 function FactPill({ label }: { label: string }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.factPill}>
             <Text style={styles.factText}>{label}</Text>
@@ -1361,6 +1380,7 @@ function getEmbeddingStateContent(status: ViewerEmbeddingStatus) {
 }
 
 function HomeFeedSkeleton() {
+    const styles = useThemedStyles();
     return (
         <View style={styles.feedSkeletonWrap}>
             <View style={styles.feedSkeletonCardBack} />
@@ -1380,9 +1400,9 @@ function HomeFeedSkeleton() {
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     safeArea: {
-        backgroundColor: palette.cloud50,
+        backgroundColor: c.background,
         flex: 1,
         minHeight: 0,
     },
@@ -1416,24 +1436,24 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     title: {
-        color: palette.slate800,
+        color: c.textPrimary,
         fontSize: 30,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 15,
         lineHeight: 22,
     },
     warningText: {
-        color: '#8e4b22',
+        color: '#f1a978',
         fontSize: 13,
         lineHeight: 20,
         marginTop: 4,
     },
     searchCard: {
-        backgroundColor: palette.white,
-        borderColor: palette.cloud200,
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
@@ -1442,9 +1462,9 @@ const styles = StyleSheet.create({
         ...glow(palette.violet, 0.1, 22),
     },
     searchInput: {
-        backgroundColor: palette.cloud100,
+        backgroundColor: c.background,
         borderRadius: 16,
-        color: palette.slate800,
+        color: c.textPrimary,
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -1454,16 +1474,16 @@ const styles = StyleSheet.create({
         paddingRight: 4,
     },
     filterChip: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 999,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     filterChipActive: {
-        backgroundColor: palette.slate800,
+        backgroundColor: '#ff6a3d',
     },
     filterChipText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 13,
         fontWeight: '700',
     },
@@ -1471,7 +1491,7 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     signOutButton: {
-        backgroundColor: '#121732',
+        backgroundColor: c.cardBackground,
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -1519,7 +1539,7 @@ const styles = StyleSheet.create({
         width: '88%',
         height: 420,
         borderRadius: 28,
-        backgroundColor: '#e1ebec',
+        backgroundColor: c.cardBackground,
     },
     feedSkeletonCardMid: {
         position: 'absolute',
@@ -1527,34 +1547,34 @@ const styles = StyleSheet.create({
         width: '92%',
         height: 430,
         borderRadius: 28,
-        backgroundColor: '#ebf1f2',
+        backgroundColor: c.cardBackground,
     },
     feedSkeletonCardFront: {
         width: '96%',
         height: 440,
         borderRadius: 28,
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.cardBackground,
         borderWidth: 1,
-        borderColor: '#e2e7f5',
+        borderColor: c.cardBorder,
         padding: 16,
         gap: 12,
     },
     feedSkeletonPhoto: {
         height: 210,
         borderRadius: 20,
-        backgroundColor: '#dde8ea',
+        backgroundColor: c.cardBorder,
     },
     feedSkeletonTitle: {
         width: '52%',
         height: 20,
         borderRadius: 8,
-        backgroundColor: '#dbe5e7',
+        backgroundColor: c.cardBorder,
     },
     feedSkeletonLine: {
         width: '90%',
         height: 14,
         borderRadius: 7,
-        backgroundColor: '#e3ecee',
+        backgroundColor: c.cardBorder,
     },
     feedSkeletonLineShort: {
         width: '74%',
@@ -1568,22 +1588,22 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#d7e3e5',
+        backgroundColor: c.cardBorder,
     },
     loadingText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 15,
     },
     stateCard: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 28,
         elevation: 2,
         gap: 12,
         marginTop: 40,
         padding: 28,
-        shadowColor: '#121732',
+        shadowColor: '#000000',
         shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.35,
         shadowRadius: 24,
     },
     premiumPromoCard: {
@@ -1657,12 +1677,12 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     stateTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 24,
         fontWeight: '800',
     },
     stateSubtitle: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 15,
         lineHeight: 22,
     },
@@ -1690,7 +1710,7 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     card: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 30,
         bottom: 0,
         left: 0,
@@ -1722,8 +1742,8 @@ const styles = StyleSheet.create({
         shadowRadius: 30,
     },
     cardPressable: {
-        backgroundColor: '#ffffff',
-        borderColor: '#ecd9c7',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 30,
         borderWidth: 1,
         flex: 1,
@@ -1733,7 +1753,7 @@ const styles = StyleSheet.create({
     cardPressablePremium: {
         borderColor: '#ffc24b',
         borderWidth: 2.5,
-        backgroundColor: '#fffcf5',
+        backgroundColor: '#1a1830',
     },
     cardPressableCompact: {
         gap: 12,
@@ -1784,12 +1804,12 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     locationText: {
-        color: '#7a685c',
+        color: c.textSecondary,
         fontSize: 13,
         fontWeight: '700',
     },
     cardName: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 31,
         fontWeight: '800',
         marginTop: 4,
@@ -1798,7 +1818,7 @@ const styles = StyleSheet.create({
         fontSize: 26,
     },
     cardMeta: {
-        color: '#6c5d54',
+        color: c.textSecondary,
         fontSize: 15,
         lineHeight: 22,
     },
@@ -1820,7 +1840,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     cardBio: {
-        color: '#31494e',
+        color: c.textSecondary,
         fontSize: 16,
         lineHeight: 24,
         marginTop: 6,
@@ -1882,7 +1902,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     actionButtonTextMuted: {
-        color: '#5a6488',
+        color: c.textSecondary,
     },
     actionButtonTextAccent: {
         color: '#9a3b18',
@@ -1898,7 +1918,7 @@ const styles = StyleSheet.create({
         padding: 22,
     },
     modalCard: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.cardBackground,
         borderRadius: 28,
         gap: 12,
         maxWidth: 420,
@@ -1932,7 +1952,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     modalTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 28,
         fontWeight: '800',
     },
@@ -1942,7 +1962,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     modalBody: {
-        color: '#31494e',
+        color: c.textSecondary,
         fontSize: 16,
         lineHeight: 25,
     },
@@ -1988,7 +2008,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#121732',
     },
     detailPillNeutral: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
     },
     detailPillAccent: {
         backgroundColor: '#ffe9dc',
@@ -2001,7 +2021,7 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     detailPillTextNeutral: {
-        color: '#45606a',
+        color: c.textSecondary,
     },
     detailPillTextAccent: {
         color: '#9a3b18',
@@ -2024,15 +2044,15 @@ const styles = StyleSheet.create({
         width: 72,
     },
     detailSection: {
-        backgroundColor: '#ffffff',
-        borderColor: '#eadfd5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 22,
         borderWidth: 1,
         gap: 12,
         padding: 16,
     },
     detailSectionTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 18,
         fontWeight: '800',
     },
@@ -2042,7 +2062,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     detailFactCard: {
-        backgroundColor: '#f7efe7',
+        backgroundColor: c.background,
         borderRadius: 18,
         gap: 4,
         minWidth: '47%',
@@ -2050,13 +2070,13 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     detailFactLabel: {
-        color: '#8d6f5a',
+        color: c.textMuted,
         fontSize: 12,
         fontWeight: '700',
         textTransform: 'uppercase',
     },
     detailFactValue: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '700',
         lineHeight: 20,
@@ -2074,7 +2094,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     photoManagerCount: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '700',
     },
@@ -2125,19 +2145,19 @@ const styles = StyleSheet.create({
     },
     profilePhotoEmptyState: {
         alignItems: 'center',
-        backgroundColor: '#f7efe7',
+        backgroundColor: c.background,
         borderRadius: 20,
         gap: 8,
         paddingHorizontal: 18,
         paddingVertical: 24,
     },
     profilePhotoEmptyTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 18,
         fontWeight: '800',
     },
     profilePhotoEmptyText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 14,
         lineHeight: 21,
         textAlign: 'center',
@@ -2155,40 +2175,40 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     photoManagerLimitText: {
-        color: '#7a685c',
+        color: c.textMuted,
         fontSize: 13,
         fontWeight: '700',
         textAlign: 'center',
     },
     contactSectionCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#eadfd5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 20,
         borderWidth: 1,
         gap: 10,
         padding: 16,
     },
     contactSectionTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 17,
         fontWeight: '800',
     },
     contactSectionBody: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 14,
         lineHeight: 21,
     },
     contactInput: {
-        backgroundColor: '#eef1fb',
+        backgroundColor: c.background,
         borderRadius: 14,
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     contactSaveButton: {
         alignItems: 'center',
-        backgroundColor: '#121732',
+        backgroundColor: '#ff6a3d',
         borderRadius: 16,
         marginTop: 4,
         paddingHorizontal: 16,
@@ -2209,14 +2229,14 @@ const styles = StyleSheet.create({
         lineHeight: 19,
     },
     insightSection: {
-        backgroundColor: '#f7efe7',
+        backgroundColor: c.background,
         borderRadius: 18,
         gap: 10,
         marginTop: 4,
         padding: 14,
     },
     insightSectionTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '800',
     },
@@ -2240,14 +2260,14 @@ const styles = StyleSheet.create({
         width: 8,
     },
     insightText: {
-        color: '#35515c',
+        color: c.textSecondary,
         flex: 1,
         fontSize: 14,
         lineHeight: 21,
     },
     modalButton: {
         alignSelf: 'flex-end',
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         borderRadius: 16,
         marginTop: 4,
         paddingHorizontal: 18,
@@ -2264,14 +2284,14 @@ const styles = StyleSheet.create({
     },
     detailFooterSecondaryButton: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 16,
         flex: 1,
         paddingHorizontal: 18,
         paddingVertical: 14,
     },
     detailFooterSecondaryButtonText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 14,
         fontWeight: '800',
     },
@@ -2289,3 +2309,8 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

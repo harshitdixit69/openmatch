@@ -1,6 +1,7 @@
 // src/components/prefs/AgeRangeRow.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useTheme, type ThemeColors } from '../../lib/theme';
 
 interface Props {
     min: number | null;
@@ -9,6 +10,8 @@ interface Props {
 }
 
 export function AgeRangeRow({ min, max, onChange }: Props) {
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
     function parseAge(raw: string): number | null {
         const n = parseInt(raw, 10);
         if (isNaN(n)) return null;
@@ -25,7 +28,7 @@ export function AgeRangeRow({ min, max, onChange }: Props) {
                     maxLength={2}
                     value={min !== null ? String(min) : ''}
                     placeholder="18"
-                    placeholderTextColor="#bbb"
+                    placeholderTextColor={colors.textMuted}
                     onChangeText={(t) => onChange(parseAge(t), max)}
                 />
             </View>
@@ -38,7 +41,7 @@ export function AgeRangeRow({ min, max, onChange }: Props) {
                     maxLength={2}
                     value={max !== null ? String(max) : ''}
                     placeholder="45"
-                    placeholderTextColor="#bbb"
+                    placeholderTextColor={colors.textMuted}
                     onChangeText={(t) => onChange(min, parseAge(t))}
                 />
             </View>
@@ -47,7 +50,7 @@ export function AgeRangeRow({ min, max, onChange }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     row: {
         flexDirection: 'row',
         alignItems: 'flex-end',
@@ -58,28 +61,28 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 11,
-        color: '#999',
+        color: c.textMuted,
         marginBottom: 4,
     },
     input: {
         borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderColor: c.cardBorder,
         borderRadius: 10,
         paddingHorizontal: 12,
         paddingVertical: 10,
         fontSize: 15,
-        color: '#111',
-        backgroundColor: '#fafafa',
+        color: c.textPrimary,
+        backgroundColor: c.background,
         textAlign: 'center',
     },
     dash: {
         fontSize: 18,
-        color: '#999',
+        color: c.textMuted,
         paddingBottom: 10,
     },
     unit: {
         fontSize: 13,
-        color: '#666',
+        color: c.textSecondary,
         paddingBottom: 12,
     },
 });

@@ -7,6 +7,7 @@ import {
     Text,
     View,
 } from 'react-native';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 interface DatePickerFieldProps {
     value: string; // YYYY-MM-DD
@@ -44,6 +45,7 @@ export function DatePickerField({
     minAge = 18,
     maxAge = 100,
 }: DatePickerFieldProps) {
+    const styles = useThemedStyles();
     const [isOpen, setIsOpen] = useState(false);
 
     // Calculate maximum allowed year (18 years ago) and minimum allowed year (100 years ago)
@@ -376,20 +378,20 @@ export function DatePickerField({
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     wrapper: {
         gap: 6,
         width: '100%',
     },
     label: {
-        color: '#34505c',
+        color: c.textSecondary,
         fontSize: 13,
         fontWeight: '700',
     },
     triggerBox: {
         alignItems: 'center',
-        backgroundColor: '#f7fafb',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 12,
         borderWidth: 1.5,
         cursor: 'pointer' as any,
@@ -401,7 +403,7 @@ const styles = StyleSheet.create({
     },
     triggerBoxOpen: {
         borderColor: '#ff6a3d',
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
     },
     triggerBoxError: {
         borderColor: '#e53935',
@@ -420,17 +422,17 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
     },
     selectedDateText: {
-        color: '#10232a',
+        color: c.textPrimary,
         fontSize: 15,
         fontWeight: '700',
     },
     isoDateText: {
-        color: '#5a6488',
+        color: c.textMuted,
         fontSize: 12,
         fontWeight: '500',
     },
     placeholderText: {
-        color: '#5a6488',
+        color: c.textMuted,
         fontSize: 15,
         fontWeight: '500',
     },
@@ -460,7 +462,7 @@ const styles = StyleSheet.create({
         color: '#e53935',
     },
     actionBtn: {
-        backgroundColor: '#eef5f7',
+        backgroundColor: c.background,
         borderRadius: 8,
         paddingHorizontal: 10,
         paddingVertical: 6,
@@ -469,7 +471,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#13333f',
     },
     actionBtnText: {
-        color: '#13333f',
+        color: c.textPrimary,
         fontSize: 12,
         fontWeight: '700',
     },
@@ -483,8 +485,8 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     calendarCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 16,
         borderWidth: 1.5,
         marginTop: 6,
@@ -527,16 +529,16 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     tabRow: {
-        backgroundColor: '#f1f5f7',
-        borderBottomColor: '#e2e7f5',
+        backgroundColor: c.background,
+        borderBottomColor: c.cardBorder,
         borderBottomWidth: 1,
         flexDirection: 'row',
         gap: 6,
         padding: 8,
     },
     tabBtn: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 8,
         borderWidth: 1,
         flex: 1,
@@ -548,7 +550,7 @@ const styles = StyleSheet.create({
         borderColor: '#13333f',
     },
     tabBtnText: {
-        color: '#13333f',
+        color: c.textPrimary,
         fontSize: 12,
         fontWeight: '700',
     },
@@ -565,18 +567,18 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     arrowBtn: {
-        backgroundColor: '#f1f5f7',
+        backgroundColor: c.background,
         borderRadius: 8,
         paddingHorizontal: 10,
         paddingVertical: 6,
     },
     arrowBtnText: {
-        color: '#13333f',
+        color: c.textPrimary,
         fontSize: 12,
         fontWeight: '700',
     },
     monthYearHeader: {
-        color: '#13333f',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '800',
     },
@@ -586,7 +588,7 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     weekDayText: {
-        color: '#5a6488',
+        color: c.textMuted,
         fontSize: 12,
         fontWeight: '700',
         textAlign: 'center',
@@ -612,7 +614,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ff6a3d',
     },
     dayCellText: {
-        color: '#10232a',
+        color: c.textPrimary,
         fontSize: 13,
         fontWeight: '600',
     },
@@ -628,8 +630,8 @@ const styles = StyleSheet.create({
     },
     monthCard: {
         alignItems: 'center',
-        backgroundColor: '#f1f5f7',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.background,
+        borderColor: c.cardBorder,
         borderRadius: 8,
         borderWidth: 1,
         paddingVertical: 10,
@@ -640,7 +642,7 @@ const styles = StyleSheet.create({
         borderColor: '#ff6a3d',
     },
     monthCardText: {
-        color: '#13333f',
+        color: c.textPrimary,
         fontSize: 12,
         fontWeight: '700',
     },
@@ -659,8 +661,8 @@ const styles = StyleSheet.create({
     },
     yearCard: {
         alignItems: 'center',
-        backgroundColor: '#f1f5f7',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.background,
+        borderColor: c.cardBorder,
         borderRadius: 8,
         borderWidth: 1,
         paddingVertical: 8,
@@ -671,7 +673,7 @@ const styles = StyleSheet.create({
         borderColor: '#ff6a3d',
     },
     yearCardText: {
-        color: '#13333f',
+        color: c.textPrimary,
         fontSize: 13,
         fontWeight: '700',
     },
@@ -679,7 +681,7 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     cardFooter: {
-        borderTopColor: '#e2e7f5',
+        borderTopColor: c.cardBorder,
         borderTopWidth: 1,
         padding: 10,
     },
@@ -695,3 +697,8 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -16,6 +16,7 @@ import { BackButton } from '../components/BackButton';
 import { captureLiveSelfie, pickGovtIdDocument } from '../lib/profilePhotoApi';
 import { submitVerification } from '../lib/profileApi';
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 interface Props {
     onBack: () => void;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [idPhotoUri, setIdPhotoUri] = useState<string | null>(null);
     const [selfiePhotoUri, setSelfiePhotoUri] = useState<string | null>(null);
@@ -216,10 +218,10 @@ export function IdentityVerificationScreen({ onBack, onCompleted }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.background,
     },
     header: {
         height: 56,
@@ -228,12 +230,13 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: c.headerBorder,
+        backgroundColor: c.headerBackground,
     },
     headerTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#1F1F1F',
+        color: c.textPrimary,
     },
     container: {
         padding: 20,
@@ -241,7 +244,7 @@ const styles = StyleSheet.create({
     infoText: {
         fontSize: 14,
         lineHeight: 20,
-        color: '#666666',
+        color: c.textSecondary,
         textAlign: 'center',
         marginBottom: 24,
     },
@@ -253,9 +256,9 @@ const styles = StyleSheet.create({
     card: {
         height: 180,
         borderRadius: 12,
-        backgroundColor: '#F7F8FA',
+        backgroundColor: c.cardBackground,
         borderWidth: 2,
-        borderColor: '#EAEAEA',
+        borderColor: c.cardBorder,
         borderStyle: 'dashed',
         justifyContent: 'center',
         alignItems: 'center',
@@ -276,12 +279,12 @@ const styles = StyleSheet.create({
     placeholderTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#333333',
+        color: c.textPrimary,
         marginBottom: 4,
     },
     placeholderSubtitle: {
         fontSize: 12,
-        color: '#999999',
+        color: c.textMuted,
     },
     previewContainer: {
         width: '100%',
@@ -325,13 +328,13 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: 25,
         borderWidth: 1,
-        borderColor: '#D9D9D9',
+        borderColor: c.cardBorder,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.cardBackground,
     },
     cancelButtonText: {
-        color: '#666666',
+        color: c.textSecondary,
         fontSize: 16,
         fontWeight: '600',
     },
@@ -344,7 +347,7 @@ const styles = StyleSheet.create({
     },
     spinnerCard: {
         padding: 24,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         alignItems: 'center',
         shadowColor: '#000000',
@@ -356,7 +359,7 @@ const styles = StyleSheet.create({
     spinnerText: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#121732',
+        color: c.textPrimary,
         marginBottom: 16,
     },
     scanStepList: {
@@ -366,7 +369,7 @@ const styles = StyleSheet.create({
     },
     scanStep: {
         fontSize: 14,
-        color: '#8b9da5',
+        color: c.textMuted,
         fontWeight: '500',
     },
     scanStepActive: {
@@ -374,3 +377,8 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

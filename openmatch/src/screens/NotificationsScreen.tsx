@@ -1,6 +1,6 @@
 // src/screens/NotificationsScreen.tsx
 // F8 – In-app Notifications
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Pressable,
@@ -24,6 +24,7 @@ import {
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { supabase } from '../lib/supabase';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -68,6 +69,7 @@ function NotifRow({
     item: AppNotification;
     onPress: (item: AppNotification) => void;
 }) {
+    const styles = useThemedStyles();
     const icon = TYPE_ICON[item.type] ?? TYPE_ICON.system;
 
     return (
@@ -106,6 +108,7 @@ interface Props {
 }
 
 export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [items, setItems] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(true);
@@ -234,27 +237,27 @@ export function NotificationsScreen({ onBack, onNotificationPress }: Props) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f5f4f0' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: 1,
-        borderBottomColor: '#e8e5df',
+        borderBottomColor: c.headerBorder,
     },
     headerCenter: { flex: 1, alignItems: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
-    headerUnread: { fontSize: 12, color: '#888', marginTop: 2 },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    headerUnread: { fontSize: 12, color: c.textMuted, marginTop: 2 },
     markAllBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-    markAllText: { fontSize: 12, color: '#121732', fontWeight: '600' },
+    markAllText: { fontSize: 12, color: c.accent, fontWeight: '600' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
     errorText: { fontSize: 14, color: '#ff5470', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#121732', borderRadius: 8 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: c.accent, borderRadius: 8 },
     retryBtnText: { color: '#fff', fontWeight: '600' },
 
     list: { flex: 1 },
@@ -267,8 +270,8 @@ const styles = StyleSheet.create({
 
     empty: { alignItems: 'center', paddingTop: 64, gap: 8 },
     emptyIcon: { fontSize: 40 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
-    emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    emptySubtitle: { fontSize: 14, color: c.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
 
     row: {
         flexDirection: 'row',
@@ -277,10 +280,10 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         gap: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#eeebe4',
-        backgroundColor: '#fff',
+        borderBottomColor: c.cardBorder,
+        backgroundColor: c.cardBackground,
     },
-    rowUnread: { backgroundColor: '#f0f4ff' },
+    rowUnread: { backgroundColor: c.headerBackground },
     rowPressed: { opacity: 0.82 },
 
     iconWrap: {
@@ -295,17 +298,22 @@ const styles = StyleSheet.create({
 
     rowBody: { flex: 1, gap: 3 },
     rowHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-    rowTitle: { fontSize: 14, color: '#333', flex: 1 },
-    rowTitleBold: { fontWeight: '700', color: '#121732' },
-    rowTime: { fontSize: 11, color: '#999', flexShrink: 0 },
-    rowBody2: { fontSize: 13, color: '#666', lineHeight: 18 },
+    rowTitle: { fontSize: 14, color: c.textSecondary, flex: 1 },
+    rowTitleBold: { fontWeight: '700', color: c.textPrimary },
+    rowTime: { fontSize: 11, color: c.textMuted, flexShrink: 0 },
+    rowBody2: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
 
     unreadDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         marginTop: 6,
         flexShrink: 0,
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

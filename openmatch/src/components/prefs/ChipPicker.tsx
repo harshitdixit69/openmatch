@@ -1,8 +1,9 @@
 // src/components/prefs/ChipPicker.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { HorizontalScrollAffordance } from '../HorizontalScrollAffordance';
+import { useTheme, type ThemeColors } from '../../lib/theme';
 
 interface Props<T extends string> {
     options: readonly T[];
@@ -12,6 +13,7 @@ interface Props<T extends string> {
 }
 
 export function ChipPicker<T extends string>({ options, labels, selected, onSelect }: Props<T>) {
+    const styles = useThemedStyles();
     return (
         <HorizontalScrollAffordance contentContainerStyle={styles.row} arrowAccessibilityLabelPrefix="options">
             {options.map((opt) => {
@@ -40,6 +42,7 @@ interface MultiProps<T extends string> {
 }
 
 export function MultiChipPicker<T extends string>({ options, labels, selected, onToggle }: MultiProps<T>) {
+    const styles = useThemedStyles();
     return (
         <HorizontalScrollAffordance contentContainerStyle={styles.row} arrowAccessibilityLabelPrefix="options">
             {options.map((opt) => {
@@ -60,7 +63,7 @@ export function MultiChipPicker<T extends string>({ options, labels, selected, o
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     row: {
         flexDirection: 'row',
         flexWrap: 'nowrap',
@@ -72,19 +75,24 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         borderWidth: 1.5,
-        borderColor: '#d0d0d0',
-        backgroundColor: '#f9f9f9',
+        borderColor: c.cardBorder,
+        backgroundColor: c.background,
     },
     chipSelected: {
-        borderColor: '#121732',
-        backgroundColor: '#121732',
+        borderColor: c.accent,
+        backgroundColor: c.accent,
     },
     chipText: {
         fontSize: 13,
-        color: '#444',
+        color: c.textSecondary,
         fontWeight: '500',
     },
     chipTextSelected: {
         color: '#fff',
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

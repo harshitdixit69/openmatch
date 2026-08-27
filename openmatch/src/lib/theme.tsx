@@ -65,7 +65,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const systemColorScheme = useColorScheme();
-    const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
+    const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
 
     useEffect(() => {
         AsyncStorage.getItem(THEME_STORAGE_KEY)
@@ -79,6 +79,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             });
     }, []);
 
+    // Resolve the active theme from the user's chosen mode. `system` follows the
+    // OS setting; otherwise the explicit light/dark choice wins. This is what the
+    // Dark/Light toggle drives.
     const activeTheme: 'light' | 'dark' =
         themeMode === 'system' ? (systemColorScheme === 'dark' ? 'dark' : 'light') : themeMode;
 

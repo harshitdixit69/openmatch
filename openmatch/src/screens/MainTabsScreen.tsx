@@ -19,6 +19,7 @@ import { MatchCandidate } from '../lib/matchmaking';
 import { fetchCompatibilitySnapshot } from '../lib/matchmakingApi';
 import { MAX_CONTENT_WIDTH, TabBarSpacingContext } from '../lib/responsiveLayout';
 import { palette, gradients, glow } from '../lib/designSystem';
+import { useTheme, type ThemeColors } from '../lib/theme';
 import { ChatScreen } from './ChatScreen';
 import { HomeScreen } from './HomeScreen';
 import { ModerationQueueScreen } from './ModerationQueueScreen';
@@ -66,6 +67,8 @@ const emptyShellCounts: ShellCounts = {
 };
 
 export function MainTabsScreen() {
+    const { colors } = useTheme();
+    const styles = useThemedStyles();
     const [activeTab, setActiveTab] = useState<AppTab>('matches');
     const [shellLoading, setShellLoading] = useState(true);
     const [viewerFirstName, setViewerFirstName] = useState('');
@@ -561,7 +564,7 @@ export function MainTabsScreen() {
 
     return (
         <TabBarSpacingContext.Provider value={isChatConversationOpen ? 0 : tabBarSpacing}>
-            <View style={styles.shell}>
+            <View style={[styles.shell, { backgroundColor: colors.background }]}>
                 <View
                     style={[
                         styles.contentArea,
@@ -593,7 +596,7 @@ export function MainTabsScreen() {
                 </View>
 
                 {!isChatConversationOpen && (
-                    <View style={[styles.tabBar, { paddingBottom: tabBarBottomPadding }]}>
+                    <View style={[styles.tabBar, { backgroundColor: colors.headerBackground, borderTopColor: colors.headerBorder }, { paddingBottom: tabBarBottomPadding }]}>
                         {tabItems.map((tab) => (
                             <TabButton
                                 key={tab.value}
@@ -674,9 +677,17 @@ type TabButtonProps = {
 };
 
 function TabButton({ label, subtitle, badge, disabled = false, active, onPress }: TabButtonProps) {
+    const { colors, activeTheme } = useTheme();
+    const styles = useThemedStyles();
+    const inactiveBg = activeTheme === 'dark' ? '#1a2142' : '#f6f8ff';
     return (
         <Pressable
-            style={[styles.tabButton, active ? styles.tabButtonActive : null, disabled ? styles.tabButtonDisabled : null]}
+            style={[
+                styles.tabButton,
+                { backgroundColor: inactiveBg },
+                active ? styles.tabButtonActive : null,
+                disabled ? styles.tabButtonDisabled : null,
+            ]}
             onPress={onPress}
             disabled={disabled}
         >
@@ -696,6 +707,7 @@ function TabButton({ label, subtitle, badge, disabled = false, active, onPress }
             <Text
                 style={[
                     styles.tabLabel,
+                    { color: colors.textSecondary },
                     active ? styles.tabLabelActive : null,
                     disabled && !active ? styles.tabLabelDisabled : null,
                 ]}
@@ -741,6 +753,7 @@ function HomeHubTab({
     onSignOut: () => void;
     onRefreshProfile: () => Promise<void>;
 }) {
+    const styles = useThemedStyles();
     const [secondsRemaining, setSecondsRemaining] = useState(0);
     const [activatingSpotlight, setActivatingSpotlight] = useState(false);
     const [showSpotlightConfirm, setShowSpotlightConfirm] = useState(false);
@@ -983,6 +996,7 @@ const EXCLUSIVE_PACKAGES: SubscriptionPackage[] = [
 ];
 
 function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatches: () => void; onOpenInbox: () => void; viewerProfile: ProfileRecord | null }) {
+    const styles = useThemedStyles();
     const { width: viewportWidth } = useWindowDimensions();
     const tabBarSpacing = useContext(TabBarSpacingContext);
     // Four cards become too narrow on phones: labels and prices wrap or get
@@ -1480,6 +1494,7 @@ function PremiumTab({ onOpenMatches, onOpenInbox, viewerProfile }: { onOpenMatch
 }
 
 function SummaryCard({ label, value, tone }: { label: string; value: number; tone: 'primary' | 'accent' | 'neutral' }) {
+    const styles = useThemedStyles();
     return (
         <View
             style={[
@@ -1518,6 +1533,7 @@ function QuickActionButton({
     tone: 'primary' | 'accent' | 'neutral';
     onPress: () => void;
 }) {
+    const styles = useThemedStyles();
     return (
         <Pressable
             style={[
@@ -1556,6 +1572,7 @@ function getQuickActionIcon(label: string) {
 }
 
 function FeatureRow({ title, body }: { title: string; body: string }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.featureRow}>
             <View style={styles.featureDot} />
@@ -1606,17 +1623,17 @@ function buildShellCounts(matches: ChatMatch[], currentUserId: string | null): S
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     shell: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         flex: 1,
     },
     utilityBar: {
         alignItems: 'center',
         alignSelf: 'center',
-        backgroundColor: '#f6f8ff',
-        borderBottomColor: '#e2e7f5',
+        backgroundColor: c.background,
+        borderBottomColor: c.cardBorder,
         borderBottomWidth: 1,
         flexDirection: 'row',
         gap: 10,
@@ -1626,13 +1643,13 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     utilityMenuButton: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     utilityMenuButtonText: {
-        color: '#232a45',
+        color: c.textPrimary,
         fontSize: 12,
         fontWeight: '800',
     },
@@ -1641,12 +1658,12 @@ const styles = StyleSheet.create({
         gap: 1,
     },
     utilityTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 15,
         fontWeight: '800',
     },
     utilitySubtitle: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 11,
         fontWeight: '600',
     },
@@ -1657,7 +1674,7 @@ const styles = StyleSheet.create({
     },
     utilityActionButton: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.cardBackground,
         borderRadius: 999,
         flexDirection: 'row',
         gap: 6,
@@ -1665,12 +1682,12 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     utilityActionButtonText: {
-        color: '#232a45',
+        color: c.textPrimary,
         fontSize: 12,
         fontWeight: '800',
     },
     utilityBadge: {
-        backgroundColor: '#ff6a3d',
+        backgroundColor: c.accent,
         borderRadius: 999,
         minWidth: 20,
         paddingHorizontal: 6,
@@ -1696,8 +1713,8 @@ const styles = StyleSheet.create({
     },
     tabBar: {
         alignSelf: 'center',
-        backgroundColor: '#ffffff',
-        borderTopColor: '#e2e7f5',
+        backgroundColor: '#0c1020',
+        borderTopColor: '#1a2142',
         borderTopWidth: 1,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
@@ -1730,7 +1747,7 @@ const styles = StyleSheet.create({
     fabText: { fontSize: 24, color: '#fff', lineHeight: 28 },
     tabButton: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: '#1a2142',
         borderRadius: 18,
         flex: 1,
         gap: 2,
@@ -1746,7 +1763,7 @@ const styles = StyleSheet.create({
         ...glow(palette.magenta, 0.5, 16),
     },
     tabButtonDisabled: {
-        backgroundColor: '#f5f0ea',
+        backgroundColor: '#141830',
         opacity: 0.88,
     },
     tabBadge: {
@@ -1767,7 +1784,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     tabLabel: {
-        color: '#232a45',
+        color: '#aab2d5',
         fontSize: 12,
         fontWeight: '800',
     },
@@ -1775,21 +1792,21 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     tabLabelDisabled: {
-        color: '#8b8f95',
+        color: '#5b6488',
     },
     tabSubtitle: {
-        color: '#6c8085',
+        color: '#8a93b2',
         fontSize: 10,
         fontWeight: '700',
     },
     tabSubtitleActive: {
-        color: '#c7d6d8',
+        color: '#ffe1d6',
     },
     tabSubtitleDisabled: {
-        color: '#a8a0a0',
+        color: '#5b6488',
     },
     panelSafeArea: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         flex: 1,
     },
     panelScrollContent: {
@@ -1839,8 +1856,8 @@ const styles = StyleSheet.create({
     },
     summaryLoadingCard: {
         alignItems: 'center',
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 22,
         borderWidth: 1,
         flexDirection: 'row',
@@ -1848,7 +1865,7 @@ const styles = StyleSheet.create({
         padding: 12,
     },
     summaryLoadingText: {
-        color: '#232a45',
+        color: c.textPrimary,
         fontSize: 13,
         fontWeight: '700',
     },
@@ -1872,8 +1889,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffe9dc',
     },
     summaryCardNeutral: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderWidth: 1,
     },
     summaryValue: {
@@ -1887,7 +1904,7 @@ const styles = StyleSheet.create({
         color: '#9a3b18',
     },
     summaryValueNeutral: {
-        color: '#121732',
+        color: c.textPrimary,
     },
     summaryLabel: {
         fontSize: 11.5,
@@ -1900,18 +1917,18 @@ const styles = StyleSheet.create({
         color: '#9a3b18',
     },
     summaryLabelNeutral: {
-        color: '#5a6488',
+        color: c.textSecondary,
     },
     sectionCard: {
-        backgroundColor: '#ffffff',
-        borderColor: '#e2e7f5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 18,
         borderWidth: 1,
         gap: 11,
         padding: 13,
     },
     sectionTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 15,
         fontWeight: '800',
     },
@@ -1934,7 +1951,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffe9dc',
     },
     quickActionButtonNeutral: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
     },
     quickActionLabel: {
         fontSize: 13,
@@ -1947,7 +1964,7 @@ const styles = StyleSheet.create({
         color: '#744a33',
     },
     quickActionLabelNeutral: {
-        color: '#244049',
+        color: c.textPrimary,
     },
     quickActionSubtitle: {
         fontSize: 11.5,
@@ -1985,7 +2002,7 @@ const styles = StyleSheet.create({
         gap: 1,
     },
     quickActionArrow: {
-        color: '#789096',
+        color: c.textMuted,
         fontSize: 24,
         fontWeight: '400',
         lineHeight: 26,
@@ -1993,7 +2010,7 @@ const styles = StyleSheet.create({
     },
     signOutButton: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderColor: '#ead7c4',
         borderRadius: 15,
         borderWidth: 1,
@@ -2037,7 +2054,7 @@ const styles = StyleSheet.create({
         color: '#9a3b18',
     },
     quickActionSubtitleNeutral: {
-        color: '#5a6488',
+        color: c.textSecondary,
     },
     featureRow: {
         flexDirection: 'row',
@@ -2055,12 +2072,12 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     featureTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 13.5,
         fontWeight: '800',
     },
     featureBody: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 12.5,
         lineHeight: 18,
     },
@@ -2072,7 +2089,7 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     confirmModalContent: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 24,
         padding: 24,
         width: '100%',
@@ -2085,12 +2102,12 @@ const styles = StyleSheet.create({
         elevation: 6,
     },
     confirmModalTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 20,
         fontWeight: '800',
     },
     confirmModalBody: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 15,
         lineHeight: 22,
     },
@@ -2101,14 +2118,14 @@ const styles = StyleSheet.create({
     },
     confirmCancelBtn: {
         flex: 1,
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         paddingVertical: 12,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },
     confirmCancelText: {
-        color: '#244049',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '700',
     },
@@ -2137,7 +2154,7 @@ const styles = StyleSheet.create({
     pageHeaderTitle: {
         fontSize: 22,
         fontWeight: '900',
-        color: '#121732',
+        color: c.textPrimary,
     },
     needHelpText: {
         fontSize: 14,
@@ -2147,10 +2164,10 @@ const styles = StyleSheet.create({
     },
     upgradeToggleContainer: {
         flexDirection: 'row',
-        backgroundColor: '#f7f6f5',
+        backgroundColor: c.background,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#e8e6e4',
+        borderColor: c.cardBorder,
         padding: 4,
         marginTop: 8,
         marginBottom: 16,
@@ -2162,7 +2179,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     upgradeToggleSegmentActive: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
@@ -2172,15 +2189,15 @@ const styles = StyleSheet.create({
     upgradeToggleText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#9e9c9a',
+        color: c.textMuted,
     },
     upgradeToggleTextActive: {
-        color: '#121732',
+        color: c.textPrimary,
     },
     exclusiveTitle: {
         fontSize: 18,
         fontWeight: '800',
-        color: '#394d54',
+        color: c.textPrimary,
         marginTop: 8,
         marginBottom: 16,
     },
@@ -2196,7 +2213,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#f2f0fc',
+        backgroundColor: c.background,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -2211,7 +2228,7 @@ const styles = StyleSheet.create({
     exclusiveFeatureTitle: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#121732',
+        color: c.textPrimary,
         lineHeight: 20,
     },
     exclusiveFeatureSubBullets: {
@@ -2221,7 +2238,7 @@ const styles = StyleSheet.create({
     },
     exclusiveFeatureSubBullet: {
         fontSize: 13,
-        color: '#55666c',
+        color: c.textSecondary,
         lineHeight: 18,
     },
     exclusiveActionsRow: {
@@ -2253,18 +2270,18 @@ const styles = StyleSheet.create({
         textDecorationLine: 'underline',
     },
     tableContainer: {
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#f0eefc',
+        borderColor: c.cardBorder,
         overflow: 'hidden',
         marginBottom: 20,
     },
     tableHeaderRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#f0eefc',
-        backgroundColor: '#fcfbfe',
+        borderBottomColor: c.cardBorder,
+        backgroundColor: c.background,
     },
     tableHeaderCellLeft: {
         width: '31%',
@@ -2281,10 +2298,10 @@ const styles = StyleSheet.create({
         position: 'relative',
         gap: 6,
         borderLeftWidth: 1,
-        borderLeftColor: '#f0eefc',
+        borderLeftColor: c.cardBorder,
     },
     selectedHeaderCell: {
-        backgroundColor: '#fef5f6',
+        backgroundColor: 'rgba(255,84,112,0.12)',
     },
     topSellerBadge: {
         position: 'absolute',
@@ -2303,7 +2320,7 @@ const styles = StyleSheet.create({
     columnTitle: {
         fontSize: 11,
         fontWeight: '800',
-        color: '#121732',
+        color: c.textPrimary,
         textAlign: 'center',
     },
     radioButtonOuter: {
@@ -2311,7 +2328,7 @@ const styles = StyleSheet.create({
         height: 18,
         borderRadius: 9,
         borderWidth: 2,
-        borderColor: '#c8c6c4',
+        borderColor: c.cardBorder,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -2327,7 +2344,7 @@ const styles = StyleSheet.create({
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#f0eefc',
+        borderBottomColor: c.cardBorder,
     },
     rowLabelCell: {
         width: '31%',
@@ -2340,11 +2357,11 @@ const styles = StyleSheet.create({
     rowLabelText: {
         fontSize: 10.5,
         fontWeight: '700',
-        color: '#6c7d84',
+        color: c.textSecondary,
     },
     infoIcon: {
         fontSize: 10,
-        color: '#a0b0b6',
+        color: c.textMuted,
         fontWeight: 'bold',
     },
     rowValCell: {
@@ -2353,15 +2370,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderLeftWidth: 1,
-        borderLeftColor: '#f0eefc',
+        borderLeftColor: c.cardBorder,
     },
     activeValCell: {
-        backgroundColor: '#fef5f6',
+        backgroundColor: 'rgba(255,84,112,0.12)',
     },
     rowValText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#121732',
+        color: c.textPrimary,
     },
     discountBannerContainer: {
         flexDirection: 'row',
@@ -2374,7 +2391,7 @@ const styles = StyleSheet.create({
     bannerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#edf0f2',
+        backgroundColor: c.cardBorder,
     },
     discountBannerText: {
         fontSize: 10.5,
@@ -2389,7 +2406,7 @@ const styles = StyleSheet.create({
     durationSectionTitle: {
         fontSize: 11,
         fontWeight: '800',
-        color: '#6c7d84',
+        color: c.textSecondary,
         letterSpacing: 0.8,
     },
     choosePlansGrid: {
@@ -2402,9 +2419,9 @@ const styles = StyleSheet.create({
     },
     newPackageCard: {
         flex: 1,
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderWidth: 1.5,
-        borderColor: '#e8e6e4',
+        borderColor: c.cardBorder,
         borderRadius: 12,
         padding: 12,
         position: 'relative',
@@ -2418,7 +2435,7 @@ const styles = StyleSheet.create({
     },
     newPackageCardSelected: {
         borderColor: '#ff5470',
-        backgroundColor: '#fffafb',
+        backgroundColor: 'rgba(255,84,112,0.12)',
     },
     newPackageCardHeader: {
         flexDirection: 'row',
@@ -2433,7 +2450,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         lineHeight: 17,
         fontWeight: '800',
-        color: '#6c7d84',
+        color: c.textSecondary,
     },
     newPackageRadio: {
         marginTop: 1,
@@ -2444,14 +2461,14 @@ const styles = StyleSheet.create({
     },
     newPackageOriginalPrice: {
         fontSize: 11,
-        color: '#a0a0a0',
+        color: c.textMuted,
         textDecorationLine: 'line-through',
         marginBottom: 2,
     },
     newPackagePrice: {
         fontSize: 16,
         fontWeight: '900',
-        color: '#121732',
+        color: c.textPrimary,
     },
     crimsonBtn: {
         backgroundColor: '#ff5470',
@@ -2469,11 +2486,16 @@ const styles = StyleSheet.create({
     },
     billingSubtext: {
         fontSize: 11,
-        color: '#8a9a9f',
+        color: c.textMuted,
         textAlign: 'center',
         marginBottom: 16,
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}
 
 function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371; // km

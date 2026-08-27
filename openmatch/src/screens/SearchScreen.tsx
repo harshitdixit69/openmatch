@@ -33,6 +33,7 @@ import { fetchShortlistedIds } from '../lib/shortlistApi';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
 import { loadSearchHistory, recordSearchTerm } from '../lib/searchHistory';
 import { supabase } from '../lib/supabase';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -118,6 +119,7 @@ function SearchResultCard({
     onPress: (c: MatchCandidate) => void;
     onBookmarkToggled: (id: string, saved: boolean) => void;
 }) {
+    const styles = useThemedStyles();
     const age = calcAge(candidate.dob);
     const photo = candidate.photo_urls?.[0];
 
@@ -181,6 +183,7 @@ function FilterBar({
     onChange: (f: ActiveFilters) => void;
     onClear: () => void;
 }) {
+    const styles = useThemedStyles();
     const [activeDropdown, setActiveDropdown] = useState<'age' | 'religion' | 'education' | 'diet' | null>(null);
     const activeCount = countActiveFilters(filters);
 
@@ -395,6 +398,7 @@ interface Props {
 }
 
 export function SearchScreen({ onBack, onSelectCandidate }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [query, setQuery] = useState('');
     const [filters, setFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
@@ -610,37 +614,37 @@ export function SearchScreen({ onBack, onSelectCandidate }: Props) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#eef1fb' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e5e5e5',
+        borderBottomColor: c.headerBorder,
     },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: '#111' },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.textPrimary },
     searchBarWrap: {
         paddingHorizontal: 16,
         paddingVertical: 10,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
     },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: c.background,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: c.cardBorder,
         paddingHorizontal: 12,
         height: 42,
     },
-    searchIcon: { fontSize: 18, color: '#94a3b8', marginRight: 6 },
+    searchIcon: { fontSize: 18, color: c.textMuted, marginRight: 6 },
     recentWrap: { gap: 8, paddingTop: 12 },
     recentLabel: {
-        color: '#94a3b8',
+        color: c.textMuted,
         fontSize: 11,
         fontWeight: '700',
         letterSpacing: 0.6,
@@ -648,8 +652,8 @@ const styles = StyleSheet.create({
     },
     recentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     recentChip: {
-        backgroundColor: '#f1f5f9',
-        borderColor: '#e2e8f0',
+        backgroundColor: c.background,
+        borderColor: c.cardBorder,
         borderRadius: 999,
         borderWidth: 1,
         maxWidth: 200,
@@ -657,10 +661,10 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
     },
     recentChipPressed: { opacity: 0.7 },
-    recentChipText: { color: '#475569', fontSize: 13, fontWeight: '600' },
-    searchInput: { flex: 1, fontSize: 15, color: '#0f172a' },
+    recentChipText: { color: c.textSecondary, fontSize: 13, fontWeight: '600' },
+    searchInput: { flex: 1, fontSize: 15, color: c.textPrimary },
     filterContainer: {
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         zIndex: 50,
         overflow: 'visible',
     },
@@ -670,9 +674,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 10,
         gap: 8,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e2e8f0',
+        borderBottomColor: c.cardBorder,
         overflow: 'visible',
     },
     filterDropdownButton: {
@@ -680,8 +684,8 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#cbd5e1',
-        backgroundColor: '#f8fafc',
+        borderColor: c.cardBorder,
+        backgroundColor: c.background,
         flexDirection: 'row',
         alignItems: 'center',
     },
@@ -689,10 +693,10 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 36,
         left: 0,
-        backgroundColor: '#ffffff',
+        backgroundColor: c.cardBackground,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#cbd5e1',
+        borderColor: c.cardBorder,
         width: 140,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -707,14 +711,14 @@ const styles = StyleSheet.create({
     },
     dropdownOptionText: {
         fontSize: 14,
-        color: '#334155',
+        color: c.textSecondary,
     },
     dropdownOptionTextActive: {
-        color: '#121732',
+        color: c.accent,
         fontWeight: '700',
     },
-    filterChipActive: { borderColor: '#121732', backgroundColor: '#121732' },
-    filterChipText: { fontSize: 13, color: '#475569', fontWeight: '500' },
+    filterChipActive: { borderColor: c.accent, backgroundColor: c.accent },
+    filterChipText: { fontSize: 13, color: c.textSecondary, fontWeight: '500' },
     filterChipTextActive: { color: '#fff' },
     clearChip: {
         paddingHorizontal: 12,
@@ -731,19 +735,19 @@ const styles = StyleSheet.create({
         minHeight: 32,
         justifyContent: 'center',
     },
-    resultsCount: { fontSize: 12, color: '#64748b' },
+    resultsCount: { fontSize: 12, color: c.textMuted },
     listContent: { paddingTop: 4 },
     inner: { maxWidth: MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
     // Card
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 14,
         padding: 12,
         marginBottom: 10,
         borderWidth: 1,
-        borderColor: '#f1f5f9',
+        borderColor: c.cardBorder,
         shadowColor: '#0f172a',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
@@ -762,15 +766,15 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#475569',
+        backgroundColor: c.cardBorder,
         alignItems: 'center',
         justifyContent: 'center',
     },
     cardImgPlaceholderText: { color: '#fff', fontSize: 18, fontWeight: '600' },
     cardBody: { flex: 1 },
-    cardName: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
-    cardMeta: { fontSize: 13, color: '#64748b', marginBottom: 3 },
-    cardBio: { fontSize: 13, color: '#334155', lineHeight: 18 },
+    cardName: { fontSize: 16, fontWeight: '700', color: c.textPrimary, marginBottom: 2 },
+    cardMeta: { fontSize: 13, color: c.textSecondary, marginBottom: 3 },
+    cardBio: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
     cardBadge: {
         backgroundColor: '#ecfdf5',
         borderRadius: 8,
@@ -792,14 +796,19 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     stateEmoji: { fontSize: 40 },
-    stateTitle: { fontSize: 18, fontWeight: '700', color: '#222' },
-    stateBody: { fontSize: 14, color: '#777', textAlign: 'center', maxWidth: 280 },
+    stateTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    stateBody: { fontSize: 14, color: c.textSecondary, textAlign: 'center', maxWidth: 280 },
     stateButton: {
         marginTop: 6,
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 10,
     },
     stateButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

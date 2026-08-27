@@ -1,6 +1,6 @@
 // src/screens/ShortlistScreen.tsx
 // F5 – Saved / Bookmarked Profiles
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -22,6 +22,7 @@ import {
 } from '../lib/shortlistApi';
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 function calcAge(dob: string): number {
     const birth = new Date(dob);
@@ -47,6 +48,7 @@ function ShortlistCard({
     onPress: (c: MatchCandidate) => void;
     onUnsaved: (profileId: string) => void;
 }) {
+    const styles = useThemedStyles();
     const age = calcAge(item.dob);
     const photo = item.photo_urls?.[0];
 
@@ -93,6 +95,7 @@ interface Props {
 }
 
 export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [items, setItems] = useState<ShortlistedProfile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -188,18 +191,18 @@ export function ShortlistScreen({ onBack, onSelectCandidate }: Props) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#eef1fb' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e5e5e5',
+        borderBottomColor: c.headerBorder,
     },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: '#111' },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '600', color: c.textPrimary },
     list: { paddingTop: 12 },
     inner: { maxWidth: MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
     center: {
@@ -211,11 +214,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 32,
     },
     stateEmoji: { fontSize: 44 },
-    stateTitle: { fontSize: 18, fontWeight: '700', color: '#222' },
-    stateBody: { fontSize: 14, color: '#777', textAlign: 'center' },
+    stateTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    stateBody: { fontSize: 14, color: c.textSecondary, textAlign: 'center' },
     stateBtn: {
         marginTop: 6,
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 10,
@@ -224,10 +227,12 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 14,
         padding: 12,
         marginBottom: 10,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.cardBorder,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.06,
@@ -241,13 +246,18 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         alignItems: 'center',
         justifyContent: 'center',
     },
     cardImgInitial: { color: '#fff', fontSize: 22, fontWeight: '700' },
     cardBody: { flex: 1 },
-    cardName: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 2 },
-    cardMeta: { fontSize: 13, color: '#777', marginBottom: 3 },
-    cardBio: { fontSize: 13, color: '#555', lineHeight: 18 },
+    cardName: { fontSize: 16, fontWeight: '700', color: c.textPrimary, marginBottom: 2 },
+    cardMeta: { fontSize: 13, color: c.textSecondary, marginBottom: 3 },
+    cardBio: { fontSize: 13, color: c.textSecondary, lineHeight: 18 },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

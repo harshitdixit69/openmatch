@@ -482,7 +482,12 @@ async function _doFetchChatMatches(): Promise<ChatMatch[]> {
     const blockedUserIds = new Set<string>();
     if (blockRows) {
         for (const block of blockRows) {
-            blockedUserIds.add(block.blocker_id === user.id ? block.blocked_id : block.blocker_id);
+            // One-directional block: the chat/match only disappears for the person
+            // who was blocked. The blocker keeps seeing the conversation. So we only
+            // hide the other user when THEY blocked the current user.
+            if (block.blocked_id === user.id) {
+                blockedUserIds.add(block.blocker_id);
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -33,6 +33,7 @@ import { PartnerPreferences, cmToFeetInches, PREF_MARITAL_STATUS_LABELS } from '
 import { fetchPartnerPreferences } from '../lib/partnerPreferencesApi';
 import { fetchCurrentProfile, fetchCurrentProfileContactDetails } from '../lib/profileApi';
 import { showFriendlyAlert } from '../lib/errorUtils';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 type MatchProfileScreenProps = {
     candidate: MatchCandidate;
@@ -98,6 +99,7 @@ export function MatchProfileScreen({
     onOpenChat,
     unlockState,
 }: MatchProfileScreenProps) {
+    const styles = useThemedStyles();
     const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
     const isSelf = viewerProfile && candidate && viewerProfile.id === candidate.id;
     const [trustSummary, setTrustSummary] = useState<ProfileReliabilitySummary | null>(null);
@@ -941,6 +943,7 @@ export function MatchProfileScreen({
 }
 
 function SectionCard({ title, children, compact = false }: { title: string; children: React.ReactNode; compact?: boolean }) {
+    const styles = useThemedStyles();
     return (
         <View style={[styles.sectionCard, compact ? styles.sectionCardCompact : null]}>
             <Text style={styles.sectionTitle}>{title}</Text>
@@ -950,6 +953,7 @@ function SectionCard({ title, children, compact = false }: { title: string; chil
 }
 
 function FactCard({ label, value }: { label: string; value: string }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.factCard}>
             <Text style={styles.factLabel}>{label}</Text>
@@ -959,6 +963,7 @@ function FactCard({ label, value }: { label: string; value: string }) {
 }
 
 function Pill({ label, tone }: { label: string; tone: 'primary' | 'neutral' | 'accent' }) {
+    const styles = useThemedStyles();
     return (
         <View style={[styles.pill, tone === 'primary' ? styles.pillPrimary : tone === 'accent' ? styles.pillAccent : styles.pillNeutral]}>
             <Text style={[styles.pillText, tone === 'primary' ? styles.pillTextPrimary : tone === 'accent' ? styles.pillTextAccent : styles.pillTextNeutral]}>{label}</Text>
@@ -967,6 +972,7 @@ function Pill({ label, tone }: { label: string; tone: 'primary' | 'neutral' | 'a
 }
 
 function InsightRow({ point, tone }: { point: string; tone: 'fit' | 'friction' }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.insightRow}>
             <View style={[styles.insightDot, tone === 'fit' ? styles.insightDotFit : styles.insightDotFriction]} />
@@ -976,6 +982,7 @@ function InsightRow({ point, tone }: { point: string; tone: 'fit' | 'friction' }
 }
 
 function ChecklistRow({ label, matched }: { label: string; matched: boolean }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.checklistRow}>
             <View style={[styles.checklistIndicator, matched ? styles.checklistIndicatorMatched : styles.checklistIndicatorOpen]}>
@@ -1001,6 +1008,7 @@ function MaskedContactCard({
     unlockState?: MatchUnlockState | null;
     onOpenChat?: () => void;
 }) {
+    const styles = useThemedStyles();
     // Mirror the ChatScreen header state machine so both surfaces agree.
     const status = resolveContactUnlockStatus(firstName, unlockState);
 
@@ -1073,6 +1081,7 @@ function MaskedContactCard({
 
 
 function MaskedContactRow({ label, masked }: { label: string; masked: string }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.contactRow}>
             <View style={styles.contactRowLeft}>
@@ -1088,6 +1097,7 @@ function MaskedContactRow({ label, masked }: { label: string; masked: string }) 
 }
 
 function RevealedContactRow({ label, value }: { label: string; value: string }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.contactRow}>
             <View style={styles.contactRowLeft}>
@@ -1109,6 +1119,7 @@ function UnlockedContactCard({
     firstName: string;
     contactDetails: ProfileContactDetails;
 }) {
+    const styles = useThemedStyles();
     return (
         <View style={styles.unlockedContactCard}>
             <View style={styles.contactCardHeader}>
@@ -1288,9 +1299,9 @@ function formatManagedByLabel(value: ProfileReliabilitySummary['managedBy']) {
     return `${value.charAt(0).toUpperCase()}${value.slice(1)}-managed`;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     safeArea: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         flex: 1,
     },
     container: {
@@ -1320,12 +1331,12 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     title: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 28,
         fontWeight: '800',
     },
     subtitle: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 14,
         lineHeight: 21,
     },
@@ -1372,7 +1383,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#121732',
     },
     pillNeutral: {
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
     },
     pillAccent: {
         backgroundColor: '#ffe9dc',
@@ -1385,14 +1396,14 @@ const styles = StyleSheet.create({
         color: '#ffffff',
     },
     pillTextNeutral: {
-        color: '#5a6488',
+        color: c.textSecondary,
     },
     pillTextAccent: {
         color: '#9a3b18',
     },
     sectionCard: {
-        backgroundColor: '#f6f8ff',
-        borderColor: '#eadfd5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 24,
         borderWidth: 1,
         gap: 12,
@@ -1403,12 +1414,12 @@ const styles = StyleSheet.create({
         minWidth: '47%',
     },
     sectionTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 18,
         fontWeight: '800',
     },
     sectionBody: {
-        color: '#31494e',
+        color: c.textSecondary,
         fontSize: 15,
         lineHeight: 23,
     },
@@ -1435,7 +1446,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     factCard: {
-        backgroundColor: '#f7efe7',
+        backgroundColor: c.background,
         borderRadius: 18,
         gap: 4,
         minWidth: '47%',
@@ -1443,13 +1454,13 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     factLabel: {
-        color: '#8d6f5a',
+        color: c.textMuted,
         fontSize: 12,
         fontWeight: '700',
         textTransform: 'uppercase',
     },
     factValue: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '700',
         lineHeight: 20,
@@ -1482,7 +1493,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#c6a58a',
     },
     insightText: {
-        color: '#35515c',
+        color: c.textSecondary,
         flex: 1,
         fontSize: 14,
         lineHeight: 21,
@@ -1496,16 +1507,16 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     preferenceLabel: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 14,
         fontWeight: '700',
     },
     preferenceValue: {
-        color: '#35515c',
+        color: c.textSecondary,
         fontSize: 14,
     },
     preferencePref: {
-        color: '#5a6488',
+        color: c.textMuted,
         fontSize: 12,
         marginLeft: 32,
         marginTop: 2,
@@ -1542,7 +1553,7 @@ const styles = StyleSheet.create({
         color: '#9a3b18',
     },
     checklistLabel: {
-        color: '#35515c',
+        color: c.textSecondary,
         flex: 1,
         fontSize: 14,
         lineHeight: 20,
@@ -1560,8 +1571,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     contactCard: {
-        backgroundColor: '#f6f8ff',
-        borderColor: '#eadfd5',
+        backgroundColor: c.cardBackground,
+        borderColor: c.cardBorder,
         borderRadius: 24,
         borderWidth: 1,
         gap: 14,
@@ -1595,7 +1606,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     contactTitle: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 18,
         fontWeight: '800',
     },
@@ -1604,7 +1615,7 @@ const styles = StyleSheet.create({
     },
     contactRow: {
         alignItems: 'center',
-        backgroundColor: '#f7efe7',
+        backgroundColor: c.background,
         borderRadius: 16,
         flexDirection: 'row',
         gap: 12,
@@ -1617,13 +1628,13 @@ const styles = StyleSheet.create({
         gap: 3,
     },
     contactRowLabel: {
-        color: '#8d6f5a',
+        color: c.textMuted,
         fontSize: 12,
         fontWeight: '700',
         textTransform: 'uppercase',
     },
     contactRowValue: {
-        color: '#121732',
+        color: c.textPrimary,
         fontSize: 16,
         fontWeight: '800',
         letterSpacing: 1.5,
@@ -1641,7 +1652,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     contactBody: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 14,
         lineHeight: 21,
     },
@@ -1682,12 +1693,12 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     contactOrLine: {
-        backgroundColor: '#e7ddd2',
+        backgroundColor: c.cardBorder,
         flex: 1,
         height: 1,
     },
     contactOrText: {
-        color: '#8d6f5a',
+        color: c.textMuted,
         fontSize: 12,
         fontWeight: '800',
         textTransform: 'uppercase',
@@ -1809,14 +1820,14 @@ const styles = StyleSheet.create({
     },
     passButton: {
         alignItems: 'center',
-        backgroundColor: '#f6f8ff',
+        backgroundColor: c.background,
         borderRadius: 18,
         flex: 1,
         paddingHorizontal: 18,
         paddingVertical: 15,
     },
     passButtonText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 14,
         fontWeight: '800',
     },
@@ -1850,7 +1861,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
     },
     secondaryActionText: {
-        color: '#5a6488',
+        color: c.textSecondary,
         fontSize: 13,
         fontWeight: '600',
         textDecorationLine: 'underline',
@@ -1858,14 +1869,14 @@ const styles = StyleSheet.create({
     divider: {
         width: 1,
         height: 16,
-        backgroundColor: '#cbd5e0',
+        backgroundColor: c.cardBorder,
     },
     notFoundContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        backgroundColor: '#eff6f8',
+        backgroundColor: c.background,
     },
     notFoundEmoji: {
         fontSize: 64,
@@ -1874,12 +1885,12 @@ const styles = StyleSheet.create({
     notFoundTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#121732',
+        color: c.textPrimary,
         marginBottom: 8,
     },
     notFoundSubtitle: {
         fontSize: 15,
-        color: '#666',
+        color: c.textSecondary,
         textAlign: 'center',
         marginBottom: 24,
         lineHeight: 20,
@@ -1896,3 +1907,8 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

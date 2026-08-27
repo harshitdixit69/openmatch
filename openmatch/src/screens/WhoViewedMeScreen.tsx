@@ -1,6 +1,6 @@
 // src/screens/WhoViewedMeScreen.tsx
 // F7 – Who Viewed My Profile
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -17,6 +17,7 @@ import type { ProfileViewer } from '../lib/profileViewsApi';
 import { fetchProfileViewers } from '../lib/profileViewsApi';
 import { getFriendlyErrorMessage } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,6 +58,7 @@ function ViewerCard({
     viewer: ProfileViewer;
     onPress: (v: ProfileViewer) => void;
 }) {
+    const styles = useThemedStyles();
     const age = calcAge(viewer.dob);
     const photo = viewer.photoUrls?.[0];
 
@@ -101,6 +103,7 @@ interface Props {
 }
 
 export function WhoViewedMeScreen({ onBack, onSelectViewer }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [viewers, setViewers] = useState<ProfileViewer[]>([]);
     const [loading, setLoading] = useState(true);
@@ -192,25 +195,25 @@ export function WhoViewedMeScreen({ onBack, onSelectViewer }: Props) {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f5f4f0' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: 1,
-        borderBottomColor: '#e8e5df',
+        borderBottomColor: c.headerBorder,
     },
     headerCenter: { alignItems: 'center', flex: 1 },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
-    headerCount: { fontSize: 12, color: '#888', marginTop: 2 },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    headerCount: { fontSize: 12, color: c.textMuted, marginTop: 2 },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
     errorText: { fontSize: 14, color: '#ff5470', textAlign: 'center', paddingHorizontal: 24 },
-    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#121732', borderRadius: 8 },
+    retryBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: c.accent, borderRadius: 8 },
     retryBtnText: { color: '#fff', fontWeight: '600' },
 
     list: { flex: 1 },
@@ -225,18 +228,18 @@ const styles = StyleSheet.create({
 
     empty: { alignItems: 'center', paddingTop: 64, gap: 8 },
     emptyIcon: { fontSize: 40 },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#121732' },
-    emptySubtitle: { fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 32 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    emptySubtitle: { fontSize: 14, color: c.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
 
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: c.cardBackground,
         borderRadius: 12,
         padding: 12,
         gap: 12,
         borderWidth: 1,
-        borderColor: '#e8e5df',
+        borderColor: c.cardBorder,
     },
     cardPressed: { opacity: 0.85 },
     cardPhoto: {},
@@ -245,16 +248,21 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#d4cfc6',
+        backgroundColor: c.cardBorder,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    cardImgInitial: { fontSize: 22, fontWeight: '700', color: '#121732' },
+    cardImgInitial: { fontSize: 22, fontWeight: '700', color: c.textPrimary },
     cardBody: { flex: 1, gap: 2 },
-    cardName: { fontSize: 15, fontWeight: '700', color: '#121732' },
-    cardMeta: { fontSize: 12, color: '#666' },
-    cardBio: { fontSize: 12, color: '#888', marginTop: 2 },
+    cardName: { fontSize: 15, fontWeight: '700', color: c.textPrimary },
+    cardMeta: { fontSize: 12, color: c.textSecondary },
+    cardBio: { fontSize: 12, color: c.textMuted, marginTop: 2 },
     cardRight: { alignItems: 'flex-end', gap: 4 },
-    viewedAgo: { fontSize: 11, color: '#999' },
+    viewedAgo: { fontSize: 11, color: c.textMuted },
     eyeIcon: { fontSize: 16 },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

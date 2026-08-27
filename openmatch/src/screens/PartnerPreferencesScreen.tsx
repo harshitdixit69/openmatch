@@ -1,5 +1,5 @@
 // src/screens/PartnerPreferencesScreen.tsx
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -36,12 +36,14 @@ import {
 import { fetchPartnerPreferences, upsertPartnerPreferences } from '../lib/partnerPreferencesApi';
 import { showFriendlyAlert } from '../lib/errorUtils';
 import { MAX_CONTENT_WIDTH } from '../lib/responsiveLayout';
+import { useTheme, type ThemeColors } from '../lib/theme';
 
 interface Props {
     onBack: () => void;
 }
 
 export function PartnerPreferencesScreen({ onBack }: Props) {
+    const styles = useThemedStyles();
     const insets = useSafeAreaInsets();
     const [prefs, setPrefs] = useState<PartnerPreferences>(DEFAULT_PARTNER_PREFERENCES);
     const [loading, setLoading] = useState(true);
@@ -259,32 +261,32 @@ export function PartnerPreferencesScreen({ onBack }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     flex: { flex: 1 },
-    safeArea: { flex: 1, backgroundColor: '#eef1fb' },
+    safeArea: { flex: 1, backgroundColor: c.background },
     loadingContainer: {
         flex: 1,
-        backgroundColor: '#eef1fb',
+        backgroundColor: c.background,
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
     },
-    loadingText: { fontSize: 14, color: '#666' },
+    loadingText: { fontSize: 14, color: c.textSecondary },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#e5e5e5',
+        borderBottomColor: c.headerBorder,
     },
     headerTitle: {
         flex: 1,
         textAlign: 'center',
         fontSize: 17,
         fontWeight: '600',
-        color: '#111',
+        color: c.textPrimary,
     },
     headerRight: { width: 36 },
     scrollContent: { paddingTop: 16 },
@@ -296,29 +298,29 @@ const styles = StyleSheet.create({
     },
     hint: {
         fontSize: 12,
-        color: '#999',
+        color: c.textMuted,
         marginBottom: 10,
     },
     textInput: {
         borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderColor: c.cardBorder,
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 11,
         fontSize: 15,
-        color: '#111',
-        backgroundColor: '#fafafa',
+        color: c.textPrimary,
+        backgroundColor: c.cardBackground,
         marginBottom: 6,
     },
     saveBar: {
         paddingTop: 12,
         paddingHorizontal: 20,
-        backgroundColor: '#fff',
+        backgroundColor: c.headerBackground,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: '#e5e5e5',
+        borderTopColor: c.headerBorder,
     },
     saveButton: {
-        backgroundColor: '#121732',
+        backgroundColor: c.accent,
         borderRadius: 12,
         paddingVertical: 15,
         alignItems: 'center',
@@ -330,3 +332,8 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 });
+
+function useThemedStyles() {
+    const { colors } = useTheme();
+    return useMemo(() => makeStyles(colors), [colors]);
+}

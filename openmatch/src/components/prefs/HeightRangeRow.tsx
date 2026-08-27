@@ -1,8 +1,9 @@
 // src/components/prefs/HeightRangeRow.tsx
 // DB always stores cm. Display toggles between cm and feet/inches.
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { cmToFeetInches, feetInchesToCm } from '../../lib/partnerPreferences';
+import { useTheme, type ThemeColors } from '../../lib/theme';
 
 interface Props {
     min: number | null;  // cm
@@ -13,6 +14,8 @@ interface Props {
 type Unit = 'cm' | 'ft';
 
 export function HeightRangeRow({ min, max, onChange }: Props) {
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
     const [unit, setUnit] = useState<Unit>('cm');
 
     function display(cm: number | null): string {
@@ -45,7 +48,7 @@ export function HeightRangeRow({ min, max, onChange }: Props) {
                         style={styles.input}
                         value={display(min)}
                         placeholder={placeholder}
-                        placeholderTextColor="#bbb"
+                        placeholderTextColor={colors.textMuted}
                         onChangeText={(t) => onChange(parse(t), max)}
                     />
                 </View>
@@ -56,7 +59,7 @@ export function HeightRangeRow({ min, max, onChange }: Props) {
                         style={styles.input}
                         value={display(max)}
                         placeholder={maxPlaceholder}
-                        placeholderTextColor="#bbb"
+                        placeholderTextColor={colors.textMuted}
                         onChangeText={(t) => onChange(min, parse(t))}
                     />
                 </View>
@@ -83,7 +86,7 @@ export function HeightRangeRow({ min, max, onChange }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
     container: { gap: 6 },
     row: {
         flexDirection: 'row',
@@ -91,34 +94,34 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     inputGroup: { flex: 1 },
-    label: { fontSize: 11, color: '#999', marginBottom: 4 },
+    label: { fontSize: 11, color: c.textMuted, marginBottom: 4 },
     input: {
         borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderColor: c.cardBorder,
         borderRadius: 10,
         paddingHorizontal: 12,
         paddingVertical: 10,
         fontSize: 15,
-        color: '#111',
-        backgroundColor: '#fafafa',
+        color: c.textPrimary,
+        backgroundColor: c.background,
         textAlign: 'center',
     },
-    dash: { fontSize: 18, color: '#999', paddingBottom: 10 },
+    dash: { fontSize: 18, color: c.textMuted, paddingBottom: 10 },
     unitToggle: {
         flexDirection: 'row',
         borderRadius: 8,
         borderWidth: 1.5,
-        borderColor: '#d0d0d0',
+        borderColor: c.cardBorder,
         overflow: 'hidden',
         marginBottom: 2,
     },
     unitBtn: {
         paddingHorizontal: 10,
         paddingVertical: 9,
-        backgroundColor: '#fafafa',
+        backgroundColor: c.background,
     },
-    unitBtnActive: { backgroundColor: '#121732' },
-    unitBtnText: { fontSize: 12, color: '#666', fontWeight: '600' },
+    unitBtnActive: { backgroundColor: c.accent },
+    unitBtnText: { fontSize: 12, color: c.textSecondary, fontWeight: '600' },
     unitBtnTextActive: { color: '#fff' },
-    hint: { fontSize: 11, color: '#aaa', marginTop: 2 },
+    hint: { fontSize: 11, color: c.textMuted, marginTop: 2 },
 });
