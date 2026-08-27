@@ -857,11 +857,11 @@ export function MatchProfileScreen({
                             </Pressable>
                             {viewerProfile?.subscription_tier && viewerProfile.subscription_tier !== 'free' && (
                                 <Pressable 
-                                    style={[styles.connectButton, { backgroundColor: '#ffc24b', flex: 1.8 }, actionLoading && { opacity: 0.7 }]} 
+                                    style={[styles.connectButton, { backgroundColor: '#ffc24b', flex: 1.7 }, actionLoading && { opacity: 0.7 }]} 
                                     onPress={handleSuperInterest}
                                     disabled={actionLoading}
                                 >
-                                    <Text style={styles.connectButtonText}>✨ Super Interest</Text>
+                                    <Text style={styles.connectButtonText} numberOfLines={1} adjustsFontSizeToFit>✨ Super Interest</Text>
                                 </Pressable>
                             )}
                             <Pressable style={[styles.connectButton, styles.connectButtonGradientWrap]} onPress={onConnect} disabled={actionLoading}>
@@ -871,7 +871,7 @@ export function MatchProfileScreen({
                                     end={{ x: 1, y: 1 }}
                                     style={StyleSheet.absoluteFill}
                                 />
-                                <Text style={styles.connectButtonText}>Connect now</Text>
+                                <Text style={styles.connectButtonText} numberOfLines={1} adjustsFontSizeToFit>Connect now</Text>
                             </Pressable>
                         </>
                     ) : relationshipStatus === 'sent' ? (
@@ -1822,8 +1822,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
         alignItems: 'center',
         backgroundColor: c.background,
         borderRadius: 18,
-        flex: 1,
-        paddingHorizontal: 18,
+        flex: 0.55,
+        paddingHorizontal: 10,
         paddingVertical: 15,
     },
     passButtonText: {
@@ -1837,17 +1837,18 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
         borderRadius: 18,
         flex: 1.25,
         overflow: 'hidden',
-        paddingHorizontal: 18,
+        paddingHorizontal: 12,
         paddingVertical: 15,
         ...glow(palette.magenta, 0.4, 14),
     },
     connectButtonGradientWrap: {
-        flex: 1.25,
+        flex: 1.2,
     },
     connectButtonText: {
         color: '#ffffff',
         fontSize: 14,
         fontWeight: '800',
+        textAlign: 'center',
     },
     blockReportRow: {
         flexDirection: 'row',
