@@ -48,7 +48,13 @@
           "merchantIdentifier": "merchant.com.openmatch"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "color": "#E6C687"
+        }
+      ]
     ],
     "extra": {
       "eas": {

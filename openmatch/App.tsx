@@ -43,6 +43,8 @@ export default function App() {
       if (!nextSession) {
         setHasCompletedProfile(false);
         void clearAnalyticsUser();
+        // Stop this device from receiving the signed-out user's alerts.
+        void unregisterPushToken();
         return;
       }
 
@@ -56,6 +58,8 @@ export default function App() {
         void setAnalyticsUser(
           profile?.full_name || nextSession.user.phone || nextSession.user.email,
         );
+        // Register this device for background push (no-op on web / simulators).
+        void registerPushToken(nextSession.user.id);
       } catch (error) {
         console.error('Failed to load profile state during app bootstrap.', error);
         if (!isMounted) return;
