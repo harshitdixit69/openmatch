@@ -9,11 +9,17 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 
 import { getFriendlyErrorMessage, showFriendlyAlert } from '../lib/errorUtils';
 import { supabase } from '../lib/supabase';
 import { trackEvent } from '../lib/analytics';
 import { useTheme } from '../lib/theme';
+import { GoogleLogo } from './GoogleLogo';
+
+// Ensure the browser auth session is dismissed correctly after redirect (native).
+WebBrowser.maybeCompleteAuthSession();
 
 type AuthStep = 'phone-input' | 'otp-verify' | 'email-fallback' | 'email-otp-verify';
 
@@ -77,6 +83,78 @@ export function AuthForm() {
             return '+' + cleaned;
         }
         return selectedCountryCode + cleaned;
+    }
+
+    // Sign in with Google via Supabase OAuth (works on web + native).
+    async function handleGoogleSignIn() {
+        setLoading(true);
+        setStatusMessage('');
+        try {
+            trackEvent('auth_google_tapped');
+
+            if (Platform.OS === 'web') {
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo:
+                            typeof window !== 'undefined' ? window.location.origin : undefined,
+                    },
+                });
+                if (error) throw error;
+                // The browser will redirect to Google and back automatically.
+                return;
+            }
+
+            // Native (iOS / Android): open an in-app browser auth session.
+            const redirectTo = AuthSession.makeRedirectUri();
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo, skipBrowserRedirect: true },
+            });
+            if (error) throw error;
+            if (!data?.url) throw new Error('Could not start Google sign-in.');
+
+            const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+            if (result.type !== 'success' || !result.url) {
+                // User cancelled or dismissed the browser.
+                setLoading(false);
+                return;
+            }
+
+            // Parse tokens / code from the redirect URL and establish the session.
+            const returnedUrl = result.url;
+            const hashPart = returnedUrl.includes('#') ? returnedUrl.split('#')[1] : '';
+            const queryPart = returnedUrl.includes('?')
+                ? returnedUrl.split('?')[1].split('#')[0]
+                : '';
+            const params = new URLSearchParams(hashPart || queryPart);
+
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            const code = params.get('code');
+
+            if (accessToken && refreshToken) {
+                const { error: sessErr } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken,
+                });
+                if (sessErr) throw sessErr;
+            } else if (code) {
+                const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+                if (exErr) throw exErr;
+            } else {
+                throw new Error('Google sign-in did not return a valid session.');
+            }
+
+            trackEvent('auth_google_success');
+        } catch (err) {
+            const msg = getFriendlyErrorMessage(err);
+            setStatusType('error');
+            setStatusMessage(msg);
+            showFriendlyAlert('Google Sign-In Failed', msg);
+        } finally {
+            setLoading(false);
+        }
     }
 
     // Validate phone number
@@ -161,6 +239,7 @@ export function AuthForm() {
         } catch (err: any) {
             console.error('[Auth] Error sending phone OTP:', err);
             const msg = getFriendlyErrorMessage(err, 'Could not send verification code. Please check your phone number.');
+            trackEvent('otp_send_failed', { method: 'phone', error: err?.message ?? String(err) });
             setStatusType('error');
             setStatusMessage(msg);
             showFriendlyAlert('Verification Error', msg);
@@ -828,12 +907,38 @@ export function AuthForm() {
                         <Text style={[styles.toggleText, { color: colors.textSecondary }]}>← Back to Phone Verification</Text>
                     </Pressable>
                 ) : (
-                    <Pressable onPress={() => {
-                        setStep('email-fallback');
-                        setStatusMessage('');
-                    }}>
-                        <Text style={[styles.toggleText, { color: colors.textSecondary }]}>Use Email & Password instead</Text>
-                    </Pressable>
+                    <>
+                        <View style={styles.footerDivider}>
+                            <View style={[styles.footerDividerLine, { backgroundColor: colors.cardBorder }]} />
+                            <Text style={[styles.footerDividerText, { color: colors.textSecondary }]}>OR</Text>
+                            <View style={[styles.footerDividerLine, { backgroundColor: colors.cardBorder }]} />
+                        </View>
+                        <Pressable
+                            accessibilityRole="button"
+                            disabled={loading}
+                            onPress={handleGoogleSignIn}
+                            style={[styles.googleBtn, loading && styles.disabledBtn]}
+                        >
+                            <View style={styles.googleIconWrap}>
+                                <GoogleLogo size={18} />
+                            </View>
+                            <Text style={styles.googleBtnText}>
+                                Continue with Google
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={() => {
+                                setStep('email-fallback');
+                                setStatusMessage('');
+                            }}
+                            style={[styles.emailAltBtn, { borderColor: colors.accent }]}
+                        >
+                            <Text style={[styles.emailAltBtnText, { color: colors.accent }]}>
+                                ✉️  Continue with Email & Password
+                            </Text>
+                        </Pressable>
+                    </>
                 )}
             </View>
         </View>
@@ -1074,6 +1179,67 @@ const styles = StyleSheet.create({
         color: '#5a717b',
         fontSize: 13,
         fontWeight: '600',
+    },
+    footerDivider: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 12,
+        width: '100%',
+    },
+    footerDividerLine: {
+        backgroundColor: '#e2e7f5',
+        flex: 1,
+        height: 1,
+    },
+    footerDividerText: {
+        color: '#5a717b',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+    },
+    googleBtn: {
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        borderColor: '#dadce0',
+        borderRadius: 12,
+        borderWidth: 1,
+        flexDirection: 'row',
+        gap: 12,
+        justifyContent: 'center',
+        marginBottom: 12,
+        paddingVertical: 14,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+        width: '100%',
+    },
+    googleIconWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 20,
+        width: 20,
+    },
+    googleBtnText: {
+        color: '#3c4043',
+        fontSize: 15,
+        fontWeight: '600',
+        letterSpacing: 0.2,
+    },
+    emailAltBtn: {
+        alignItems: 'center',
+        borderColor: '#f97316',
+        borderRadius: 12,
+        borderWidth: 1.5,
+        paddingVertical: 14,
+        width: '100%',
+    },
+    emailAltBtnText: {
+        color: '#f97316',
+        fontSize: 15,
+        fontWeight: '700',
     },
     tosRow: {
         alignItems: 'center',

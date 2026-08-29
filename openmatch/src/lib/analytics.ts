@@ -25,8 +25,17 @@ let usernameLoaded = false;
 export type AppEventName =
     | 'app_opened'
     | 'auth_screen_viewed'
+    | 'auth_intro_viewed'
+    | 'auth_get_started_tapped'
+    | 'auth_method_selected'
+    | 'auth_google_tapped'
+    | 'auth_google_success'
+    | 'browse_as_guest_tapped'
+    | 'guest_feed_viewed'
+    | 'guest_action_gated'
     | 'signup_started'
     | 'otp_sent'
+    | 'otp_send_failed'
     | 'otp_verified'
     | 'onboarding_step_viewed'
     | 'profile_completed';

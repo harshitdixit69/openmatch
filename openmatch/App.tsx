@@ -11,6 +11,7 @@ import { supabase } from './src/lib/supabase';
 import { trackEvent, setAnalyticsUser, clearAnalyticsUser } from './src/lib/analytics';
 import { fetchCurrentProfile } from './src/lib/profileApi';
 import { AuthScreen } from './src/screens/AuthScreen';
+import { GuestFeedScreen } from './src/screens/GuestFeedScreen';
 import { MainTabsScreen } from './src/screens/MainTabsScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ThemeProvider } from './src/lib/theme';
@@ -20,6 +21,11 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
+  // Guest browsing (Phase 1): logged-out users land directly on the sanitized
+  // Discover feed (no "Get Started" landing page). We only reveal the auth flow
+  // when they tap a gated action; the AuthScreen's "Browse as guest" button
+  // brings them back here.
+  const [guestMode, setGuestMode] = useState(true);
 
     useEffect(() => {
         let isMounted = true;
@@ -118,7 +124,17 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <ErrorBoundary>
-          {!session ? <AuthScreen /> : hasCompletedProfile ? <MainTabsScreen /> : <OnboardingScreen onComplete={() => setHasCompletedProfile(true)} />}
+          {session ? (
+            hasCompletedProfile ? (
+              <MainTabsScreen />
+            ) : (
+              <OnboardingScreen onComplete={() => setHasCompletedProfile(true)} />
+            )
+          ) : guestMode ? (
+            <GuestFeedScreen onRequireAuth={() => setGuestMode(false)} />
+          ) : (
+            <AuthScreen initialShowForm onBrowseAsGuest={() => setGuestMode(true)} />
+          )}
           <StatusBar style="auto" />
         </ErrorBoundary>
       </ThemeProvider>

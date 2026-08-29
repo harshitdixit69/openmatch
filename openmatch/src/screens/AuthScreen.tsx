@@ -1,6 +1,6 @@
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { AuthForm } from '../components/AuthForm';
@@ -11,12 +11,45 @@ import { useTheme } from '../lib/theme';
 import { AuroraBackground, GlassCard } from '../components/ui';
 import { gradients, palette, spacing, typography } from '../lib/designSystem';
 
-export function AuthScreen() {
+const INTRO_BENEFITS = [
+    {
+        icon: '🤖',
+        title: 'AI-first matchmaking',
+        body: 'Get matched on real compatibility, not just photos.',
+    },
+    {
+        icon: '✅',
+        title: 'Verified profiles',
+        body: 'Phone-verified members and safety tools built in.',
+    },
+    {
+        icon: '🎁',
+        title: 'Free to start',
+        body: 'Create your profile and see matches at no cost.',
+    },
+];
+
+export function AuthScreen({
+    onBrowseAsGuest,
+    initialShowForm = false,
+}: { onBrowseAsGuest?: () => void; initialShowForm?: boolean } = {}) {
     const { colors } = useTheme();
+    const [showForm, setShowForm] = useState(initialShowForm);
 
     useEffect(() => {
         trackEvent('auth_screen_viewed');
+        trackEvent('auth_intro_viewed');
     }, []);
+
+    function handleGetStarted() {
+        trackEvent('auth_get_started_tapped');
+        setShowForm(true);
+    }
+
+    function handleBrowseAsGuest() {
+        trackEvent('browse_as_guest_tapped');
+        onBrowseAsGuest?.();
+    }
 
     return (
         <View style={styles.safeArea}>
@@ -53,9 +86,57 @@ export function AuthScreen() {
                                     Fair matchmaking. AI-first. Verified phone authentication.
                                 </Text>
                             </View>
-                            <GlassCard strong style={styles.formCard}>
-                                <AuthForm />
-                            </GlassCard>
+
+                            {showForm ? (
+                                <GlassCard strong style={styles.formCard}>
+                                    <AuthForm />
+                                </GlassCard>
+                            ) : (
+                                <View style={styles.introColumn}>
+                                    <GlassCard strong style={styles.introCard}>
+                                        {INTRO_BENEFITS.map((benefit) => (
+                                            <View key={benefit.title} style={styles.benefitRow}>
+                                                <Text style={styles.benefitIcon}>{benefit.icon}</Text>
+                                                <View style={styles.benefitTextWrap}>
+                                                    <Text style={[styles.benefitTitle, { color: colors.textPrimary }]}>
+                                                        {benefit.title}
+                                                    </Text>
+                                                    <Text style={[styles.benefitBody, { color: colors.textSecondary }]}>
+                                                        {benefit.body}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        ))}
+                                    </GlassCard>
+
+                                    <Pressable style={styles.getStartedButton} onPress={handleGetStarted}>
+                                        <LinearGradient
+                                            colors={gradients.primary as unknown as readonly [string, string, ...string[]]}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                            style={StyleSheet.absoluteFill}
+                                        />
+                                        <Text style={styles.getStartedText}>Get Started</Text>
+                                    </Pressable>
+
+                                    <Pressable onPress={handleGetStarted} hitSlop={8}>
+                                        <Text style={[styles.signInLink, { color: colors.textSecondary }]}>
+                                            Already have an account? <Text style={styles.signInLinkStrong}>Sign in</Text>
+                                        </Text>
+                                    </Pressable>
+
+                                    {onBrowseAsGuest && (
+                                        <Pressable
+                                            style={[styles.browseGuestButton, { borderColor: colors.cardBorder }]}
+                                            onPress={handleBrowseAsGuest}
+                                        >
+                                            <Text style={[styles.browseGuestText, { color: colors.textPrimary }]}>
+                                                Browse as guest
+                                            </Text>
+                                        </Pressable>
+                                    )}
+                                </View>
+                            )}
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
@@ -122,5 +203,63 @@ const styles = StyleSheet.create({
     },
     formCard: {
         padding: spacing.xl,
+    },
+    introColumn: {
+        gap: spacing.lg,
+        alignItems: 'stretch',
+    },
+    introCard: {
+        padding: spacing.lg,
+        gap: spacing.lg,
+    },
+    benefitRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.md,
+    },
+    benefitIcon: {
+        fontSize: 26,
+        lineHeight: 32,
+    },
+    benefitTextWrap: {
+        flex: 1,
+        gap: 2,
+    },
+    benefitTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    benefitBody: {
+        ...typography.body,
+        lineHeight: 20,
+    },
+    getStartedButton: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 18,
+        overflow: 'hidden',
+        paddingVertical: 16,
+    },
+    getStartedText: {
+        color: palette.white,
+        fontSize: 17,
+        fontWeight: '800',
+    },
+    signInLink: {
+        ...typography.body,
+        textAlign: 'center',
+    },
+    signInLinkStrong: {
+        fontWeight: '800',
+    },
+    browseGuestButton: {
+        alignItems: 'center',
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingVertical: 14,
+    },
+    browseGuestText: {
+        fontSize: 15,
+        fontWeight: '800',
     },
 });
