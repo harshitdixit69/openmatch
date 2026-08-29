@@ -135,8 +135,8 @@ export function HomeScreen({
     // The swipe deck gets a stable, viewport-relative height so it sits inside a
     // vertical ScrollView (cards are absolutely positioned and need a bounded
     // height). Short screens simply scroll to reveal the action row.
-    const activePhotoHeight = Math.max(150, Math.min(260, Math.round(windowHeight * 0.26)));
-    const feedStackHeight = Math.max(380, Math.min(560, Math.round(windowHeight * 0.62)));
+    const activePhotoHeight = Math.max(220, Math.min(360, Math.round(windowHeight * 0.36)));
+    const feedStackHeight = Math.max(460, Math.min(680, Math.round(windowHeight * 0.72)));
     const expandedBioLines = useCompactFeedLayout ? 4 : 6;
 
     const visibleCandidates = useMemo(() => {
@@ -1099,29 +1099,85 @@ function CandidateCard({
     const premiumNameColor = colors.textPrimary;
     const premiumMetaColor = colors.textSecondary;
 
-    const details = (
+    // Immersive photo-forward layout for the main feed card. Keep the name/age
+    // overlaid on the photo even on shorter screens (condensed) so the layout
+    // stays consistent regardless of window dimensions.
+    const immersive = !compact;
+    const isPremium = candidate.subscription_tier && candidate.subscription_tier !== 'free';
+    const metaLine = `${candidate.gender}${formatAge(candidate.dob) ? `, ${formatAge(candidate.dob)}` : ''}${candidate.height_cm ? `, ${candidate.height_cm} cm` : ''}`;
+
+    const photoBlock = primaryPhotoUrl ? (
+        <Image
+            source={{ uri: primaryPhotoUrl }}
+            style={[
+                styles.cardPhoto,
+                compact ? styles.cardPhotoCompact : styles.cardPhotoExpanded,
+                !compact && expandedPhotoHeight ? { height: expandedPhotoHeight } : null,
+            ]}
+        />
+    ) : (
+        <View
+            style={[
+                styles.cardPhotoPlaceholder,
+                compact ? styles.cardPhotoCompact : styles.cardPhotoExpanded,
+                !compact && expandedPhotoHeight ? { height: expandedPhotoHeight } : null,
+            ]}
+        >
+            <Text style={styles.cardPhotoInitial}>{fallbackInitial}</Text>
+            {!compact ? <Text style={styles.cardPhotoHint}>Add photos to stand out more</Text> : null}
+        </View>
+    );
+
+    const details = immersive ? (
         <>
-            {primaryPhotoUrl ? (
-                <Image
-                    source={{ uri: primaryPhotoUrl }}
-                    style={[
-                        styles.cardPhoto,
-                        compact ? styles.cardPhotoCompact : styles.cardPhotoExpanded,
-                        !compact && expandedPhotoHeight ? { height: expandedPhotoHeight } : null,
-                    ]}
-                />
-            ) : (
-                <View
-                    style={[
-                        styles.cardPhotoPlaceholder,
-                        compact ? styles.cardPhotoCompact : styles.cardPhotoExpanded,
-                        !compact && expandedPhotoHeight ? { height: expandedPhotoHeight } : null,
-                    ]}
-                >
-                    <Text style={styles.cardPhotoInitial}>{fallbackInitial}</Text>
-                    {!compact ? <Text style={styles.cardPhotoHint}>Add photos to stand out more</Text> : null}
+            <View style={styles.photoWrap}>
+                {photoBlock}
+
+                {/* Top row over the photo: alignment score + location */}
+                <View style={styles.photoTopRow}>
+                    <View style={styles.scorePill}>
+                        <Text style={styles.scoreText}>{formatSimilarity(candidate.similarity)} aligned</Text>
+                    </View>
+                    <View style={styles.photoLocationPill}>
+                        <Text style={styles.photoLocationText}>
+                            📍 {candidate.location}
+                            {typeof candidate.distance_km === 'number' ? ` (${Math.round(candidate.distance_km)} km)` : ''}
+                        </Text>
+                    </View>
                 </View>
-            )}
+
+                {isPremium ? (
+                    <View style={styles.photoPremiumBadge}>
+                        <Text style={styles.photoPremiumBadgeText}>👑 Premium</Text>
+                    </View>
+                ) : null}
+
+                {/* Bottom gradient with name + meta over the photo */}
+                <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.9)']}
+                    style={styles.photoOverlay}
+                >
+                    <View style={styles.photoNameRow}>
+                        <Text style={styles.overlayName} numberOfLines={1}>{candidate.full_name}</Text>
+                    </View>
+                    <Text style={styles.overlayMeta}>{metaLine}</Text>
+                </LinearGradient>
+            </View>
+
+            <View style={styles.factRow}>
+                <FactPill label={`Owner: ${candidate.profile_owner ?? 'self'}`} />
+                <FactPill label={candidate.preferences ? 'Preferences ready' : 'Preferences pending'} />
+            </View>
+
+            <Text numberOfLines={expandedBioLines} style={[styles.cardBio, { color: premiumMetaColor }]}>
+                {candidate.bio ?? 'No bio added yet.'}
+            </Text>
+
+            <Text style={styles.tapHint}>Tap for the AI compatibility snapshot</Text>
+        </>
+    ) : (
+        <>
+            {photoBlock}
 
             <View style={styles.cardHeader}>
                 <View style={styles.scorePill}>
@@ -1134,13 +1190,6 @@ function CandidateCard({
                         : ''}
                 </Text>
             </View>
-
-            {premiumHighlight ? (
-                <View style={[styles.premiumProfileTag, compact ? styles.premiumProfileTagCompact : null]}>
-                    <Text style={styles.premiumProfileTagText}>Premium profile</Text>
-                    <Text style={styles.premiumProfileTagReason}>{premiumHighlight}</Text>
-                </View>
-            ) : null}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null, { color: premiumNameColor }]}>{candidate.full_name}</Text>
@@ -1166,8 +1215,6 @@ function CandidateCard({
             {!compact && !condensed ? <Text style={styles.tapHint}>Tap for the AI compatibility snapshot</Text> : null}
         </>
     );
-
-    const isPremium = candidate.subscription_tier && candidate.subscription_tier !== 'free';
 
     if (onPress) {
         return (
@@ -1767,7 +1814,75 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
         width: '100%',
     },
     cardPhotoExpanded: {
-        height: 250,
+        height: 420,
+    },
+    photoWrap: {
+        borderRadius: 24,
+        overflow: 'hidden',
+        position: 'relative',
+        width: '100%',
+    },
+    photoTopRow: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        left: 14,
+        position: 'absolute',
+        right: 14,
+        top: 14,
+    },
+    photoLocationPill: {
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    photoLocationText: {
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    photoPremiumBadge: {
+        backgroundColor: 'rgba(255,194,75,0.95)',
+        borderRadius: 999,
+        left: 14,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        position: 'absolute',
+        top: 54,
+    },
+    photoPremiumBadgeText: {
+        color: '#3a2a00',
+        fontSize: 12,
+        fontWeight: '800',
+    },
+    photoOverlay: {
+        bottom: 0,
+        gap: 2,
+        justifyContent: 'flex-end',
+        left: 0,
+        paddingBottom: 16,
+        paddingHorizontal: 18,
+        paddingTop: 80,
+        position: 'absolute',
+        right: 0,
+    },
+    photoNameRow: {
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+    overlayName: {
+        color: '#ffffff',
+        fontSize: 30,
+        fontWeight: '800',
+        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 6,
+    },
+    overlayMeta: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 15,
+        fontWeight: '600',
     },
     cardPhotoCompact: {
         height: 170,
