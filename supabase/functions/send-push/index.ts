@@ -61,10 +61,23 @@ function getEnv() {
     return { supabaseUrl, serviceRoleKey };
 }
 
-/** Only accept calls that present the service-role key. */
-function isAuthorized(request: Request, serviceRoleKey: string): boolean {
+/** Only accept calls whose bearer token is a valid service_role JWT. */
+function isAuthorized(request: Request): boolean {
     const auth = request.headers.get('Authorization') ?? '';
-    return auth === `Bearer ${serviceRoleKey}`;
+    const token = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length) : '';
+    if (!token) return false;
+    try {
+        const payloadPart = token.split('.')[1];
+        if (!payloadPart) return false;
+        // base64url -> JSON. The Functions gateway already verified the signature
+        // is valid for this project, so a role check is sufficient here.
+        const padded = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+        const json = atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
+        const claims = JSON.parse(json) as { role?: string };
+        return claims.role === 'service_role';
+    } catch {
+        return false;
+    }
 }
 
 async function sendExpoBatch(messages: ExpoMessage[]): Promise<unknown> {
@@ -88,7 +101,7 @@ Deno.serve(async (request) => {
     try {
         const env = getEnv();
 
-        if (!isAuthorized(request, env.serviceRoleKey)) {
+        if (!isAuthorized(request)) {
             return json({ error: 'Unauthorized.' }, 401);
         }
 
