@@ -1095,6 +1095,10 @@ function CandidateCard({
     const fallbackInitial = getDisplayFirstName(candidate.full_name).slice(0, 1).toUpperCase() || '?';
     const premiumHighlight = getPremiumHighlightForCandidate(candidate);
 
+    // Premium cards keep the theme background; text uses theme colors for contrast.
+    const premiumNameColor = colors.textPrimary;
+    const premiumMetaColor = colors.textSecondary;
+
     const details = (
         <>
             {primaryPhotoUrl ? (
@@ -1139,12 +1143,12 @@ function CandidateCard({
             ) : null}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null, { color: colors.textPrimary }]}>{candidate.full_name}</Text>
+                <Text style={[styles.cardName, condensed ? styles.cardNameCompact : null, { color: premiumNameColor }]}>{candidate.full_name}</Text>
                 {candidate.subscription_tier && candidate.subscription_tier !== 'free' ? (
                     <Text style={{ fontSize: 16, marginLeft: 6, color: '#ffc24b', alignSelf: 'center' }}>👑</Text>
                 ) : null}
             </View>
-            <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>
+            <Text style={[styles.cardMeta, { color: premiumMetaColor }]}>
                 {candidate.gender}
                 {formatAge(candidate.dob) ? `, ${formatAge(candidate.dob)}` : ''}
                 {candidate.height_cm ? `, ${candidate.height_cm} cm` : ''}
@@ -1155,7 +1159,7 @@ function CandidateCard({
                 <FactPill label={candidate.preferences ? 'Preferences ready' : 'Preferences pending'} />
             </View>
 
-            <Text numberOfLines={compact ? 3 : expandedBioLines} style={[styles.cardBio, condensed ? styles.cardBioCompact : null, { color: colors.textSecondary }]}>
+            <Text numberOfLines={compact ? 3 : expandedBioLines} style={[styles.cardBio, condensed ? styles.cardBioCompact : null, { color: premiumMetaColor }]}>
                 {candidate.bio ?? 'No bio added yet.'}
             </Text>
 
@@ -1753,7 +1757,6 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     cardPressablePremium: {
         borderColor: '#ffc24b',
         borderWidth: 2.5,
-        backgroundColor: '#1a1830',
     },
     cardPressableCompact: {
         gap: 12,
