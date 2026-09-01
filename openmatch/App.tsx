@@ -9,7 +9,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { supabase } from './src/lib/supabase';
 import { trackEvent, setAnalyticsUser, clearAnalyticsUser } from './src/lib/analytics';
-import { fetchCurrentProfile } from './src/lib/profileApi';
+import { fetchCurrentProfile, isProfileOnboarded } from './src/lib/profileApi';
+import { registerPushToken, unregisterPushToken } from './src/lib/pushNotifications';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { GuestFeedScreen } from './src/screens/GuestFeedScreen';
 import { MainTabsScreen } from './src/screens/MainTabsScreen';
@@ -53,7 +54,7 @@ export default function App() {
         const profile = await fetchCurrentProfile(nextSession.user.id);
         console.log('[DEBUG] Profile fetched:', profile ? 'exists' : 'null');
         if (!isMounted) return;
-        setHasCompletedProfile(Boolean(profile?.onboarding_completed_at));
+        setHasCompletedProfile(isProfileOnboarded(profile));
         // Attach a readable username to analytics events (falls back to phone/email).
         void setAnalyticsUser(
           profile?.full_name || nextSession.user.phone || nextSession.user.email,

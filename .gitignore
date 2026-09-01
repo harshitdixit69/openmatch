@@ -31,3 +31,7 @@ web-build/
 # Ignore temporary AI/search files
 .tmp_*.json
 skills-lock.json
+
+# Firebase secrets - never commit
+openmatch-fadc7-firebase-adminsdk-*.json
+google-services.json

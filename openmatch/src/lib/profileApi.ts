@@ -127,6 +127,28 @@ export async function fetchCurrentProfile(userId?: string): Promise<ProfileRecor
     return fetchProfileByUserId(user.id, true);
 }
 
+/**
+ * Whether a profile should be treated as having finished onboarding.
+ *
+ * Historically we relied solely on `onboarding_completed_at`, but older
+ * accounts (created before that column was populated, or via paths that never
+ * stamped it) have a fully filled profile with a NULL timestamp. Those users
+ * were being pushed back through onboarding on every login. We now also treat a
+ * profile whose essential fields are present as onboarded.
+ */
+export function isProfileOnboarded(profile: ProfileRecord | null | undefined): boolean {
+    if (!profile) {
+        return false;
+    }
+    if (profile.onboarding_completed_at) {
+        return true;
+    }
+    const hasName = Boolean(profile.full_name && profile.full_name.trim());
+    const hasGender = Boolean(profile.gender);
+    const hasDob = Boolean(profile.dob);
+    return hasName && hasGender && hasDob;
+}
+
 export async function fetchCurrentProfileContactDetails(userId?: string): Promise<ProfileContactDetails | null> {
     // A candidate id is already known by the caller, so avoid an extra auth
     // request. The RPC validates auth.uid() server-side.
